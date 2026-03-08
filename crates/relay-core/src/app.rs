@@ -1,12 +1,12 @@
 use crate::adapters::CodexAdapter;
 use crate::models::{
-    AppSettings, DiagnosticsExport, DoctorReport, FailureEvent, LogTail, Profile, RelayError,
-    StatusReport, SwitchReport, UsageSnapshot,
+    AppSettings, CodexLinkResult, DiagnosticsExport, DoctorReport, FailureEvent, LogTail, Profile,
+    ProfileProbeIdentity, RelayError, StatusReport, SwitchReport, UsageSnapshot, UsageSourceMode,
 };
 use crate::platform::RelayPaths;
 use crate::services::{
-    diagnostics_service, doctor_service, events_service, policy_service, profile_service,
-    status_service, switch_service, usage_service,
+    codex_link_service, diagnostics_service, doctor_service, events_service, policy_service,
+    profile_service, status_service, switch_service, usage_service,
 };
 use crate::store::{
     AddProfileRecord, FileLogStore, FileStateStore, FileUsageStore, ProfileUpdateRecord,
@@ -47,6 +47,20 @@ pub struct RelayApp {
     log_store: FileLogStore,
     codex_adapter: CodexAdapter,
     bootstrap_mode: BootstrapMode,
+}
+
+#[derive(Debug, Clone)]
+pub struct CodexLoginRequest {
+    pub nickname: Option<String>,
+    pub priority: i32,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct UsageSettingsUpdateRequest {
+    pub source_mode: Option<UsageSourceMode>,
+    pub menu_open_refresh_stale_after_seconds: Option<i64>,
+    pub background_refresh_enabled: Option<bool>,
+    pub background_refresh_interval_seconds: Option<i64>,
 }
 
 impl RelayApp {
@@ -164,6 +178,36 @@ impl RelayApp {
         Ok(profile)
     }
 
+    pub fn login_codex_profile(
+        &self,
+        request: CodexLoginRequest,
+    ) -> Result<CodexLinkResult, RelayError> {
+        let result = codex_link_service::login_new_profile(
+            &self.store,
+            &self.codex_adapter,
+            &self.paths.profiles_dir,
+            request.nickname,
+            request.priority,
+        )?;
+        let _ = self.refresh_usage_profile(&result.profile.id);
+        self.log_store.append(
+            "info",
+            "profile.codex_logged_in",
+            format!("id={}", result.profile.id),
+        )?;
+        Ok(result)
+    }
+
+    pub fn relink_codex_profile(&self, id: &str) -> Result<ProfileProbeIdentity, RelayError> {
+        let profile = self.store.get_profile(id)?;
+        let identity =
+            codex_link_service::relink_profile(&self.store, &self.codex_adapter, &profile)?;
+        let _ = self.refresh_usage_profile(id);
+        self.log_store
+            .append("info", "profile.codex_relinked", format!("id={id}"))?;
+        Ok(identity)
+    }
+
     pub fn remove_profile(&self, id: &str) -> Result<Profile, RelayError> {
         let profile = profile_service::remove_profile(&self.store, id)?;
         if let Some(home) = profile.agent_home.as_ref() {
@@ -241,18 +285,107 @@ impl RelayApp {
 
     pub fn usage_report(&self) -> Result<UsageSnapshot, RelayError> {
         let active_state = self.state_store.load()?;
+        let settings = self.store.get_settings()?;
         let active_profile = active_state
             .active_profile_id
             .as_deref()
             .map(|profile_id| self.store.get_profile(profile_id))
             .transpose()?;
-        usage_service::build(
+        usage_service::build_active(
             &self.store,
             &self.usage_store,
             active_profile.as_ref(),
             self.codex_adapter.live_home(),
+            settings.usage_source_mode,
             self.bootstrap_mode == BootstrapMode::ReadWrite,
         )
+    }
+
+    pub fn profile_usage_report(&self, id: &str) -> Result<UsageSnapshot, RelayError> {
+        let profile = self.store.get_profile(id)?;
+        usage_service::load_profile_snapshot(&self.usage_store, &profile)
+    }
+
+    pub fn list_usage_reports(&self) -> Result<Vec<UsageSnapshot>, RelayError> {
+        let profiles = self.store.list_profiles()?;
+        usage_service::list_profile_snapshots(&self.usage_store, &profiles)
+    }
+
+    pub fn refresh_usage_profile(&self, id: &str) -> Result<UsageSnapshot, RelayError> {
+        let settings = self.store.get_settings()?;
+        let active_state = self.state_store.load()?;
+        let active_profile = active_state
+            .active_profile_id
+            .as_deref()
+            .map(|profile_id| self.store.get_profile(profile_id))
+            .transpose()?;
+        let profile = self.store.get_profile(id)?;
+        usage_service::refresh_profile(
+            &self.store,
+            &self.usage_store,
+            Some(&profile),
+            active_profile.as_ref(),
+            self.codex_adapter.live_home(),
+            settings.usage_source_mode,
+            self.bootstrap_mode == BootstrapMode::ReadWrite,
+        )
+    }
+
+    pub fn refresh_enabled_usage_reports(&self) -> Result<Vec<UsageSnapshot>, RelayError> {
+        let profiles = self.store.list_enabled_profiles()?;
+        self.refresh_usage_for_profiles(&profiles)
+    }
+
+    pub fn refresh_all_usage_reports(&self) -> Result<Vec<UsageSnapshot>, RelayError> {
+        let profiles = self.store.list_profiles()?;
+        self.refresh_usage_for_profiles(&profiles)
+    }
+
+    pub fn update_usage_settings(
+        &self,
+        request: UsageSettingsUpdateRequest,
+    ) -> Result<AppSettings, RelayError> {
+        if let Some(source_mode) = request.source_mode {
+            self.store.set_usage_source_mode(source_mode)?;
+        }
+        if let Some(seconds) = request.menu_open_refresh_stale_after_seconds {
+            self.store
+                .set_menu_open_refresh_stale_after_seconds(seconds)?;
+        }
+        if let Some(enabled) = request.background_refresh_enabled {
+            self.store.set_usage_background_refresh_enabled(enabled)?;
+        }
+        if let Some(seconds) = request.background_refresh_interval_seconds {
+            self.store
+                .set_usage_background_refresh_interval_seconds(seconds)?;
+        }
+        self.store.get_settings()
+    }
+
+    fn refresh_usage_for_profiles(
+        &self,
+        profiles: &[Profile],
+    ) -> Result<Vec<UsageSnapshot>, RelayError> {
+        let settings = self.store.get_settings()?;
+        let active_state = self.state_store.load()?;
+        let active_profile = active_state
+            .active_profile_id
+            .as_deref()
+            .map(|profile_id| self.store.get_profile(profile_id))
+            .transpose()?;
+        let mut snapshots = Vec::with_capacity(profiles.len());
+        for profile in profiles {
+            snapshots.push(usage_service::refresh_profile(
+                &self.store,
+                &self.usage_store,
+                Some(profile),
+                active_profile.as_ref(),
+                self.codex_adapter.live_home(),
+                settings.usage_source_mode.clone(),
+                self.bootstrap_mode == BootstrapMode::ReadWrite,
+            )?);
+        }
+        Ok(snapshots)
     }
 
     pub fn logs_tail(&self, lines: usize) -> Result<LogTail, RelayError> {

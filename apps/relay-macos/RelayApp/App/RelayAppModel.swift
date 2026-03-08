@@ -6,6 +6,7 @@ import Defaults
 public final class RelayAppModel: ObservableObject {
     @Published private(set) var status: StatusReport?
     @Published private(set) var usage: UsageSnapshot?
+    @Published private(set) var usageSnapshots: [UsageSnapshot] = []
     @Published private(set) var doctor: DoctorReport?
     @Published private(set) var profiles: [Profile] = []
     @Published private(set) var events: [FailureEvent] = []
@@ -15,12 +16,14 @@ public final class RelayAppModel: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var isSwitching = false
     @Published private(set) var isMutatingProfiles = false
+    @Published var selectedProfileID: String?
     @Published var lastErrorMessage: String?
     private let client = RelayCLIClient()
     private let notificationService = RelayNotificationService()
     private var pollTask: Task<Void, Never>?
 
     public init() {
+        selectedProfileID = Defaults[.selectedProfileID]
         Task {
             await notificationService.requestAuthorizationIfNeeded()
             await refresh()
@@ -58,8 +61,31 @@ public final class RelayAppModel: ObservableObject {
         return profiles.first { $0.id == activeProfileID }
     }
 
+    var selectedProfile: Profile? {
+        guard let selectedProfileID else {
+            return activeProfile ?? profiles.first
+        }
+        return profiles.first { $0.id == selectedProfileID } ?? activeProfile ?? profiles.first
+    }
+
+    var selectedUsage: UsageSnapshot? {
+        guard let profileID = selectedProfile?.id else {
+            return usage
+        }
+        return usageSnapshot(for: profileID)
+    }
+
     var autoSwitchEnabled: Bool {
         status?.settings.autoSwitchEnabled ?? false
+    }
+
+    func usageSnapshot(for profileID: String) -> UsageSnapshot? {
+        usageSnapshots.first { $0.profileID == profileID }
+    }
+
+    func selectProfile(_ profileID: String?) {
+        selectedProfileID = profileID
+        Defaults[.selectedProfileID] = profileID
     }
 
     func refresh(notifyOnFailure: Bool = false) async {
@@ -75,6 +101,7 @@ public final class RelayAppModel: ObservableObject {
         do {
             async let statusTask = client.fetchStatus()
             async let usageTask = client.fetchUsage()
+            async let usageListTask = client.fetchUsageList()
             async let doctorTask = client.fetchDoctor()
             async let profilesTask = client.fetchProfiles()
             async let eventsTask = client.fetchEvents(limit: 10)
@@ -82,13 +109,12 @@ public final class RelayAppModel: ObservableObject {
 
             status = try await statusTask
             usage = try await usageTask
+            usageSnapshots = try await usageListTask
             doctor = try await doctorTask
             profiles = try await profilesTask
             events = try await eventsTask
             logTail = try await logsTask
-            if Defaults[.selectedProfileID] == nil {
-                Defaults[.selectedProfileID] = profiles.first?.id
-            }
+            normalizeSelection()
             lastRefresh = Date()
             lastErrorMessage = nil
         } catch {
@@ -114,7 +140,7 @@ public final class RelayAppModel: ObservableObject {
 
         do {
             let report = try await client.switchToProfile(profileID)
-            Defaults[.selectedProfileID] = profileID
+            selectProfile(profileID)
             await refresh()
             await notificationService.post(
                 title: "Relay switched profile",
@@ -140,6 +166,80 @@ public final class RelayAppModel: ObservableObject {
                 body: error.localizedDescription
             )
         }
+    }
+
+    func setUsageSourceMode(_ mode: UsageSourceMode) async {
+        await updateUsageSettings(
+            UsageSettingsDraft(
+                sourceMode: mode,
+                menuOpenRefreshStaleAfterSeconds: nil,
+                backgroundRefreshEnabled: nil,
+                backgroundRefreshIntervalSeconds: nil
+            )
+        )
+    }
+
+    func setMenuOpenRefreshStaleAfterSeconds(_ seconds: Int) async {
+        await updateUsageSettings(
+            UsageSettingsDraft(
+                sourceMode: nil,
+                menuOpenRefreshStaleAfterSeconds: seconds,
+                backgroundRefreshEnabled: nil,
+                backgroundRefreshIntervalSeconds: nil
+            )
+        )
+    }
+
+    func setBackgroundRefreshEnabled(_ enabled: Bool) async {
+        await updateUsageSettings(
+            UsageSettingsDraft(
+                sourceMode: nil,
+                menuOpenRefreshStaleAfterSeconds: nil,
+                backgroundRefreshEnabled: enabled,
+                backgroundRefreshIntervalSeconds: nil
+            )
+        )
+    }
+
+    func setBackgroundRefreshIntervalSeconds(_ seconds: Int) async {
+        await updateUsageSettings(
+            UsageSettingsDraft(
+                sourceMode: nil,
+                menuOpenRefreshStaleAfterSeconds: nil,
+                backgroundRefreshEnabled: nil,
+                backgroundRefreshIntervalSeconds: seconds
+            )
+        )
+    }
+
+    func refreshUsage(profileID: String) async {
+        do {
+            let snapshot = try await client.refreshUsage(profileID: profileID)
+            mergeUsageSnapshot(snapshot)
+            await refresh()
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshEnabledUsage() async {
+        do {
+            let snapshots = try await client.refreshEnabledUsage()
+            for snapshot in snapshots {
+                mergeUsageSnapshot(snapshot)
+            }
+            await refresh()
+        } catch {
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    func refreshForMenuOpen() async {
+        await refresh()
+        guard shouldRefreshUsageOnMenuOpen else {
+            return
+        }
+        await refreshEnabledUsage()
     }
 
     func setProfileEnabled(_ profileID: String, enabled: Bool) async {
@@ -168,7 +268,44 @@ public final class RelayAppModel: ObservableObject {
 
     func importCodexProfile(nickname: String?, priority: Int) async {
         await performProfileMutation { [self] in
-            _ = try await self.client.importCodexProfile(nickname: nickname, priority: priority)
+            let profile = try await self.client.importCodexProfile(nickname: nickname, priority: priority)
+            await MainActor.run {
+                self.selectProfile(profile.id)
+            }
+        }
+    }
+
+    func loginCodexProfile(nickname: String?, priority: Int) async {
+        guard !isMutatingProfiles else {
+            return
+        }
+
+        isMutatingProfiles = true
+        defer {
+            isMutatingProfiles = false
+        }
+
+        do {
+            let result = try await client.loginCodexProfile(nickname: nickname, priority: priority)
+            selectProfile(result.profile.id)
+            await refresh()
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = error.localizedDescription
+            await notificationService.post(
+                title: "Relay profile update failed",
+                body: error.localizedDescription
+            )
+        }
+    }
+
+    func addCodexAccount(priority: Int) async {
+        await loginCodexProfile(nickname: nil, priority: priority)
+    }
+
+    func relinkCodexProfile(profileID: String) async {
+        await performProfileMutation { [self] in
+            _ = try await self.client.relinkCodexProfile(profileID: profileID)
         }
     }
 
@@ -217,12 +354,72 @@ public final class RelayAppModel: ObservableObject {
 
         pollTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(15))
                 guard let self else {
                     break
                 }
-                await self.refresh()
+                let interval = max(
+                    self.status?.settings.usageBackgroundRefreshIntervalSeconds ?? 120,
+                    15
+                )
+                try? await Task.sleep(for: .seconds(interval))
+                guard self.status?.settings.usageBackgroundRefreshEnabled ?? true else {
+                    continue
+                }
+                await self.refreshEnabledUsage()
             }
         }
+    }
+
+    private func updateUsageSettings(_ draft: UsageSettingsDraft) async {
+        do {
+            _ = try await client.setUsageSettings(draft)
+            await refresh()
+        } catch {
+            lastErrorMessage = error.localizedDescription
+            await notificationService.post(
+                title: "Relay usage settings update failed",
+                body: error.localizedDescription
+            )
+        }
+    }
+
+    private func normalizeSelection() {
+        if let selectedProfileID, profiles.contains(where: { $0.id == selectedProfileID }) {
+            return
+        }
+        selectProfile(activeProfileID ?? profiles.first?.id)
+    }
+
+    private func mergeUsageSnapshot(_ snapshot: UsageSnapshot) {
+        if let profileID = snapshot.profileID,
+            let index = usageSnapshots.firstIndex(where: { $0.profileID == profileID })
+        {
+            usageSnapshots[index] = snapshot
+        } else {
+            usageSnapshots.append(snapshot)
+        }
+
+        if snapshot.profileID == activeProfileID {
+            usage = snapshot
+        }
+    }
+
+    private var shouldRefreshUsageOnMenuOpen: Bool {
+        guard let settings = status?.settings else {
+            return true
+        }
+        let threshold = TimeInterval(max(settings.menuOpenRefreshStaleAfterSeconds, 0))
+        let now = Date()
+        return profiles
+            .filter(\.enabled)
+            .contains { profile in
+                guard let snapshot = usageSnapshot(for: profile.id) else {
+                    return true
+                }
+                if snapshot.message == "usage not fetched yet" {
+                    return true
+                }
+                return now.timeIntervalSince(snapshot.lastRefreshedAt) >= threshold
+            }
     }
 }

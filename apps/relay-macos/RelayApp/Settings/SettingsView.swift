@@ -5,9 +5,8 @@ import SwiftUI
 public struct SettingsView: View {
     @ObservedObject var model: RelayAppModel
     @Default(.selectedSettingsSection) private var selectedSectionRaw
-    @Default(.selectedProfileID) private var selectedProfileID
     @State private var showingAddSheet = false
-    @State private var showingImportSheet = false
+    @State private var showingLoginSheet = false
     @State private var editingProfile: Profile?
     @State private var deletingProfile: Profile?
 
@@ -34,10 +33,13 @@ public struct SettingsView: View {
                 await model.addProfile(draft)
             }
         }
-        .sheet(isPresented: $showingImportSheet) {
-            ImportCodexSheet { nickname, priority in
-                await model.importCodexProfile(nickname: nickname, priority: priority)
-            }
+        .sheet(isPresented: $showingLoginSheet) {
+            AddAccountSheet(
+                isBusy: model.isMutatingProfiles,
+                onContinue: { priority in
+                    await model.addCodexAccount(priority: priority)
+                }
+            )
         }
         .sheet(item: $editingProfile) { profile in
             ProfileEditorSheet(
@@ -115,6 +117,65 @@ public struct SettingsView: View {
                 LaunchAtLogin.Toggle("Launch at login")
             }
 
+            Section("Usage") {
+                Picker(
+                    "Usage source",
+                    selection: Binding(
+                        get: { model.status?.settings.usageSourceMode ?? .auto },
+                        set: { mode in
+                            Task {
+                                await model.setUsageSourceMode(mode)
+                            }
+                        }
+                    )
+                ) {
+                    ForEach(UsageSourceMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+
+                Stepper(
+                    value: Binding(
+                        get: { model.status?.settings.menuOpenRefreshStaleAfterSeconds ?? 10 },
+                        set: { value in
+                            Task {
+                                await model.setMenuOpenRefreshStaleAfterSeconds(value)
+                            }
+                        }
+                    ),
+                    in: 1...60
+                ) {
+                    Text("Menu-open debounce: \(model.status?.settings.menuOpenRefreshStaleAfterSeconds ?? 10)s")
+                }
+
+                Toggle(
+                    "Background usage refresh",
+                    isOn: Binding(
+                        get: { model.status?.settings.usageBackgroundRefreshEnabled ?? true },
+                        set: { enabled in
+                            Task {
+                                await model.setBackgroundRefreshEnabled(enabled)
+                            }
+                        }
+                    )
+                )
+
+                Stepper(
+                    value: Binding(
+                        get: { model.status?.settings.usageBackgroundRefreshIntervalSeconds ?? 120 },
+                        set: { value in
+                            Task {
+                                await model.setBackgroundRefreshIntervalSeconds(value)
+                            }
+                        }
+                    ),
+                    in: 30...3600,
+                    step: 30
+                ) {
+                    Text("Background interval: \(model.status?.settings.usageBackgroundRefreshIntervalSeconds ?? 120)s")
+                }
+            }
+
             if let error = model.lastErrorMessage {
                 Section("Last Error") {
                     Text(error)
@@ -136,8 +197,15 @@ public struct SettingsView: View {
     private var profilesSidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                Button("Import Live Codex") {
-                    showingImportSheet = true
+                Button("Add Account") {
+                    showingLoginSheet = true
+                }
+                .disabled(model.isMutatingProfiles)
+
+                Button("Import Current Live") {
+                    Task {
+                        await model.importCodexProfile(nickname: nil, priority: 100)
+                    }
                 }
                 .disabled(model.isMutatingProfiles)
 
@@ -148,7 +216,14 @@ public struct SettingsView: View {
                 .disabled(model.isMutatingProfiles)
             }
 
-            List(selection: $selectedProfileID) {
+            List(
+                selection: Binding(
+                    get: { model.selectedProfileID },
+                    set: { value in
+                        model.selectProfile(value)
+                    }
+                )
+            ) {
                 ForEach(model.profiles) { profile in
                     HStack(alignment: .top, spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
@@ -199,6 +274,42 @@ public struct SettingsView: View {
                     Section("Paths") {
                         LabeledContent("Agent Home", value: profile.agentHome ?? "-")
                         LabeledContent("Config Path", value: profile.configPath ?? "-")
+                    }
+
+                    Section("Usage") {
+                        if let usage = model.usageSnapshot(for: profile.id) {
+                            LabeledContent("Source", value: usage.source.rawValue)
+                            LabeledContent("Confidence", value: usage.confidence.rawValue)
+                            LabeledContent(
+                                "Session",
+                                value: usage.session.usedPercent.map { String(format: "%.0f%%", $0) } ?? usage.session.status.rawValue
+                            )
+                            LabeledContent(
+                                "Weekly",
+                                value: usage.weekly.usedPercent.map { String(format: "%.0f%%", $0) } ?? usage.weekly.status.rawValue
+                            )
+                            LabeledContent("Updated", value: usage.lastRefreshedAt.formatted())
+                            if let message = usage.message {
+                                Text(message)
+                                    .foregroundStyle(usage.stale ? .orange : .secondary)
+                            }
+                        } else {
+                            Text("Usage data unavailable.")
+                                .foregroundStyle(.secondary)
+                        }
+
+                        Button("Refresh Usage") {
+                            Task {
+                                await model.refreshUsage(profileID: profile.id)
+                            }
+                        }
+
+                        Button("Use Current Live Account") {
+                            Task {
+                                await model.relinkCodexProfile(profileID: profile.id)
+                            }
+                        }
+                        .help("Copy the current live Codex account into this profile.")
                     }
 
                     Section("Actions") {
@@ -320,7 +431,7 @@ public struct SettingsView: View {
     }
 
     private var selectedProfile: Profile? {
-        if let selectedProfileID {
+        if let selectedProfileID = model.selectedProfileID {
             return model.profiles.first { $0.id == selectedProfileID }
         }
         return model.profiles.first
@@ -455,22 +566,28 @@ private struct ProfileEditorSheet: View {
     }
 }
 
-private struct ImportCodexSheet: View {
-    let onImport: @MainActor (String?, Int) async -> Void
+private struct AddAccountSheet: View {
+    let isBusy: Bool
+    let onContinue: @MainActor (Int) async -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var nickname = ""
     @State private var priority = 100
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("Import Live Codex")
+            Text("Add Account")
                 .font(.title3.weight(.semibold))
 
             Form {
-                Section("Import") {
-                    TextField("Nickname (optional)", text: $nickname)
+                Section("Profile") {
                     Stepper("Priority: \(priority)", value: $priority, in: 0...10_000)
+                }
+
+                Section("Flow") {
+                    Text("Relay will start `codex login`, let Codex open the browser sign-in flow, then import the signed-in account automatically.")
+                        .foregroundStyle(.secondary)
+                    Text("The default nickname will be the account email. You can rename it later.")
+                        .foregroundStyle(.secondary)
                 }
             }
             .formStyle(.grouped)
@@ -482,17 +599,17 @@ private struct ImportCodexSheet: View {
                     dismiss()
                 }
 
-                Button("Import") {
+                Button("Continue") {
                     Task {
-                        let trimmed = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-                        await onImport(trimmed.isEmpty ? nil : trimmed, priority)
+                        await onContinue(priority)
                         dismiss()
                     }
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(isBusy)
             }
         }
         .padding(24)
-        .frame(width: 460)
+        .frame(width: 560)
     }
 }
