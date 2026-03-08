@@ -66,18 +66,15 @@ final class RelayCLIClientTests: XCTestCase {
         XCTAssertFalse(settings.usageBackgroundRefreshEnabled)
     }
 
-    func testLoginAndRelinkCodexCommandsUseJSON() async throws {
+    func testLoginCodexCommandUsesJSON() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
 
         let client = RelayCLIClient(relayCLIPathOverride: fixture.scriptPath, environment: [:])
         let link = try await client.loginCodexProfile(nickname: "browser", priority: 90)
-        let identity = try await client.relinkCodexProfile(profileID: "p_browser")
 
         XCTAssertEqual(link.profile.id, "p_browser")
         XCTAssertEqual(link.probeIdentity.accountID, "acct-123")
-        XCTAssertEqual(identity.profileID, "p_browser")
-        XCTAssertEqual(identity.accountID, "acct-123")
     }
 }
 

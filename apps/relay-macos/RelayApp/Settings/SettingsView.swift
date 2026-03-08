@@ -303,13 +303,6 @@ public struct SettingsView: View {
                                 await model.refreshUsage(profileID: profile.id)
                             }
                         }
-
-                        Button("Use Current Live Account") {
-                            Task {
-                                await model.relinkCodexProfile(profileID: profile.id)
-                            }
-                        }
-                        .help("Copy the current live Codex account into this profile.")
                     }
 
                     Section("Actions") {
