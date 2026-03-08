@@ -44,6 +44,8 @@ Do not reintroduce tiny crates for `types`, `store`, `platform`, or `adapters` u
 - All live config mutations must be transactional and recoverable.
 - Read-only CLI commands should avoid unnecessary filesystem or database writes when possible.
 - Do not modify project-local `.codex/`; V1 only works on user-level Codex state.
+- Keep shared infrastructure agent-agnostic where practical. Transport, caching, refresh coordination, and persistence plumbing should not be hardwired to `Codex` if they can cleanly live behind adapters/providers.
+- Keep agent-specific protocols, endpoints, auth formats, and file semantics at the adapter/provider edge instead of leaking them into generic models or control-flow layers.
 
 ## Product Constraints
 
@@ -112,6 +114,7 @@ RELAY_HOME=/tmp/relay-smoke cargo run -p relay-cli --bin relay -- status --json
 - Keep `models` stable because CLI JSON and future UI will depend on them.
 - Put persistence details behind `store`.
 - Keep agent-specific validation and activation behavior in `adapters`.
+- When adding a new integration, first ask whether the new code belongs in a reusable transport/provider utility or in an agent-specific adapter. Default to the narrower boundary.
 - Add tests for new store logic and service behavior.
 - For UI/CLI protocol changes, add Swift-side decoding or client tests as needed.
 - Use temp directories for tests touching filesystem state.

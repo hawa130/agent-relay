@@ -18,7 +18,11 @@ final class ModelDecodingTests: XCTestCase {
           },
           "settings": {
             "auto_switch_enabled": true,
-            "cooldown_seconds": 600
+            "cooldown_seconds": 600,
+            "usage_source_mode": "Auto",
+            "menu_open_refresh_stale_after_seconds": 10,
+            "usage_background_refresh_enabled": true,
+            "usage_background_refresh_interval_seconds": 120
           }
         }
         """.data(using: .utf8)!
@@ -29,6 +33,7 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(report.activeState.activeProfileID, "p_active")
         XCTAssertEqual(report.activeState.lastSwitchResult, .success)
         XCTAssertTrue(report.activeState.autoSwitchEnabled)
+        XCTAssertEqual(report.settings.usageSourceMode, .auto)
     }
 
     func testProfileDecodesLegacyCodexHomeKey() throws {
@@ -107,5 +112,53 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(snapshot.profileID, "p_usage")
         XCTAssertEqual(snapshot.source, .local)
         XCTAssertEqual(snapshot.confidence, .high)
+    }
+
+    func testAppSettingsDecodeNewUsageFieldsWithDefaults() throws {
+        let json = """
+        {
+          "auto_switch_enabled": false,
+          "cooldown_seconds": 600
+        }
+        """.data(using: .utf8)!
+
+        let settings = try JSONDecoder.relayDecoder.decode(AppSettings.self, from: json)
+
+        XCTAssertEqual(settings.usageSourceMode, .auto)
+        XCTAssertEqual(settings.menuOpenRefreshStaleAfterSeconds, 10)
+        XCTAssertTrue(settings.usageBackgroundRefreshEnabled)
+        XCTAssertEqual(settings.usageBackgroundRefreshIntervalSeconds, 120)
+    }
+
+    func testCodexLinkResultDecodesProbeIdentity() throws {
+        let json = """
+        {
+          "profile": {
+            "id": "p_browser",
+            "nickname": "browser",
+            "agent": "Codex",
+            "priority": 90,
+            "enabled": true,
+            "agent_home": "/tmp/browser-home",
+            "config_path": "/tmp/browser-home/config.toml",
+            "auth_mode": "ConfigFilesystem",
+            "created_at": "2026-03-08T12:27:12Z",
+            "updated_at": "2026-03-08T12:27:12Z"
+          },
+          "probe_identity": {
+            "profile_id": "p_browser",
+            "account_id": "acct-123",
+            "email": "browser@example.com",
+            "plan_hint": "team"
+          },
+          "activated": false
+        }
+        """.data(using: .utf8)!
+
+        let result = try JSONDecoder.relayDecoder.decode(CodexLinkResult.self, from: json)
+
+        XCTAssertEqual(result.profile.id, "p_browser")
+        XCTAssertEqual(result.probeIdentity.accountID, "acct-123")
+        XCTAssertFalse(result.activated)
     }
 }

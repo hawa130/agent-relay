@@ -23,11 +23,36 @@ fn make_codex_home(path: &Path, label: &str) {
     .expect("usage session");
 }
 
+fn write_oauth_auth(path: &Path, account_id: &str, email: &str) {
+    let payload = match email {
+        "imported@example.com" => "eyJlbWFpbCI6ImltcG9ydGVkQGV4YW1wbGUuY29tIn0",
+        "live@example.com" => "eyJlbWFpbCI6ImxpdmVAZXhhbXBsZS5jb20ifQ",
+        _ => "eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ",
+    };
+    fs::write(
+        path.join("auth.json"),
+        format!(
+            "{{\"auth_mode\":\"oauth\",\"tokens\":{{\"access_token\":\"access-{account_id}\",\"refresh_token\":\"refresh-{account_id}\",\"id_token\":\"eyJhbGciOiJub25lIn0.{payload}.\",\"account_id\":\"{account_id}\"}}}}"
+        ),
+    )
+    .expect("oauth auth");
+}
+
 fn run_json(relay_home: &Path, codex_home: &Path, args: &[&str]) -> Value {
+    run_json_with_env(relay_home, codex_home, args, &[])
+}
+
+fn run_json_with_env(
+    relay_home: &Path,
+    codex_home: &Path,
+    args: &[&str],
+    envs: &[(&str, &str)],
+) -> Value {
     let output = Command::new(relay_bin())
         .args(args)
         .env("RELAY_HOME", relay_home)
         .env("CODEX_HOME", codex_home)
+        .envs(envs.iter().copied())
         .output()
         .expect("command output");
     assert!(
@@ -60,10 +85,21 @@ fn run_failure_raw(relay_home: &Path, codex_home: &Path, args: &[&str]) -> std::
 }
 
 fn run_json_with_stdin(relay_home: &Path, codex_home: &Path, args: &[&str], stdin: &str) -> Value {
+    run_json_with_stdin_env(relay_home, codex_home, args, stdin, &[])
+}
+
+fn run_json_with_stdin_env(
+    relay_home: &Path,
+    codex_home: &Path,
+    args: &[&str],
+    stdin: &str,
+    envs: &[(&str, &str)],
+) -> Value {
     let mut child = Command::new(relay_bin())
         .args(args)
         .env("RELAY_HOME", relay_home)
         .env("CODEX_HOME", codex_home)
+        .envs(envs.iter().copied())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -84,6 +120,37 @@ fn run_json_with_stdin(relay_home: &Path, codex_home: &Path, args: &[&str], stdi
         String::from_utf8_lossy(&output.stderr)
     );
     serde_json::from_slice(&output.stdout).expect("json output")
+}
+
+fn make_fake_bin(root: &Path) -> std::path::PathBuf {
+    let bin_dir = root.join("bin");
+    fs::create_dir_all(&bin_dir).expect("bin dir");
+    fs::write(
+        bin_dir.join("codex"),
+        r#"#!/bin/sh
+set -eu
+if [ "${1:-}" = "login" ]; then
+  mkdir -p "${CODEX_HOME:?}"
+  cat > "${CODEX_HOME}/auth.json" <<'EOF'
+{"tokens":{"access_token":"access-token","refresh_token":"refresh-token","id_token":"id-token","account_id":"acct-123"}}
+EOF
+  exit 0
+fi
+if [ "${1:-}" = "--version" ]; then
+  echo "codex-cli 0.107.0"
+  exit 0
+fi
+exit 0
+"#,
+    )
+    .expect("codex stub");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(bin_dir.join("codex"), fs::Permissions::from_mode(0o755))
+            .expect("codex perms");
+    }
+    bin_dir
 }
 
 #[test]
@@ -260,6 +327,174 @@ fn import_switch_events_logs_and_diagnostics_work() {
         .as_str()
         .expect("archive path");
     assert!(Path::new(archive_path).exists());
+}
+
+#[test]
+fn import_codex_defaults_nickname_to_live_email() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+    write_oauth_auth(&live_codex_home, "acct-imported", "imported@example.com");
+
+    let imported = run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "profiles", "import-codex"],
+    );
+
+    assert_eq!(imported["data"]["nickname"], "imported@example.com");
+}
+
+#[test]
+fn usage_profile_list_refresh_and_config_work() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let alternate_home = temp.path().join("alternate");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&alternate_home, "alternate");
+
+    let imported = run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "profiles", "import-codex", "--nickname", "live"],
+    );
+    let active_id = imported["data"]["id"]
+        .as_str()
+        .expect("active id")
+        .to_string();
+    let added = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "profiles",
+            "add",
+            "--nickname",
+            "alternate",
+            "--codex-home",
+            alternate_home.to_string_lossy().as_ref(),
+        ],
+    );
+    let alternate_id = added["data"]["id"]
+        .as_str()
+        .expect("alternate id")
+        .to_string();
+
+    let refreshed = run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "usage", "refresh", &alternate_id],
+    );
+    assert_eq!(refreshed["data"]["profile_id"], alternate_id);
+
+    let profile_usage = run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "usage", "profile", &alternate_id],
+    );
+    assert_eq!(profile_usage["data"]["profile_id"], alternate_id);
+    assert_eq!(profile_usage["data"]["session"]["used_percent"], 41.0);
+
+    let list = run_json(&relay_home, &live_codex_home, &["--json", "usage", "list"]);
+    let items = list["data"].as_array().expect("usage array");
+    assert_eq!(items.len(), 2);
+    assert!(items.iter().any(|item| item["profile_id"] == active_id));
+    assert!(items.iter().any(|item| item["profile_id"] == alternate_id));
+
+    let updated_settings = run_json_with_stdin(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "usage", "config", "set", "--input-json", "-"],
+        r#"{
+            "source_mode":"web-enhanced",
+            "menu_open_refresh_stale_after_seconds":5,
+            "background_refresh_enabled":false,
+            "background_refresh_interval_seconds":300
+        }"#,
+    );
+    assert_eq!(updated_settings["data"]["usage_source_mode"], "WebEnhanced");
+    assert_eq!(
+        updated_settings["data"]["menu_open_refresh_stale_after_seconds"],
+        5
+    );
+    assert_eq!(
+        updated_settings["data"]["usage_background_refresh_enabled"],
+        false
+    );
+    assert_eq!(
+        updated_settings["data"]["usage_background_refresh_interval_seconds"],
+        300
+    );
+}
+
+#[test]
+fn codex_login_and_remote_usage_probe_work() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let fake_bin = make_fake_bin(temp.path());
+    let usage_fixture = temp.path().join("official-usage.json");
+    let refresh_fixture = temp.path().join("official-refresh.json");
+    make_codex_home(&live_codex_home, "live");
+    fs::write(
+        &usage_fixture,
+        r#"{"plan_type":"team","rate_limit":{"primary_window":{"used_percent":18.0,"limit_window_seconds":18000,"reset_after_seconds":2700},"secondary_window":{"used_percent":28.0,"limit_window_seconds":604800,"reset_after_seconds":302400}}}"#,
+    )
+    .expect("usage fixture");
+    fs::write(
+        &refresh_fixture,
+        r#"{"access_token":"new-access-token","refresh_token":"new-refresh-token","id_token":"new-id-token"}"#,
+    )
+    .expect("refresh fixture");
+    let path_env = std::env::join_paths(
+        [fake_bin.as_path(), Path::new("/usr/bin"), Path::new("/bin")].into_iter(),
+    )
+    .expect("path env");
+    let path_env_owned = path_env.to_string_lossy().into_owned();
+    let usage_url = format!("file://{}", usage_fixture.display());
+    let refresh_url = format!("file://{}", refresh_fixture.display());
+    let envs = [
+        ("PATH", path_env_owned.as_str()),
+        ("RELAY_OFFICIAL_USAGE_URL", usage_url.as_str()),
+        ("RELAY_OFFICIAL_REFRESH_URL", refresh_url.as_str()),
+    ];
+
+    let logged_in = run_json_with_env(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "profiles", "login-codex", "--nickname", "browser"],
+        &envs,
+    );
+    let profile_id = logged_in["data"]["profile"]["id"]
+        .as_str()
+        .expect("profile id")
+        .to_string();
+    assert_eq!(
+        logged_in["data"]["probe_identity"]["account_id"],
+        "acct-123"
+    );
+
+    let refreshed = run_json_with_env(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "usage", "refresh", &profile_id],
+        &envs,
+    );
+    assert_eq!(refreshed["data"]["source"], "WebEnhanced");
+    assert_eq!(refreshed["data"]["session"]["used_percent"], 18.0);
+    assert_eq!(refreshed["data"]["weekly"]["used_percent"], 28.0);
+
+    write_oauth_auth(&live_codex_home, "acct-live", "live@example.com");
+    let relinked = run_json_with_env(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "profiles", "relink-codex", &profile_id],
+        &envs,
+    );
+    assert_eq!(relinked["data"]["account_id"], "acct-live");
+    assert_eq!(relinked["data"]["email"], "live@example.com");
 }
 
 #[test]
