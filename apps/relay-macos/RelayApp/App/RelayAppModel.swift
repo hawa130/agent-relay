@@ -303,12 +303,6 @@ public final class RelayAppModel: ObservableObject {
         await loginCodexProfile(nickname: nil, priority: priority)
     }
 
-    func relinkCodexProfile(profileID: String) async {
-        await performProfileMutation { [self] in
-            _ = try await self.client.relinkCodexProfile(profileID: profileID)
-        }
-    }
-
     func exportDiagnostics() async {
         do {
             diagnosticsExport = try await client.exportDiagnostics()

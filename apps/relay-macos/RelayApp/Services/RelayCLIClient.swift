@@ -114,14 +114,6 @@ struct RelayCLIClient {
         )
     }
 
-    func relinkCodexProfile(profileID: String) async throws -> ProfileProbeIdentity {
-        try await run(
-            ["profiles", "relink-codex", "--input-json", "-"],
-            input: ProfileIDPayload(id: profileID),
-            as: ProfileProbeIdentity.self
-        )
-    }
-
     func switchToProfile(_ profileID: String) async throws -> SwitchReport {
         try await run(
             ["switch", "--input-json", "-"],
