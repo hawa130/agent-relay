@@ -504,16 +504,6 @@ struct ProfileDraft: Sendable {
     var clearAgentHome: Bool
     var clearConfigPath: Bool
 
-    static let empty = ProfileDraft(
-        nickname: "",
-        priority: 100,
-        agentHome: "",
-        configPath: "",
-        authMode: .configFilesystem,
-        clearAgentHome: false,
-        clearConfigPath: false
-    )
-
     init(
         nickname: String,
         priority: Int,
@@ -540,22 +530,6 @@ struct ProfileDraft: Sendable {
         self.authMode = profile.authMode
         self.clearAgentHome = false
         self.clearConfigPath = false
-    }
-}
-
-struct AddProfilePayload: Encodable, Sendable {
-    let nickname: String
-    let priority: Int
-    let agentHome: String?
-    let configPath: String?
-    let authMode: AuthMode
-
-    init(draft: ProfileDraft) {
-        nickname = draft.nickname
-        priority = draft.priority
-        agentHome = draft.agentHome.isEmpty ? nil : draft.agentHome
-        configPath = draft.configPath.isEmpty ? nil : draft.configPath
-        authMode = draft.authMode
     }
 }
 
