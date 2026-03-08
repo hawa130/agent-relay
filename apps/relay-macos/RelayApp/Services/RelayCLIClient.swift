@@ -24,6 +24,50 @@ struct RelayCLIClient {
         try await run(["usage"], as: UsageSnapshot.self)
     }
 
+    func fetchUsage(profileID: String) async throws -> UsageSnapshot {
+        try await run(
+            ["usage", "profile", "--input-json", "-"],
+            input: ProfileIDPayload(id: profileID),
+            as: UsageSnapshot.self
+        )
+    }
+
+    func fetchUsageList() async throws -> [UsageSnapshot] {
+        try await run(["usage", "list"], as: [UsageSnapshot].self)
+    }
+
+    func refreshUsage(profileID: String) async throws -> UsageSnapshot {
+        try await run(
+            ["usage", "refresh", "--input-json", "-"],
+            input: UsageRefreshPayload(id: profileID, enabled: false, all: false),
+            as: UsageSnapshot.self
+        )
+    }
+
+    func refreshEnabledUsage() async throws -> [UsageSnapshot] {
+        try await run(
+            ["usage", "refresh", "--input-json", "-"],
+            input: UsageRefreshPayload(id: nil, enabled: true, all: false),
+            as: [UsageSnapshot].self
+        )
+    }
+
+    func refreshAllUsage() async throws -> [UsageSnapshot] {
+        try await run(
+            ["usage", "refresh", "--input-json", "-"],
+            input: UsageRefreshPayload(id: nil, enabled: false, all: true),
+            as: [UsageSnapshot].self
+        )
+    }
+
+    func setUsageSettings(_ draft: UsageSettingsDraft) async throws -> AppSettings {
+        try await run(
+            ["usage", "config", "set", "--input-json", "-"],
+            input: draft,
+            as: AppSettings.self
+        )
+    }
+
     func fetchProfiles() async throws -> [Profile] {
         try await run(["profiles", "list"], as: [Profile].self)
     }
@@ -59,6 +103,22 @@ struct RelayCLIClient {
             ["profiles", "import-codex", "--input-json", "-"],
             input: ImportCodexPayload(nickname: nickname, priority: priority),
             as: Profile.self
+        )
+    }
+
+    func loginCodexProfile(nickname: String?, priority: Int) async throws -> CodexLinkResult {
+        try await run(
+            ["profiles", "login-codex", "--input-json", "-"],
+            input: LoginCodexPayload(nickname: nickname, priority: priority),
+            as: CodexLinkResult.self
+        )
+    }
+
+    func relinkCodexProfile(profileID: String) async throws -> ProfileProbeIdentity {
+        try await run(
+            ["profiles", "relink-codex", "--input-json", "-"],
+            input: ProfileIDPayload(id: profileID),
+            as: ProfileProbeIdentity.self
         )
     }
 
@@ -328,106 +388,6 @@ private final class LockedDataBuffer: @unchecked Sendable {
         defer { lock.unlock() }
         return data
     }
-}
-
-private struct AddProfilePayload: Encodable {
-    let nickname: String
-    let priority: Int
-    let agentHome: String?
-    let configPath: String?
-    let authMode: AuthMode
-
-    init(draft: ProfileDraft) {
-        nickname = draft.nickname
-        priority = draft.priority
-        agentHome = draft.agentHome.isEmpty ? nil : draft.agentHome
-        configPath = draft.configPath.isEmpty ? nil : draft.configPath
-        authMode = draft.authMode
-    }
-}
-
-private struct EditProfilePayload: Encodable {
-    let id: String
-    let nickname: String?
-    let priority: Int?
-    let agentHome: String??
-    let configPath: String??
-    let authMode: AuthMode?
-
-    init(profileID: String, draft: ProfileDraft) {
-        id = profileID
-        nickname = draft.nickname
-        priority = draft.priority
-        authMode = draft.authMode
-        if draft.clearAgentHome {
-            agentHome = .some(nil)
-        } else {
-            agentHome = .some(draft.agentHome.isEmpty ? nil : draft.agentHome)
-        }
-        if draft.clearConfigPath {
-            configPath = .some(nil)
-        } else {
-            configPath = .some(draft.configPath.isEmpty ? nil : draft.configPath)
-        }
-    }
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case nickname
-        case priority
-        case agentHome
-        case configPath
-        case authMode
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encodeIfPresent(nickname, forKey: .nickname)
-        try container.encodeIfPresent(priority, forKey: .priority)
-        switch agentHome {
-        case .some(.some(let value)):
-            try container.encode(value, forKey: .agentHome)
-        case .some(.none):
-            try container.encodeNil(forKey: .agentHome)
-        case .none:
-            break
-        }
-        switch configPath {
-        case .some(.some(let value)):
-            try container.encode(value, forKey: .configPath)
-        case .some(.none):
-            try container.encodeNil(forKey: .configPath)
-        case .none:
-            break
-        }
-        try container.encodeIfPresent(authMode, forKey: .authMode)
-    }
-}
-
-private struct ProfileIDPayload: Encodable {
-    let id: String
-}
-
-private struct ImportCodexPayload: Encodable {
-    let nickname: String?
-    let priority: Int
-}
-
-private struct SwitchPayload: Encodable {
-    let target: String
-}
-
-private struct AutoSwitchPayload: Encodable {
-    let enabled: Bool
-}
-
-private struct EventsListPayload: Encodable {
-    let limit: Int
-}
-
-private struct LogsTailPayload: Encodable {
-    let lines: Int
 }
 
 enum RelayCLIClientError: LocalizedError {

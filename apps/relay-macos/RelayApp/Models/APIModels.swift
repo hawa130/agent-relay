@@ -82,6 +82,41 @@ struct ActiveState: Decodable, Sendable {
 struct AppSettings: Decodable, Sendable {
     let autoSwitchEnabled: Bool
     let cooldownSeconds: Int
+    let usageSourceMode: UsageSourceMode
+    let menuOpenRefreshStaleAfterSeconds: Int
+    let usageBackgroundRefreshEnabled: Bool
+    let usageBackgroundRefreshIntervalSeconds: Int
+
+    private enum CodingKeys: String, CodingKey {
+        case autoSwitchEnabled
+        case cooldownSeconds
+        case usageSourceMode
+        case menuOpenRefreshStaleAfterSeconds
+        case usageBackgroundRefreshEnabled
+        case usageBackgroundRefreshIntervalSeconds
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        autoSwitchEnabled =
+            try container.decodeIfPresent(Bool.self, forKey: .autoSwitchEnabled)
+            ?? false
+        cooldownSeconds =
+            try container.decodeIfPresent(Int.self, forKey: .cooldownSeconds)
+            ?? 600
+        usageSourceMode =
+            try container.decodeIfPresent(UsageSourceMode.self, forKey: .usageSourceMode)
+            ?? .auto
+        menuOpenRefreshStaleAfterSeconds =
+            try container.decodeIfPresent(Int.self, forKey: .menuOpenRefreshStaleAfterSeconds)
+            ?? 10
+        usageBackgroundRefreshEnabled =
+            try container.decodeIfPresent(Bool.self, forKey: .usageBackgroundRefreshEnabled)
+            ?? true
+        usageBackgroundRefreshIntervalSeconds =
+            try container.decodeIfPresent(Int.self, forKey: .usageBackgroundRefreshIntervalSeconds)
+            ?? 120
+    }
 }
 
 struct Profile: Decodable, Identifiable, Sendable {
@@ -176,6 +211,13 @@ struct UsageSnapshot: Decodable, Sendable {
     }
 }
 
+struct UsageSettingsDraft: Encodable, Sendable {
+    let sourceMode: UsageSourceMode?
+    let menuOpenRefreshStaleAfterSeconds: Int?
+    let backgroundRefreshEnabled: Bool?
+    let backgroundRefreshIntervalSeconds: Int?
+}
+
 struct UsageWindow: Decodable, Sendable {
     let usedPercent: Double?
     let windowMinutes: Int?
@@ -263,6 +305,40 @@ struct SwitchReport: Decodable, Sendable {
     }
 }
 
+struct ProfileProbeIdentity: Decodable, Sendable {
+    let profileID: String
+    let accountID: String
+    let email: String?
+    let planHint: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case profileID
+        case profileId
+        case accountID
+        case accountId
+        case email
+        case planHint
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        profileID =
+            try container.decodeIfPresent(String.self, forKey: .profileID)
+            ?? container.decode(String.self, forKey: .profileId)
+        accountID =
+            try container.decodeIfPresent(String.self, forKey: .accountID)
+            ?? container.decode(String.self, forKey: .accountId)
+        email = try container.decodeIfPresent(String.self, forKey: .email)
+        planHint = try container.decodeIfPresent(String.self, forKey: .planHint)
+    }
+}
+
+struct CodexLinkResult: Decodable, Sendable {
+    let profile: Profile
+    let probeIdentity: ProfileProbeIdentity
+    let activated: Bool
+}
+
 enum AgentKind: String, Decodable, Sendable {
     case codex = "Codex"
 }
@@ -294,6 +370,34 @@ enum UsageSource: String, Decodable, Sendable {
     case local = "Local"
     case fallback = "Fallback"
     case webEnhanced = "WebEnhanced"
+}
+
+enum UsageSourceMode: String, CaseIterable, Decodable, Encodable, Sendable {
+    case auto = "Auto"
+    case local = "Local"
+    case webEnhanced = "WebEnhanced"
+
+    var cliValue: String {
+        switch self {
+        case .auto:
+            return "auto"
+        case .local:
+            return "local"
+        case .webEnhanced:
+            return "web-enhanced"
+        }
+    }
+
+    var displayName: String {
+        switch self {
+        case .auto:
+            return "Auto"
+        case .local:
+            return "CLI (RPC/PTy)"
+        case .webEnhanced:
+            return "OAuth API"
+        }
+    }
 }
 
 enum UsageConfidence: String, Decodable, Sendable {
@@ -379,6 +483,76 @@ struct ProfileDraft: Sendable {
         self.clearAgentHome = false
         self.clearConfigPath = false
     }
+}
+
+struct AddProfilePayload: Encodable, Sendable {
+    let nickname: String
+    let priority: Int
+    let agentHome: String?
+    let configPath: String?
+    let authMode: AuthMode
+
+    init(draft: ProfileDraft) {
+        nickname = draft.nickname
+        priority = draft.priority
+        agentHome = draft.agentHome.isEmpty ? nil : draft.agentHome
+        configPath = draft.configPath.isEmpty ? nil : draft.configPath
+        authMode = draft.authMode
+    }
+}
+
+struct EditProfilePayload: Encodable, Sendable {
+    let id: String
+    let nickname: String
+    let priority: Int
+    let agentHome: String??
+    let configPath: String??
+    let authMode: AuthMode
+
+    init(profileID: String, draft: ProfileDraft) {
+        id = profileID
+        nickname = draft.nickname
+        priority = draft.priority
+        agentHome = draft.clearAgentHome ? .some(nil) : .some(draft.agentHome.isEmpty ? nil : draft.agentHome)
+        configPath = draft.clearConfigPath ? .some(nil) : .some(draft.configPath.isEmpty ? nil : draft.configPath)
+        authMode = draft.authMode
+    }
+}
+
+struct ProfileIDPayload: Encodable, Sendable {
+    let id: String
+}
+
+struct ImportCodexPayload: Encodable, Sendable {
+    let nickname: String?
+    let priority: Int
+}
+
+struct LoginCodexPayload: Encodable, Sendable {
+    let nickname: String?
+    let priority: Int
+}
+
+struct SwitchPayload: Encodable, Sendable {
+    let target: String
+}
+
+struct AutoSwitchPayload: Encodable, Sendable {
+    let enabled: Bool
+}
+
+struct EventsListPayload: Encodable, Sendable {
+    let limit: Int
+}
+
+struct LogsTailPayload: Encodable, Sendable {
+    let lines: Int
+}
+
+struct UsageRefreshPayload: Encodable, Sendable {
+    let id: String?
+    let enabled: Bool
+    let all: Bool
 }
 
 extension JSONDecoder {

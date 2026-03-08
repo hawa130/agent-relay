@@ -1,7 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 use relay_core::models::JsonResponse;
 use relay_core::{
-    AddProfileRequest, AuthMode, BootstrapMode, EditProfileRequest, RelayApp, RelayError,
+    AddProfileRequest, AuthMode, BootstrapMode, CodexLoginRequest, EditProfileRequest, RelayApp,
+    RelayError, UsageSettingsUpdateRequest, UsageSourceMode,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -27,7 +28,7 @@ struct Cli {
 enum Commands {
     Doctor,
     Status,
-    Usage,
+    Usage(UsageCommand),
     Profiles(ProfilesCommand),
     Switch(SwitchCommand),
     AutoSwitch(AutoSwitchCommand),
@@ -51,6 +52,8 @@ enum ProfilesSubcommand {
     Enable(ProfileIdArgs),
     Disable(ProfileIdArgs),
     ImportCodex(ImportCodexArgs),
+    LoginCodex(LoginCodexArgs),
+    RelinkCodex(ProfileIdArgs),
 }
 
 #[derive(Debug, Args)]
@@ -121,6 +124,56 @@ struct LogsCommand {
     command: LogsSubcommand,
 }
 
+#[derive(Debug, Args)]
+struct UsageCommand {
+    #[command(subcommand)]
+    command: Option<UsageSubcommand>,
+}
+
+#[derive(Debug, Subcommand)]
+enum UsageSubcommand {
+    Profile(ProfileIdArgs),
+    List,
+    Refresh(UsageRefreshArgs),
+    Config(UsageConfigCommand),
+}
+
+#[derive(Debug, Args)]
+struct UsageRefreshArgs {
+    id: Option<String>,
+    #[arg(long)]
+    enabled: bool,
+    #[arg(long)]
+    all: bool,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct UsageConfigCommand {
+    #[command(subcommand)]
+    command: Option<UsageConfigSubcommand>,
+}
+
+#[derive(Debug, Subcommand)]
+enum UsageConfigSubcommand {
+    Set(UsageConfigSetArgs),
+}
+
+#[derive(Debug, Args)]
+struct UsageConfigSetArgs {
+    #[arg(long)]
+    source_mode: Option<String>,
+    #[arg(long)]
+    menu_open_refresh_stale_after_seconds: Option<i64>,
+    #[arg(long)]
+    background_refresh_enabled: Option<bool>,
+    #[arg(long)]
+    background_refresh_interval_seconds: Option<i64>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
+}
+
 #[derive(Debug, Subcommand)]
 enum LogsSubcommand {
     Tail(TailArgs),
@@ -139,6 +192,16 @@ enum DiagnosticsSubcommand {
 
 #[derive(Debug, Args)]
 struct ImportCodexArgs {
+    #[arg(long)]
+    nickname: Option<String>,
+    #[arg(long)]
+    priority: Option<i32>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct LoginCodexArgs {
     #[arg(long)]
     nickname: Option<String>,
     #[arg(long)]
@@ -225,7 +288,19 @@ fn run() -> Result<(), RelayError> {
 
 fn execute(cli: Cli) -> Result<Output, RelayError> {
     let bootstrap_mode = match &cli.command {
-        Commands::Doctor | Commands::Status | Commands::Usage => BootstrapMode::ReadOnly,
+        Commands::Doctor | Commands::Status => BootstrapMode::ReadOnly,
+        Commands::Usage(command) => match command.command {
+            None
+            | Some(UsageSubcommand::Profile(_))
+            | Some(UsageSubcommand::List)
+            | Some(UsageSubcommand::Config(UsageConfigCommand { command: None })) => {
+                BootstrapMode::ReadOnly
+            }
+            Some(UsageSubcommand::Refresh(_))
+            | Some(UsageSubcommand::Config(UsageConfigCommand {
+                command: Some(UsageConfigSubcommand::Set(_)),
+            })) => BootstrapMode::ReadWrite,
+        },
         Commands::Profiles(command) => match command.command {
             ProfilesSubcommand::List => BootstrapMode::ReadOnly,
             _ => BootstrapMode::ReadWrite,
@@ -256,11 +331,55 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
             app.status_report()?,
             cli.json,
         )),
-        Commands::Usage => Ok(Output::success(
-            "usage loaded",
-            app.usage_report()?,
-            cli.json,
-        )),
+        Commands::Usage(command) => match command.command {
+            None => Ok(Output::success(
+                "usage loaded",
+                app.usage_report()?,
+                cli.json,
+            )),
+            Some(UsageSubcommand::Profile(args)) => Ok(Output::success(
+                "profile usage loaded",
+                app.profile_usage_report(&profile_id_from_args(args)?)?,
+                cli.json,
+            )),
+            Some(UsageSubcommand::List) => Ok(Output::success(
+                "usage list loaded",
+                app.list_usage_reports()?,
+                cli.json,
+            )),
+            Some(UsageSubcommand::Refresh(args)) => {
+                let target = usage_refresh_target_from_args(args)?;
+                match target {
+                    UsageRefreshTarget::Profile(id) => Ok(Output::success(
+                        "usage refreshed",
+                        app.refresh_usage_profile(&id)?,
+                        cli.json,
+                    )),
+                    UsageRefreshTarget::Enabled => Ok(Output::success(
+                        "enabled profile usage refreshed",
+                        app.refresh_enabled_usage_reports()?,
+                        cli.json,
+                    )),
+                    UsageRefreshTarget::All => Ok(Output::success(
+                        "all profile usage refreshed",
+                        app.refresh_all_usage_reports()?,
+                        cli.json,
+                    )),
+                }
+            }
+            Some(UsageSubcommand::Config(command)) => match command.command {
+                None => Ok(Output::success(
+                    "usage settings loaded",
+                    app.settings()?,
+                    cli.json,
+                )),
+                Some(UsageConfigSubcommand::Set(args)) => Ok(Output::success(
+                    "usage settings updated",
+                    app.update_usage_settings(usage_settings_request_from_args(args)?)?,
+                    cli.json,
+                )),
+            },
+        },
         Commands::Profiles(command) => match command.command {
             ProfilesSubcommand::List => Ok(Output::success(
                 "profiles loaded",
@@ -306,6 +425,22 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                     cli.json,
                 ))
             }
+            ProfilesSubcommand::LoginCodex(args) => {
+                let payload = login_codex_input_from_args(args)?;
+                Ok(Output::success(
+                    "codex login profile created",
+                    app.login_codex_profile(CodexLoginRequest {
+                        nickname: payload.nickname,
+                        priority: payload.priority,
+                    })?,
+                    cli.json,
+                ))
+            }
+            ProfilesSubcommand::RelinkCodex(args) => Ok(Output::success(
+                "codex profile relinked",
+                app.relink_codex_profile(&profile_id_from_args(args)?)?,
+                cli.json,
+            )),
         },
         Commands::Switch(command) => {
             let target = switch_target_from_args(command)?;
@@ -490,6 +625,21 @@ fn import_codex_input_from_args(args: ImportCodexArgs) -> Result<ImportCodexInpu
     })
 }
 
+fn login_codex_input_from_args(args: LoginCodexArgs) -> Result<LoginCodexInput, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(
+            input_json,
+            &[args.nickname.is_some(), args.priority.is_some()],
+        )?;
+        return read_json_input(input_json);
+    }
+
+    Ok(LoginCodexInput {
+        nickname: args.nickname,
+        priority: args.priority.unwrap_or(100),
+    })
+}
+
 fn profile_id_from_args(args: ProfileIdArgs) -> Result<String, RelayError> {
     if let Some(input_json) = args.input_json.as_ref() {
         ensure_json_input_is_exclusive(input_json, &[args.id.is_some()])?;
@@ -518,6 +668,94 @@ fn auto_switch_enabled_from_args(args: AutoSwitchSetArgs) -> Result<bool, RelayE
     }
 
     require_field(args.enabled, "auto-switch enabled value is required")
+}
+
+fn parse_usage_source_mode(value: &str) -> Result<UsageSourceMode, RelayError> {
+    match value {
+        "auto" | "Auto" => Ok(UsageSourceMode::Auto),
+        "local" | "Local" => Ok(UsageSourceMode::Local),
+        "web-enhanced" | "web_enhanced" | "web" | "WebEnhanced" => Ok(UsageSourceMode::WebEnhanced),
+        other => Err(RelayError::InvalidInput(format!(
+            "unsupported usage source mode: {other}"
+        ))),
+    }
+}
+
+enum UsageRefreshTarget {
+    Profile(String),
+    Enabled,
+    All,
+}
+
+fn usage_refresh_target_from_args(
+    args: UsageRefreshArgs,
+) -> Result<UsageRefreshTarget, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(input_json, &[args.id.is_some(), args.enabled, args.all])?;
+        let payload: UsageRefreshInput = read_json_input(input_json)?;
+        return usage_refresh_target_from_input(payload);
+    }
+
+    usage_refresh_target_from_input(UsageRefreshInput {
+        id: args.id,
+        enabled: args.enabled,
+        all: args.all,
+    })
+}
+
+fn usage_refresh_target_from_input(
+    input: UsageRefreshInput,
+) -> Result<UsageRefreshTarget, RelayError> {
+    let selectors = [input.id.is_some(), input.enabled, input.all];
+    if selectors.into_iter().filter(|value| *value).count() != 1 {
+        return Err(RelayError::InvalidInput(
+            "usage refresh requires exactly one selector: profile id, --enabled, or --all".into(),
+        ));
+    }
+
+    if input.all {
+        Ok(UsageRefreshTarget::All)
+    } else if input.enabled {
+        Ok(UsageRefreshTarget::Enabled)
+    } else {
+        Ok(UsageRefreshTarget::Profile(input.id.ok_or_else(|| {
+            RelayError::InvalidInput("profile id is required".into())
+        })?))
+    }
+}
+
+fn usage_settings_request_from_args(
+    args: UsageConfigSetArgs,
+) -> Result<UsageSettingsUpdateRequest, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(
+            input_json,
+            &[
+                args.source_mode.is_some(),
+                args.menu_open_refresh_stale_after_seconds.is_some(),
+                args.background_refresh_enabled.is_some(),
+                args.background_refresh_interval_seconds.is_some(),
+            ],
+        )?;
+        let payload: UsageConfigSetInput = read_json_input(input_json)?;
+        return Ok(UsageSettingsUpdateRequest {
+            source_mode: payload.source_mode,
+            menu_open_refresh_stale_after_seconds: payload.menu_open_refresh_stale_after_seconds,
+            background_refresh_enabled: payload.background_refresh_enabled,
+            background_refresh_interval_seconds: payload.background_refresh_interval_seconds,
+        });
+    }
+
+    Ok(UsageSettingsUpdateRequest {
+        source_mode: args
+            .source_mode
+            .as_deref()
+            .map(parse_usage_source_mode)
+            .transpose()?,
+        menu_open_refresh_stale_after_seconds: args.menu_open_refresh_stale_after_seconds,
+        background_refresh_enabled: args.background_refresh_enabled,
+        background_refresh_interval_seconds: args.background_refresh_interval_seconds,
+    })
 }
 
 fn events_limit_from_args(args: ListArgs) -> Result<usize, RelayError> {
@@ -617,6 +855,45 @@ struct SwitchInput {
 #[derive(Debug, Deserialize)]
 struct AutoSwitchInput {
     enabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct UsageRefreshInput {
+    id: Option<String>,
+    #[serde(default)]
+    enabled: bool,
+    #[serde(default)]
+    all: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct UsageConfigSetInput {
+    #[serde(default, deserialize_with = "deserialize_usage_source_mode_option")]
+    source_mode: Option<UsageSourceMode>,
+    menu_open_refresh_stale_after_seconds: Option<i64>,
+    background_refresh_enabled: Option<bool>,
+    background_refresh_interval_seconds: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+struct LoginCodexInput {
+    nickname: Option<String>,
+    #[serde(default = "default_priority")]
+    priority: i32,
+}
+
+fn deserialize_usage_source_mode_option<'de, D>(
+    deserializer: D,
+) -> Result<Option<UsageSourceMode>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<String>::deserialize(deserializer)?;
+    value
+        .as_deref()
+        .map(parse_usage_source_mode)
+        .transpose()
+        .map_err(serde::de::Error::custom)
 }
 
 #[derive(Debug, Deserialize)]

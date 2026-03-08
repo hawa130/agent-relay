@@ -28,6 +28,13 @@ These items capture the current gaps against the latest Relay product/function g
 - [x] Add regression tests for optional-file removal and rollback cleanup semantics during profile switches.
 - [x] Reduce Codex-specific fields in shared models and status payloads so future agents can plug in through adapters with less cross-cutting schema churn.
 - [x] Reconcile repository docs that still describe the macOS app as future-only with the current implemented app state.
+- [x] Extend usage storage from a single active snapshot to per-profile cached snapshots so inactive profiles can be inspected without switching.
+- [x] Add `relay usage profile`, `relay usage list`, `relay usage refresh <id>`, `relay usage refresh --enabled`, and `relay usage config set`.
+- [x] Refresh inactive profile usage from profile-local state when available, and keep disabled profiles manual-only while enabled profiles participate in automatic refresh.
+- [x] Add usage source mode settings (`Auto`, `Local`, `WebEnhanced`) and small menu-open debounce-based refresh behavior for the macOS control plane.
+- [x] Add official Codex login import flow that creates an enabled profile and binds a dedicated probe identity record.
+- [x] Add Codex relink flow for existing profiles so probe identity and managed auth can be refreshed without recreating the profile.
+- [x] Add official remote usage probing for profiles with bound identities so non-current profiles can fetch true usage across the account pool.
 
 ## Phase 0: Foundation
 

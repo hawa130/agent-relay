@@ -3,6 +3,13 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum UsageSourceMode {
+    Auto,
+    Local,
+    WebEnhanced,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum UsageSource {
     Local,
     Fallback,
@@ -47,4 +54,9 @@ pub struct UsageSnapshot {
     pub auto_switch_reason: Option<FailureReason>,
     pub can_auto_switch: bool,
     pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct UsageCache {
+    pub snapshots: Vec<UsageSnapshot>,
 }
