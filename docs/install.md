@@ -93,3 +93,9 @@ If you want deterministic test runs:
 
 - set both `RELAY_HOME` and `CODEX_HOME` to temp directories
 
+## Additional References
+
+- Development workflow: `docs/development.md`
+- SQLite migration policy: `docs/sqlite-migrations.md`
+- Linux support matrix: `docs/linux-support.md`
+- Security release checklist: `docs/security-checklist.md`
