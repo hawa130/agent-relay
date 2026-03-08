@@ -5,7 +5,6 @@ import SwiftUI
 public struct SettingsView: View {
     @ObservedObject var model: RelayAppModel
     @Default(.selectedSettingsSection) private var selectedSectionRaw
-    @State private var showingAddSheet = false
     @State private var showingLoginSheet = false
     @State private var editingProfile: Profile?
     @State private var deletingProfile: Profile?
@@ -23,15 +22,6 @@ public struct SettingsView: View {
         .navigationSplitViewStyle(.balanced)
         .task {
             await model.refresh()
-        }
-        .sheet(isPresented: $showingAddSheet) {
-            ProfileEditorSheet(
-                title: "Add Profile",
-                initialDraft: .empty,
-                mode: .create
-            ) { draft in
-                await model.addProfile(draft)
-            }
         }
         .sheet(isPresented: $showingLoginSheet) {
             AddAccountSheet(
@@ -200,6 +190,7 @@ public struct SettingsView: View {
                 Button("Add Account") {
                     showingLoginSheet = true
                 }
+                .buttonStyle(.borderedProminent)
                 .disabled(model.isMutatingProfiles)
 
                 Button("Import Current Live") {
@@ -207,12 +198,6 @@ public struct SettingsView: View {
                         await model.importCodexProfile(nickname: nil, priority: 100)
                     }
                 }
-                .disabled(model.isMutatingProfiles)
-
-                Button("Add Profile") {
-                    showingAddSheet = true
-                }
-                .buttonStyle(.borderedProminent)
                 .disabled(model.isMutatingProfiles)
             }
 

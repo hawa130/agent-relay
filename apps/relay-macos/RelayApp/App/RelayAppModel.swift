@@ -248,12 +248,6 @@ public final class RelayAppModel: ObservableObject {
         }
     }
 
-    func addProfile(_ draft: ProfileDraft) async {
-        await performProfileMutation { [self] in
-            _ = try await self.client.addProfile(draft)
-        }
-    }
-
     func editProfile(profileID: String, draft: ProfileDraft) async {
         await performProfileMutation { [self] in
             _ = try await self.client.editProfile(profileID: profileID, draft: draft)

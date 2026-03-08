@@ -72,15 +72,6 @@ struct RelayCLIClient {
         try await run(["profiles", "list"], as: [Profile].self)
     }
 
-    func addProfile(_ draft: ProfileDraft) async throws -> Profile {
-        let payload = AddProfilePayload(draft: draft)
-        return try await run(
-            ["profiles", "add", "--input-json", "-"],
-            input: payload,
-            as: Profile.self
-        )
-    }
-
     func editProfile(profileID: String, draft: ProfileDraft) async throws -> Profile {
         let payload = EditProfilePayload(profileID: profileID, draft: draft)
         return try await run(
