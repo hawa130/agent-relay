@@ -5,4 +5,9 @@
 /.vscode
 /.swiftpm
 /.build
+.DS_Store
+.swiftpm/
+.build/
+.swift-cache/
+apps/relay-macos/dist/
 .env
