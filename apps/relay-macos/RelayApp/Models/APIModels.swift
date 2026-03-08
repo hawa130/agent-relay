@@ -310,14 +310,34 @@ struct ProfileProbeIdentity: Decodable, Sendable {
     let accountID: String
     let email: String?
     let planHint: String?
+    let provider: String?
+    let principalID: String?
+    let displayName: String?
 
     private enum CodingKeys: String, CodingKey {
         case profileID
         case profileId
+        case provider
         case accountID
         case accountId
+        case principalID
+        case principalId
+        case displayName
+        case credentials
+        case metadata
         case email
         case planHint
+    }
+
+    private enum CredentialsKeys: String, CodingKey {
+        case accountID
+        case accountId = "account_id"
+    }
+
+    private enum MetadataKeys: String, CodingKey {
+        case email
+        case planHint
+        case planHintSnake = "plan_hint"
     }
 
     init(from decoder: Decoder) throws {
@@ -325,11 +345,49 @@ struct ProfileProbeIdentity: Decodable, Sendable {
         profileID =
             try container.decodeIfPresent(String.self, forKey: .profileID)
             ?? container.decode(String.self, forKey: .profileId)
-        accountID =
+        provider = try container.decodeIfPresent(String.self, forKey: .provider)
+        principalID =
+            try container.decodeIfPresent(String.self, forKey: .principalID)
+            ?? container.decodeIfPresent(String.self, forKey: .principalId)
+        displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
+
+        var nestedAccountID: String?
+        if container.contains(.credentials) {
+            let credentials = try container.nestedContainer(keyedBy: CredentialsKeys.self, forKey: .credentials)
+            nestedAccountID =
+                try credentials.decodeIfPresent(String.self, forKey: .accountID)
+                ?? credentials.decodeIfPresent(String.self, forKey: .accountId)
+        }
+        guard let accountID =
             try container.decodeIfPresent(String.self, forKey: .accountID)
-            ?? container.decode(String.self, forKey: .accountId)
-        email = try container.decodeIfPresent(String.self, forKey: .email)
-        planHint = try container.decodeIfPresent(String.self, forKey: .planHint)
+            ?? container.decodeIfPresent(String.self, forKey: .accountId)
+            ?? nestedAccountID
+            ?? principalID
+        else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .accountID,
+                in: container,
+                debugDescription: "Missing probe identity account/principal identifier"
+            )
+        }
+        self.accountID = accountID
+
+        var nestedEmail: String?
+        var nestedPlanHint: String?
+        if container.contains(.metadata) {
+            let metadata = try container.nestedContainer(keyedBy: MetadataKeys.self, forKey: .metadata)
+            nestedEmail = try metadata.decodeIfPresent(String.self, forKey: .email)
+            nestedPlanHint =
+                try metadata.decodeIfPresent(String.self, forKey: .planHint)
+                ?? metadata.decodeIfPresent(String.self, forKey: .planHintSnake)
+        }
+        email =
+            try container.decodeIfPresent(String.self, forKey: .email)
+            ?? nestedEmail
+            ?? displayName
+        planHint =
+            try container.decodeIfPresent(String.self, forKey: .planHint)
+            ?? nestedPlanHint
     }
 }
 

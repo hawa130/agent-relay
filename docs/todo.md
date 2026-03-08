@@ -35,6 +35,7 @@ These items capture the current gaps against the latest Relay product/function g
 - [x] Add official Codex login import flow that creates an enabled profile and binds a dedicated probe identity record.
 - [x] Add Codex relink flow for existing profiles so probe identity and managed auth can be refreshed without recreating the profile.
 - [x] Add official remote usage probing for profiles with bound identities so non-current profiles can fetch true usage across the account pool.
+- [x] Replace the Codex-specific probe identity table shape with a generic provider envelope plus provider-specific credentials/metadata payloads.
 
 ## Phase 0: Foundation
 

@@ -133,7 +133,7 @@ pub fn import_codex_profile(
         nickname: nickname.unwrap_or_else(|| {
             live_identity
                 .as_ref()
-                .and_then(|identity| identity.email.clone())
+                .and_then(|identity| identity.email().map(ToOwned::to_owned))
                 .unwrap_or_else(|| format!("Imported Codex {}", Utc::now().format("%Y%m%d-%H%M%S")))
         }),
         priority,

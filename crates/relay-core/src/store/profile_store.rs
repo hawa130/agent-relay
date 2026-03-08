@@ -7,7 +7,7 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
-const CURRENT_SCHEMA_VERSION: i32 = 2;
+const CURRENT_SCHEMA_VERSION: i32 = 3;
 const SCHEMA_V1_SQL: &str = "
 CREATE TABLE IF NOT EXISTS profiles (
     id TEXT PRIMARY KEY,
@@ -55,6 +55,18 @@ CREATE TABLE IF NOT EXISTS profile_probe_identities (
     id_token TEXT,
     email TEXT,
     plan_hint TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);";
+const SCHEMA_V3_SQL: &str = "
+DROP TABLE IF EXISTS profile_probe_identities;
+CREATE TABLE profile_probe_identities (
+    profile_id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    principal_id TEXT,
+    display_name TEXT,
+    credentials_json TEXT NOT NULL,
+    metadata_json TEXT NOT NULL,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );";
@@ -156,6 +168,15 @@ impl SqliteStore {
                 .execute_batch(SCHEMA_V2_SQL)
                 .map_err(|error| RelayError::Store(error.to_string()))?;
             transaction
+                .pragma_update(None, "user_version", 2)
+                .map_err(|error| RelayError::Store(error.to_string()))?;
+        }
+
+        if current_version < 3 {
+            transaction
+                .execute_batch(SCHEMA_V3_SQL)
+                .map_err(|error| RelayError::Store(error.to_string()))?;
+            transaction
                 .pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)
                 .map_err(|error| RelayError::Store(error.to_string()))?;
         }
@@ -253,14 +274,14 @@ impl SqliteStore {
         Ok(ProfileProbeIdentity {
             profile_id: row.get(0)?,
             provider,
-            account_id: row.get(2)?,
-            access_token: row.get(3)?,
-            refresh_token: row.get(4)?,
-            id_token: row.get(5)?,
-            email: row.get(6)?,
-            plan_hint: row.get(7)?,
-            created_at: row.get(8)?,
-            updated_at: row.get(9)?,
+            principal_id: row.get(2)?,
+            display_name: row.get(3)?,
+            credentials: serde_json::from_str::<Value>(&row.get::<_, String>(4)?)
+                .unwrap_or(Value::Null),
+            metadata: serde_json::from_str::<Value>(&row.get::<_, String>(5)?)
+                .unwrap_or(Value::Null),
+            created_at: row.get(6)?,
+            updated_at: row.get(7)?,
         })
     }
 
@@ -418,7 +439,7 @@ impl SqliteStore {
         let connection = self.open()?;
         let mut statement = connection
             .prepare(
-                "SELECT profile_id, provider, account_id, access_token, refresh_token, id_token, email, plan_hint, created_at, updated_at
+                "SELECT profile_id, provider, principal_id, display_name, credentials_json, metadata_json, created_at, updated_at
                  FROM profile_probe_identities
                  WHERE profile_id = ?1",
             )
@@ -438,26 +459,22 @@ impl SqliteStore {
         connection
             .execute(
                 "INSERT INTO profile_probe_identities
-                 (profile_id, provider, account_id, access_token, refresh_token, id_token, email, plan_hint, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                 (profile_id, provider, principal_id, display_name, credentials_json, metadata_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
                  ON CONFLICT(profile_id) DO UPDATE SET
                     provider = excluded.provider,
-                    account_id = excluded.account_id,
-                    access_token = excluded.access_token,
-                    refresh_token = excluded.refresh_token,
-                    id_token = excluded.id_token,
-                    email = excluded.email,
-                    plan_hint = excluded.plan_hint,
+                    principal_id = excluded.principal_id,
+                    display_name = excluded.display_name,
+                    credentials_json = excluded.credentials_json,
+                    metadata_json = excluded.metadata_json,
                     updated_at = excluded.updated_at",
                 params![
                     identity.profile_id,
                     stringify_probe_provider(&identity.provider),
-                    identity.account_id,
-                    identity.access_token,
-                    identity.refresh_token,
-                    identity.id_token,
-                    identity.email,
-                    identity.plan_hint,
+                    identity.principal_id,
+                    identity.display_name,
+                    identity.credentials.to_string(),
+                    identity.metadata.to_string(),
                     identity.created_at,
                     identity.updated_at,
                 ],
@@ -1040,5 +1057,36 @@ mod tests {
             store.schema_version().expect("schema version"),
             CURRENT_SCHEMA_VERSION
         );
+    }
+
+    #[test]
+    fn probe_identity_round_trips_generic_payload() {
+        let temp = tempdir().expect("tempdir");
+        let db_path = temp.path().join("relay.db");
+        let store = SqliteStore::new(&db_path).expect("store");
+
+        let identity = ProfileProbeIdentity {
+            profile_id: "p_test".into(),
+            provider: ProbeProvider::CodexOfficial,
+            principal_id: Some("acct-123".into()),
+            display_name: Some("user@example.com".into()),
+            credentials: json!({
+                "account_id": "acct-123",
+                "access_token": "access-token",
+                "refresh_token": "refresh-token"
+            }),
+            metadata: json!({
+                "email": "user@example.com",
+                "plan_hint": "team"
+            }),
+            created_at: Utc::now().to_rfc3339(),
+            updated_at: Utc::now().to_rfc3339(),
+        };
+
+        let stored = store.upsert_probe_identity(&identity).expect("upsert");
+        assert_eq!(stored.account_id(), Some("acct-123"));
+        assert_eq!(stored.access_token(), Some("access-token"));
+        assert_eq!(stored.email(), Some("user@example.com"));
+        assert_eq!(stored.plan_hint(), Some("team"));
     }
 }
