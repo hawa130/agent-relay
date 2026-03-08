@@ -1,3 +1,4 @@
+import RelayMacOSUI
 import SwiftUI
 
 @main

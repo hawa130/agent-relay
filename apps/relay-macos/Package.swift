@@ -7,6 +7,10 @@ let package = Package(
         .macOS(.v15),
     ],
     products: [
+        .library(
+            name: "RelayMacOSUI",
+            targets: ["RelayMacOSUI"]
+        ),
         .executable(
             name: "RelayMacOS",
             targets: ["RelayMacOS"]
@@ -17,14 +21,26 @@ let package = Package(
         .package(url: "https://github.com/sindresorhus/LaunchAtLogin-Modern", from: "1.1.0"),
     ],
     targets: [
-        .executableTarget(
-            name: "RelayMacOS",
+        .target(
+            name: "RelayMacOSUI",
             dependencies: [
                 "Defaults",
                 .product(name: "LaunchAtLogin", package: "LaunchAtLogin-Modern"),
             ],
             path: "RelayApp",
             exclude: ["Resources/README.md", "Resources/Info.plist"]
+        ),
+        .executableTarget(
+            name: "RelayMacOS",
+            dependencies: [
+                "RelayMacOSUI",
+            ],
+            path: "RelayAppExecutable"
+        ),
+        .testTarget(
+            name: "RelayMacOSTests",
+            dependencies: ["RelayMacOSUI"],
+            path: "Tests/RelayMacOSTests"
         ),
     ]
 )

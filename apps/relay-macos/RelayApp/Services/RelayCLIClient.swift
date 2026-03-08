@@ -1,6 +1,17 @@
 import Foundation
 
 struct RelayCLIClient {
+    private let relayCLIPathOverride: String?
+    private let environment: [String: String]
+
+    init(
+        relayCLIPathOverride: String? = nil,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) {
+        self.relayCLIPathOverride = relayCLIPathOverride
+        self.environment = environment
+    }
+
     func fetchDoctor() async throws -> DoctorReport {
         try await run(["doctor"], as: DoctorReport.self)
     }
@@ -99,7 +110,7 @@ struct RelayCLIClient {
         _ arguments: [String],
         as type: Response.Type
     ) async throws -> Response {
-        try await run(arguments, input: Optional<Data>.none, as: type)
+        try await run(arguments, inputData: nil, as: type)
     }
 
     private func run<Input: Encodable, Response: Decodable & Sendable>(
@@ -109,12 +120,12 @@ struct RelayCLIClient {
     ) async throws -> Response {
         let encoder = JSONEncoder.relayEncoder
         let data = try encoder.encode(input)
-        return try await run(arguments, input: data, as: type)
+        return try await run(arguments, inputData: data, as: type)
     }
 
     private func run<Response: Decodable & Sendable>(
         _ arguments: [String],
-        input: Data?,
+        inputData: Data?,
         as type: Response.Type
     ) async throws -> Response {
         let command = try resolvedRelayCLIPath()
@@ -127,10 +138,10 @@ struct RelayCLIClient {
             process.arguments = ["--json"] + arguments
             process.standardOutput = stdout
             process.standardError = stderr
-            if input != nil {
+            if inputData != nil {
                 process.standardInput = Pipe()
             }
-            process.environment = ProcessInfo.processInfo.environment
+            process.environment = environment
 
             do {
                 try process.run()
@@ -138,8 +149,8 @@ struct RelayCLIClient {
                 throw RelayCLIClientError.launchFailed(error.localizedDescription)
             }
 
-            if let input, let stdin = process.standardInput as? Pipe {
-                stdin.fileHandleForWriting.write(input)
+            if let inputData, let stdin = process.standardInput as? Pipe {
+                stdin.fileHandleForWriting.write(inputData)
                 try? stdin.fileHandleForWriting.close()
             }
 
@@ -179,7 +190,7 @@ struct RelayCLIClient {
     }
 
     private func resolvedRelayCLIPath() throws -> String {
-        if let override = ProcessInfo.processInfo.environment["RELAY_CLI_PATH"], !override.isEmpty {
+        if let override = relayCLIPathOverride ?? environment["RELAY_CLI_PATH"], !override.isEmpty {
             return override
         }
 
@@ -197,7 +208,7 @@ struct RelayCLIClient {
     }
 
     private func findRelayOnPATH() -> String? {
-        guard let path = ProcessInfo.processInfo.environment["PATH"], !path.isEmpty else {
+        guard let path = environment["PATH"], !path.isEmpty else {
             return nil
         }
 

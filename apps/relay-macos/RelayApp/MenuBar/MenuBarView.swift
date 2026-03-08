@@ -1,11 +1,15 @@
 import AppKit
 import SwiftUI
 
-struct MenuBarView: View {
+public struct MenuBarView: View {
     @ObservedObject var model: RelayAppModel
     @Environment(\.openWindow) private var openWindow
 
-    var body: some View {
+    public init(model: RelayAppModel) {
+        self.model = model
+    }
+
+    public var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             header
             controls

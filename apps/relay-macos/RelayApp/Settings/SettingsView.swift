@@ -2,7 +2,7 @@ import Defaults
 import LaunchAtLogin
 import SwiftUI
 
-struct SettingsView: View {
+public struct SettingsView: View {
     @ObservedObject var model: RelayAppModel
     @Default(.selectedSettingsSection) private var selectedSectionRaw
     @Default(.selectedProfileID) private var selectedProfileID
@@ -11,7 +11,11 @@ struct SettingsView: View {
     @State private var editingProfile: Profile?
     @State private var deletingProfile: Profile?
 
-    var body: some View {
+    public init(model: RelayAppModel) {
+        self.model = model
+    }
+
+    public var body: some View {
         NavigationSplitView {
             settingsSidebar
         } detail: {
