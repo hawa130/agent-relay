@@ -164,7 +164,7 @@ impl SqliteStore {
             agent: crate::models::AgentKind::Codex,
             priority: row.get(3)?,
             enabled: row.get::<_, i64>(4)? != 0,
-            codex_home: row.get(5)?,
+            agent_home: row.get(5)?,
             config_path: row.get(6)?,
             auth_mode,
             metadata,
@@ -266,7 +266,7 @@ impl SqliteStore {
             .unwrap_or_else(|| current.config_path.map(PathBuf::from));
         let codex_home = update
             .codex_home
-            .unwrap_or_else(|| current.codex_home.map(PathBuf::from));
+            .unwrap_or_else(|| current.agent_home.map(PathBuf::from));
         let auth_mode = update.auth_mode.unwrap_or(current.auth_mode);
 
         let affected = connection
@@ -540,6 +540,8 @@ fn parse_auth_mode(value: &str) -> crate::models::AuthMode {
 
 fn stringify_reason(reason: &FailureReason) -> &'static str {
     match reason {
+        FailureReason::SessionExhausted => "session-exhausted",
+        FailureReason::WeeklyExhausted => "weekly-exhausted",
         FailureReason::AuthInvalid => "auth-invalid",
         FailureReason::QuotaExhausted => "quota-exhausted",
         FailureReason::RateLimited => "rate-limited",
@@ -551,6 +553,8 @@ fn stringify_reason(reason: &FailureReason) -> &'static str {
 
 fn parse_reason(value: &str) -> FailureReason {
     match value {
+        "session-exhausted" => FailureReason::SessionExhausted,
+        "weekly-exhausted" => FailureReason::WeeklyExhausted,
         "auth-invalid" => FailureReason::AuthInvalid,
         "quota-exhausted" => FailureReason::QuotaExhausted,
         "rate-limited" => FailureReason::RateLimited,

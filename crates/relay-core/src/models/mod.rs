@@ -7,6 +7,7 @@ mod protocol;
 mod settings;
 mod state;
 mod switch;
+mod usage;
 
 pub use diagnostics::{DiagnosticsExport, LogTail};
 pub use doctor::DoctorReport;
@@ -17,3 +18,4 @@ pub use protocol::JsonResponse;
 pub use settings::AppSettings;
 pub use state::{ActiveState, StatusReport, SwitchCheckpoint, SwitchOutcome};
 pub use switch::{SwitchHistoryEntry, SwitchReport};
+pub use usage::{UsageConfidence, UsageSnapshot, UsageSource, UsageStatus, UsageWindow};

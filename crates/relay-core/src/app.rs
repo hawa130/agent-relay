@@ -1,15 +1,16 @@
 use crate::adapters::CodexAdapter;
 use crate::models::{
     AppSettings, DiagnosticsExport, DoctorReport, FailureEvent, LogTail, Profile, RelayError,
-    StatusReport, SwitchReport,
+    StatusReport, SwitchReport, UsageSnapshot,
 };
 use crate::platform::RelayPaths;
 use crate::services::{
     diagnostics_service, doctor_service, events_service, policy_service, profile_service,
-    status_service, switch_service,
+    status_service, switch_service, usage_service,
 };
 use crate::store::{
-    AddProfileRecord, FileLogStore, FileStateStore, ProfileUpdateRecord, SqliteStore,
+    AddProfileRecord, FileLogStore, FileStateStore, FileUsageStore, ProfileUpdateRecord,
+    SqliteStore,
 };
 use std::fs;
 use std::path::PathBuf;
@@ -19,7 +20,7 @@ pub struct AddProfileRequest {
     pub nickname: String,
     pub priority: i32,
     pub config_path: Option<PathBuf>,
-    pub codex_home: Option<PathBuf>,
+    pub agent_home: Option<PathBuf>,
     pub auth_mode: crate::models::AuthMode,
 }
 
@@ -28,7 +29,7 @@ pub struct EditProfileRequest {
     pub nickname: Option<String>,
     pub priority: Option<i32>,
     pub config_path: Option<Option<PathBuf>>,
-    pub codex_home: Option<Option<PathBuf>>,
+    pub agent_home: Option<Option<PathBuf>>,
     pub auth_mode: Option<crate::models::AuthMode>,
 }
 
@@ -36,6 +37,7 @@ pub struct RelayApp {
     paths: RelayPaths,
     store: SqliteStore,
     state_store: FileStateStore,
+    usage_store: FileUsageStore,
     log_store: FileLogStore,
     codex_adapter: CodexAdapter,
 }
@@ -47,6 +49,7 @@ impl RelayApp {
 
         let store = SqliteStore::new(&paths.db_path)?;
         let state_store = FileStateStore::new(&paths.state_path);
+        let usage_store = FileUsageStore::new(&paths.usage_path);
         let log_store = FileLogStore::new(&paths.log_file);
         let codex_adapter = CodexAdapter::new()?;
 
@@ -54,6 +57,7 @@ impl RelayApp {
             paths,
             store,
             state_store,
+            usage_store,
             log_store,
             codex_adapter,
         })
@@ -91,7 +95,7 @@ impl RelayApp {
                 nickname: request.nickname,
                 priority: request.priority,
                 config_path: request.config_path,
-                codex_home: request.codex_home,
+                codex_home: request.agent_home,
                 auth_mode: request.auth_mode,
             },
         )?;
@@ -113,7 +117,7 @@ impl RelayApp {
                 nickname: request.nickname,
                 priority: request.priority,
                 config_path: request.config_path,
-                codex_home: request.codex_home,
+                codex_home: request.agent_home,
                 auth_mode: request.auth_mode,
             },
         )?;
@@ -141,7 +145,7 @@ impl RelayApp {
 
     pub fn remove_profile(&self, id: &str) -> Result<Profile, RelayError> {
         let profile = profile_service::remove_profile(&self.store, id)?;
-        if let Some(home) = profile.codex_home.as_ref() {
+        if let Some(home) = profile.agent_home.as_ref() {
             let path = PathBuf::from(home);
             if path.starts_with(&self.paths.profiles_dir) && path.exists() {
                 fs::remove_dir_all(path)?;
@@ -214,6 +218,21 @@ impl RelayApp {
         events_service::list_failure_events(&self.store, limit)
     }
 
+    pub fn usage_report(&self) -> Result<UsageSnapshot, RelayError> {
+        let active_state = self.state_store.load()?;
+        let active_profile = active_state
+            .active_profile_id
+            .as_deref()
+            .map(|profile_id| self.store.get_profile(profile_id))
+            .transpose()?;
+        usage_service::build(
+            &self.store,
+            &self.usage_store,
+            active_profile.as_ref(),
+            self.codex_adapter.live_home(),
+        )
+    }
+
     pub fn logs_tail(&self, lines: usize) -> Result<LogTail, RelayError> {
         self.log_store.tail(lines)
     }
@@ -222,6 +241,7 @@ impl RelayApp {
         let doctor = self.doctor_report()?;
         let status = self.status_report()?;
         let active_state = self.state_store.load()?;
+        let usage = self.usage_report()?;
         diagnostics_service::export_bundle(
             &self.paths,
             &self.store,
@@ -229,6 +249,7 @@ impl RelayApp {
             &doctor,
             &status,
             &active_state,
+            &usage,
         )
     }
 }

@@ -59,21 +59,24 @@ Implemented now:
 - `relay` CLI command framework
 - `relay doctor`
 - `relay status`
+- `relay usage`
 - `relay profiles list/add/edit/remove/enable/disable/import-codex`
 - `relay switch <id>`
 - `relay switch next`
 - `relay auto-switch enable/disable`
+- `relay auto-switch set`
 - `relay events list`
 - `relay logs tail`
 - `relay diagnostics export`
 - SQLite-backed profile store
 - file-backed active state cache
+- file-backed usage snapshot cache
 - switch checkpoints, rollback, switch history, and failure events
 - CLI integration tests and core unit tests
+- native macOS menu bar control plane built on top of CLI JSON
 
 Not implemented yet:
-
-- macOS app
+- web-enhanced usage
 
 Check [`docs/todo.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/todo.md) before starting new work and update it when major milestones change.
 

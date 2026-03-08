@@ -5,6 +5,7 @@ import Defaults
 @MainActor
 final class RelayAppModel: ObservableObject {
     @Published private(set) var status: StatusReport?
+    @Published private(set) var usage: UsageSnapshot?
     @Published private(set) var doctor: DoctorReport?
     @Published private(set) var profiles: [Profile] = []
     @Published private(set) var events: [FailureEvent] = []
@@ -73,12 +74,14 @@ final class RelayAppModel: ObservableObject {
 
         do {
             async let statusTask = client.fetchStatus()
+            async let usageTask = client.fetchUsage()
             async let doctorTask = client.fetchDoctor()
             async let profilesTask = client.fetchProfiles()
             async let eventsTask = client.fetchEvents(limit: 10)
             async let logsTask = client.fetchLogs(lines: 25)
 
             status = try await statusTask
+            usage = try await usageTask
             doctor = try await doctorTask
             profiles = try await profilesTask
             events = try await eventsTask

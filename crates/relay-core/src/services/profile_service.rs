@@ -24,13 +24,13 @@ pub fn add_profile(
     if let Some(path) = record.codex_home.as_ref() {
         if !path.exists() {
             return Err(RelayError::Validation(format!(
-                "codex_home does not exist: {}",
+                "agent home does not exist: {}",
                 path.display()
             )));
         }
         if !path.is_dir() {
             return Err(RelayError::Validation(format!(
-                "codex_home is not a directory: {}",
+                "agent home is not a directory: {}",
                 path.display()
             )));
         }
@@ -63,10 +63,10 @@ pub fn edit_profile(
         agent: current.agent.clone(),
         priority: update.priority.unwrap_or(current.priority),
         enabled: current.enabled,
-        codex_home: update
+        agent_home: update
             .codex_home
             .clone()
-            .unwrap_or_else(|| current.codex_home.clone().map(Into::into))
+            .unwrap_or_else(|| current.agent_home.clone().map(Into::into))
             .map(|path| path.to_string_lossy().into_owned()),
         config_path: update
             .config_path
@@ -88,7 +88,7 @@ pub fn edit_profile(
             .map(std::path::PathBuf::from)
             .as_ref(),
         candidate
-            .codex_home
+            .agent_home
             .as_ref()
             .map(std::path::PathBuf::from)
             .as_ref(),
@@ -160,7 +160,7 @@ fn validate_source_inputs(
 ) -> Result<(), RelayError> {
     if config_path.is_none() && codex_home.is_none() {
         return Err(RelayError::Validation(
-            "profile must provide either config_path or codex_home".into(),
+            "profile must provide either config_path or agent_home".into(),
         ));
     }
     Ok(())

@@ -11,6 +11,24 @@
 - `done`: SQLite schema versioning policy and automatic migration bootstrap
 - `done`: native macOS control plane built on top of Relay CLI JSON
 
+## Alignment Backlog
+
+These items capture the current gaps against the latest Relay product/function guide and should drive near-term work.
+
+- [x] Add machine-friendly JSON input for mutation commands such as `profiles add`, `profiles edit`, `switch`, and `auto-switch`.
+- [x] Define a stable JSON input contract that maps directly to request models and supports `--input-json <file>` plus stdin via `--input-json -`.
+- [x] Reject ambiguous mixed input by defining clear precedence or mutual exclusion rules between flags and JSON payloads.
+- [x] Add `relay usage` with a stable JSON response that covers session usage, weekly usage, reset time, freshness, and source.
+- [x] Add usage domain models and storage for source confidence, stale state, and last refresh metadata.
+- [x] Implement Codex usage collection with local-first behavior, local fallback behavior, and an explicit source label for degraded data.
+- [x] Keep auto-switch decisions gated on high-confidence signals only, including session exhausted, weekly exhausted, auth invalid, rate limit, and quota exhausted.
+- [x] Do not auto-switch on stale data or low-confidence usage estimates.
+- [x] Fix switch synchronization so optional managed files do not leak across profiles when a target profile omits them.
+- [x] Make rollback restore the exact pre-switch live file set, including cleanup of files introduced by a failed activation attempt.
+- [x] Add regression tests for optional-file removal and rollback cleanup semantics during profile switches.
+- [x] Reduce Codex-specific fields in shared models and status payloads so future agents can plug in through adapters with less cross-cutting schema churn.
+- [x] Reconcile repository docs that still describe the macOS app as future-only with the current implemented app state.
+
 ## Phase 0: Foundation
 
 - [x] Create monorepo layout for apps, crates, and docs.

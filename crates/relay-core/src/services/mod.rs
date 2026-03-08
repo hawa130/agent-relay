@@ -5,3 +5,4 @@ pub mod policy_service;
 pub mod profile_service;
 pub mod status_service;
 pub mod switch_service;
+pub mod usage_service;

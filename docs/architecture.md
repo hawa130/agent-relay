@@ -40,6 +40,7 @@ docs/
 - `doctor_service`: environment checks, Codex discovery, config-path inspection.
 - `profile_service`: CRUD, validation, import flow, enable/disable.
 - `status_service`: read current cached state and summarize runtime health.
+- `usage_service`: collect local-first Codex usage, apply fallback logic, and cache usage snapshots.
 - `switch_service`: transactional activation, validation, rollback.
 - `policy_service`: next-profile selection, cooldown, auto-switch policy.
 - `diagnostics_service`: export logs, environment, redacted state.
@@ -47,7 +48,7 @@ docs/
 ### Store
 
 - SQLite for durable relational data: profiles, settings, event history.
-- JSON files for cached active state and low-latency UI reads.
+- JSON files for cached active state, usage snapshots, and low-latency UI reads.
 - Snapshot directory for switch checkpoints and rollback assets.
 
 ### Platform

@@ -20,7 +20,8 @@ pub struct Profile {
     pub agent: AgentKind,
     pub priority: i32,
     pub enabled: bool,
-    pub codex_home: Option<String>,
+    #[serde(alias = "codex_home")]
+    pub agent_home: Option<String>,
     pub config_path: Option<String>,
     pub auth_mode: AuthMode,
     pub metadata: Value,

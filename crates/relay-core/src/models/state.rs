@@ -39,7 +39,8 @@ pub struct SwitchCheckpoint {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StatusReport {
     pub relay_home: String,
-    pub live_codex_home: String,
+    #[serde(alias = "live_codex_home")]
+    pub live_agent_home: String,
     pub profile_count: usize,
     pub active_state: ActiveState,
     pub settings: crate::models::AppSettings,

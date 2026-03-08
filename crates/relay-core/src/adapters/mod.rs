@@ -93,14 +93,7 @@ impl CodexAdapter {
         let backup_paths = self.backup_live_files(&backup_dir)?;
 
         let attempt = (|| {
-            copy_atomic(&sources.config, &self.live_home.join("config.toml"))?;
-            if let Some(auth) = sources.auth.as_ref() {
-                copy_atomic(auth, &self.live_home.join("auth.json"))?;
-            }
-            if let Some(version) = sources.version.as_ref() {
-                copy_atomic(version, &self.live_home.join("version.json"))?;
-            }
-
+            self.sync_live_files(&sources)?;
             self.validate_live_against(&sources)
         })();
 
@@ -121,6 +114,14 @@ impl CodexAdapter {
 
         if let Some(auth) = sources.auth.as_ref() {
             ensure_same_contents(auth, &self.live_home.join("auth.json"))?;
+        } else {
+            ensure_missing(&self.live_home.join("auth.json"))?;
+        }
+
+        if let Some(version) = sources.version.as_ref() {
+            ensure_same_contents(version, &self.live_home.join("version.json"))?;
+        } else {
+            ensure_missing(&self.live_home.join("version.json"))?;
         }
 
         if let Some(binary) = crate::platform::find_binary("codex") {
@@ -135,6 +136,16 @@ impl CodexAdapter {
             }
         }
 
+        Ok(())
+    }
+
+    fn sync_live_files(&self, sources: &ManagedSourceFiles) -> Result<(), RelayError> {
+        copy_atomic(&sources.config, &self.live_home.join("config.toml"))?;
+        sync_optional_file(sources.auth.as_deref(), &self.live_home.join("auth.json"))?;
+        sync_optional_file(
+            sources.version.as_deref(),
+            &self.live_home.join("version.json"),
+        )?;
         Ok(())
     }
 
@@ -171,11 +182,15 @@ impl CodexAdapter {
         let backup_auth = backup_dir.join("auth.json");
         if backup_auth.exists() {
             copy_atomic(&backup_auth, &self.live_home.join("auth.json"))?;
+        } else {
+            remove_if_exists(&self.live_home.join("auth.json"))?;
         }
 
         let backup_version = backup_dir.join("version.json");
         if backup_version.exists() {
             copy_atomic(&backup_version, &self.live_home.join("version.json"))?;
+        } else {
+            remove_if_exists(&self.live_home.join("version.json"))?;
         }
 
         Ok(())
@@ -190,23 +205,23 @@ impl CodexAdapter {
     }
 
     fn resolve_sources(&self, profile: &Profile) -> Result<ManagedSourceFiles, RelayError> {
-        let codex_home = profile.codex_home.as_ref().map(PathBuf::from);
+        let agent_home = profile.agent_home.as_ref().map(PathBuf::from);
         let config = profile
             .config_path
             .as_ref()
             .map(PathBuf::from)
-            .or_else(|| codex_home.as_ref().map(|path| path.join("config.toml")))
+            .or_else(|| agent_home.as_ref().map(|path| path.join("config.toml")))
             .ok_or_else(|| {
                 RelayError::Validation(
-                    "profile must provide either config_path or codex_home/config.toml".into(),
+                    "profile must provide either config_path or agent_home/config.toml".into(),
                 )
             })?;
 
-        let auth = codex_home
+        let auth = agent_home
             .as_ref()
             .map(|path| path.join("auth.json"))
             .filter(|path| path.exists());
-        let version = codex_home
+        let version = agent_home
             .as_ref()
             .map(|path| path.join("version.json"))
             .filter(|path| path.exists());
@@ -232,11 +247,11 @@ impl AgentAdapter for CodexAdapter {
                 sources.config.display()
             )));
         }
-        if let Some(home) = profile.codex_home.as_ref() {
+        if let Some(home) = profile.agent_home.as_ref() {
             let path = PathBuf::from(home);
             if !path.exists() || !path.is_dir() {
                 return Err(RelayError::Validation(format!(
-                    "profile codex_home is not a directory: {}",
+                    "profile agent home is not a directory: {}",
                     path.display()
                 )));
             }
@@ -257,6 +272,16 @@ fn ensure_same_contents(source: &Path, destination: &Path) -> Result<(), RelayEr
     Ok(())
 }
 
+fn ensure_missing(path: &Path) -> Result<(), RelayError> {
+    if path.exists() {
+        return Err(RelayError::Validation(format!(
+            "post-switch validation expected {} to be absent",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+
 fn copy_atomic(source: &Path, destination: &Path) -> Result<(), RelayError> {
     if let Some(parent) = destination.parent() {
         fs::create_dir_all(parent)?;
@@ -264,6 +289,20 @@ fn copy_atomic(source: &Path, destination: &Path) -> Result<(), RelayError> {
     let temp = destination.with_extension("tmp");
     fs::copy(source, &temp)?;
     fs::rename(temp, destination)?;
+    Ok(())
+}
+
+fn sync_optional_file(source: Option<&Path>, destination: &Path) -> Result<(), RelayError> {
+    match source {
+        Some(source) => copy_atomic(source, destination),
+        None => remove_if_exists(destination),
+    }
+}
+
+fn remove_if_exists(path: &Path) -> Result<(), RelayError> {
+    if path.exists() {
+        fs::remove_file(path)?;
+    }
     Ok(())
 }
 
@@ -280,7 +319,7 @@ mod tests {
             agent: AgentKind::Codex,
             priority: 100,
             enabled: true,
-            codex_home: Some(codex_home.to_string_lossy().into_owned()),
+            agent_home: Some(codex_home.to_string_lossy().into_owned()),
             config_path: Some(
                 codex_home
                     .join("config.toml")
@@ -320,5 +359,50 @@ mod tests {
             fs::read_to_string(live_home.join("config.toml")).expect("live"),
             "model = 'b'"
         );
+    }
+
+    #[test]
+    fn activate_removes_optional_files_missing_from_target_profile() {
+        let temp = tempdir().expect("tempdir");
+        let live_home = temp.path().join("live");
+        let profile_home = temp.path().join("profile");
+        fs::create_dir_all(&live_home).expect("live");
+        fs::create_dir_all(&profile_home).expect("profile");
+        fs::write(live_home.join("config.toml"), "model = 'a'").expect("live config");
+        fs::write(live_home.join("auth.json"), "{\"token\":\"a\"}").expect("live auth");
+        fs::write(live_home.join("version.json"), "{\"version\":\"1\"}").expect("live version");
+        fs::write(profile_home.join("config.toml"), "model = 'b'").expect("profile config");
+
+        let adapter = CodexAdapter::with_live_home(&live_home);
+        let profile = make_profile("p1", &profile_home);
+        adapter
+            .activate(&profile, &temp.path().join("snapshots"))
+            .expect("activate");
+
+        assert!(!live_home.join("auth.json").exists());
+        assert!(!live_home.join("version.json").exists());
+    }
+
+    #[test]
+    fn restore_backup_removes_files_that_were_not_present_before_switch() {
+        let temp = tempdir().expect("tempdir");
+        let live_home = temp.path().join("live");
+        let backup_dir = temp.path().join("backup");
+        fs::create_dir_all(&live_home).expect("live");
+        fs::create_dir_all(&backup_dir).expect("backup");
+        fs::write(live_home.join("config.toml"), "model = 'new'").expect("config");
+        fs::write(live_home.join("auth.json"), "{\"token\":\"new\"}").expect("auth");
+        fs::write(live_home.join("version.json"), "{\"version\":\"2\"}").expect("version");
+        fs::write(backup_dir.join("config.toml"), "model = 'old'").expect("backup config");
+
+        let adapter = CodexAdapter::with_live_home(&live_home);
+        adapter.restore_backup(&backup_dir).expect("restore");
+
+        assert_eq!(
+            fs::read_to_string(live_home.join("config.toml")).expect("config"),
+            "model = 'old'"
+        );
+        assert!(!live_home.join("auth.json").exists());
+        assert!(!live_home.join("version.json").exists());
     }
 }

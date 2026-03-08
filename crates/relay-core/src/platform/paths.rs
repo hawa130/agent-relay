@@ -7,6 +7,7 @@ pub struct RelayPaths {
     pub relay_home: PathBuf,
     pub db_path: PathBuf,
     pub state_path: PathBuf,
+    pub usage_path: PathBuf,
     pub logs_dir: PathBuf,
     pub log_file: PathBuf,
     pub profiles_dir: PathBuf,
@@ -30,6 +31,7 @@ impl RelayPaths {
         Self {
             db_path: relay_home.join("relay.db"),
             state_path: relay_home.join("state.json"),
+            usage_path: relay_home.join("usage.json"),
             logs_dir: relay_home.join("logs"),
             log_file: relay_home.join("logs").join("relay.log"),
             profiles_dir: relay_home.join("profiles"),
