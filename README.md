@@ -7,12 +7,14 @@ V1 currently targets `Codex` and provides:
 - profile CRUD
 - import from the current live Codex home
 - transactional profile switching with rollback
+- local-first usage reporting with session, weekly, reset, freshness, and source labels
 - auto-switch policy toggle
 - event history
 - log tailing
 - diagnostics export
+- a native macOS menu bar control plane that calls Relay CLI JSON
 
-The macOS menu bar app is planned later. Today, the working product is the CLI.
+The CLI remains the only execution layer. The macOS menu bar app is a native control plane on top of Relay CLI JSON.
 
 ## Status
 
@@ -32,8 +34,10 @@ relay profiles disable
 relay profiles import-codex
 relay switch <id>
 relay switch next
+relay usage
 relay auto-switch enable
 relay auto-switch disable
+relay auto-switch set
 relay events list
 relay logs tail
 relay diagnostics export
@@ -99,6 +103,7 @@ relay switch next --json
 Inspect runtime state:
 
 ```bash
+relay usage --json
 relay events list --limit 20 --json
 relay logs tail --lines 50 --json
 relay diagnostics export --json
@@ -140,4 +145,3 @@ Additional docs:
 - [Todo](./docs/todo.md)
 - [Install and Usage](./docs/install.md)
 - [Development](./docs/development.md)
-

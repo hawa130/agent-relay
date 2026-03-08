@@ -1,8 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FailureReason {
+    SessionExhausted,
+    WeeklyExhausted,
     AuthInvalid,
     QuotaExhausted,
     RateLimited,

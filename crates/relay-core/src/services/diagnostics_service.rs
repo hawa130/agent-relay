@@ -1,4 +1,4 @@
-use crate::models::{DiagnosticsExport, RelayError};
+use crate::models::{DiagnosticsExport, RelayError, UsageSnapshot};
 use crate::platform::RelayPaths;
 use crate::store::{FileLogStore, SqliteStore};
 use crate::{ActiveState, DoctorReport, StatusReport};
@@ -15,6 +15,7 @@ pub fn export_bundle(
     doctor: &DoctorReport,
     status: &StatusReport,
     active_state: &ActiveState,
+    usage: &UsageSnapshot,
 ) -> Result<DiagnosticsExport, RelayError> {
     let timestamp = Utc::now().format("%Y%m%d-%H%M%S").to_string();
     let bundle_dir = paths.exports_dir.join(format!("diagnostics_{timestamp}"));
@@ -26,6 +27,7 @@ pub fn export_bundle(
     write_json(&bundle_dir.join("doctor.json"), doctor)?;
     write_json(&bundle_dir.join("status.json"), status)?;
     write_json(&bundle_dir.join("active_state.json"), active_state)?;
+    write_json(&bundle_dir.join("usage.json"), usage)?;
     write_json(&bundle_dir.join("profiles.json"), &store.list_profiles()?)?;
     write_json(
         &bundle_dir.join("events.json"),

@@ -91,7 +91,7 @@ struct SettingsView: View {
             Section("Relay") {
                 LabeledContent("CLI", value: ProcessInfo.processInfo.environment["RELAY_CLI_PATH"] ?? "Bundled relay")
                 LabeledContent("Relay Home", value: model.status?.relayHome ?? "-")
-                LabeledContent("Live Codex Home", value: model.status?.liveCodexHome ?? "-")
+                LabeledContent("Live Agent Home", value: model.status?.liveAgentHome ?? "-")
                 LabeledContent("Platform", value: model.doctor?.platform ?? "-")
             }
 
@@ -193,7 +193,7 @@ struct SettingsView: View {
                     }
 
                     Section("Paths") {
-                        LabeledContent("Codex Home", value: profile.codexHome ?? "-")
+                        LabeledContent("Agent Home", value: profile.agentHome ?? "-")
                         LabeledContent("Config Path", value: profile.configPath ?? "-")
                     }
 
@@ -394,9 +394,9 @@ private struct ProfileEditorSheet: View {
                 }
 
                 Section("Paths") {
-                    TextField("Codex Home", text: $draft.codexHome)
+                    TextField("Agent Home", text: $draft.agentHome)
                     if case .edit = mode {
-                        Toggle("Clear Codex Home", isOn: $draft.clearCodexHome)
+                        Toggle("Clear Agent Home", isOn: $draft.clearAgentHome)
                     }
 
                     TextField("Config Path", text: $draft.configPath)
@@ -431,16 +431,16 @@ private struct ProfileEditorSheet: View {
     private var normalizedDraft: ProfileDraft {
         var copy = draft
         copy.nickname = copy.nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        copy.codexHome = copy.codexHome.trimmingCharacters(in: .whitespacesAndNewlines)
+        copy.agentHome = copy.agentHome.trimmingCharacters(in: .whitespacesAndNewlines)
         copy.configPath = copy.configPath.trimmingCharacters(in: .whitespacesAndNewlines)
 
         switch mode {
         case .create:
-            copy.clearCodexHome = false
+            copy.clearAgentHome = false
             copy.clearConfigPath = false
         case let .edit(profile):
-            if copy.codexHome.isEmpty, profile.codexHome != nil {
-                copy.clearCodexHome = true
+            if copy.agentHome.isEmpty, profile.agentHome != nil {
+                copy.clearAgentHome = true
             }
             if copy.configPath.isEmpty, profile.configPath != nil {
                 copy.clearConfigPath = true

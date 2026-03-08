@@ -1,4 +1,6 @@
-use crate::models::{FailureEvent, Profile, RelayError};
+use crate::models::{
+    FailureEvent, FailureReason, Profile, RelayError, UsageConfidence, UsageSnapshot,
+};
 use chrono::Utc;
 
 pub fn select_next_profile(
@@ -38,4 +40,26 @@ fn is_in_cooldown(profile: &Profile, events: &[FailureEvent]) -> bool {
         event.profile_id.as_deref() == Some(profile.id.as_str())
             && event.cooldown_until.is_some_and(|until| until > now)
     })
+}
+
+pub fn auto_switch_reason(snapshot: &UsageSnapshot) -> Option<FailureReason> {
+    if snapshot.stale || snapshot.confidence != UsageConfidence::High {
+        return None;
+    }
+
+    if matches!(
+        snapshot.session.status,
+        crate::models::UsageStatus::Exhausted
+    ) {
+        return Some(FailureReason::SessionExhausted);
+    }
+
+    if matches!(
+        snapshot.weekly.status,
+        crate::models::UsageStatus::Exhausted
+    ) {
+        return Some(FailureReason::WeeklyExhausted);
+    }
+
+    None
 }

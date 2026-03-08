@@ -1,7 +1,9 @@
 use clap::{Args, Parser, Subcommand};
 use relay_core::models::JsonResponse;
 use relay_core::{AddProfileRequest, AuthMode, EditProfileRequest, RelayApp, RelayError};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process::ExitCode;
 use tracing_subscriber::EnvFilter;
@@ -23,6 +25,7 @@ struct Cli {
 enum Commands {
     Doctor,
     Status,
+    Usage,
     Profiles(ProfilesCommand),
     Switch(SwitchCommand),
     AutoSwitch(AutoSwitchCommand),
@@ -51,25 +54,31 @@ enum ProfilesSubcommand {
 #[derive(Debug, Args)]
 struct AddProfileArgs {
     #[arg(long)]
-    nickname: String,
-    #[arg(long, default_value_t = 100)]
-    priority: i32,
+    nickname: Option<String>,
+    #[arg(long)]
+    priority: Option<i32>,
     #[arg(long)]
     config_path: Option<PathBuf>,
     #[arg(long)]
     codex_home: Option<PathBuf>,
-    #[arg(long, default_value = "config-filesystem")]
-    auth_mode: String,
+    #[arg(long)]
+    auth_mode: Option<String>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 struct ProfileIdArgs {
-    id: String,
+    id: Option<String>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 struct SwitchCommand {
-    target: String,
+    target: Option<String>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -82,6 +91,15 @@ struct AutoSwitchCommand {
 enum AutoSwitchSubcommand {
     Enable,
     Disable,
+    Set(AutoSwitchSetArgs),
+}
+
+#[derive(Debug, Args)]
+struct AutoSwitchSetArgs {
+    #[arg(long)]
+    enabled: Option<bool>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -121,13 +139,15 @@ enum DiagnosticsSubcommand {
 struct ImportCodexArgs {
     #[arg(long)]
     nickname: Option<String>,
-    #[arg(long, default_value_t = 100)]
-    priority: i32,
+    #[arg(long)]
+    priority: Option<i32>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 struct EditProfileArgs {
-    id: String,
+    id: Option<String>,
     #[arg(long)]
     nickname: Option<String>,
     #[arg(long)]
@@ -142,18 +162,24 @@ struct EditProfileArgs {
     clear_codex_home: bool,
     #[arg(long)]
     auth_mode: Option<String>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 struct ListArgs {
-    #[arg(long, default_value_t = 50)]
-    limit: usize,
+    #[arg(long)]
+    limit: Option<usize>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 struct TailArgs {
-    #[arg(long, default_value_t = 50)]
-    lines: usize,
+    #[arg(long)]
+    lines: Option<usize>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
 }
 
 fn main() -> ExitCode {
@@ -212,6 +238,11 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
             app.status_report()?,
             cli.json,
         )),
+        Commands::Usage => Ok(Output::success(
+            "usage loaded",
+            app.usage_report()?,
+            cli.json,
+        )),
         Commands::Profiles(command) => match command.command {
             ProfilesSubcommand::List => Ok(Output::success(
                 "profiles loaded",
@@ -219,14 +250,7 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 cli.json,
             )),
             ProfilesSubcommand::Add(args) => {
-                let auth_mode = parse_auth_mode(&args.auth_mode)?;
-                let request = AddProfileRequest {
-                    nickname: args.nickname,
-                    priority: args.priority,
-                    config_path: args.config_path,
-                    codex_home: args.codex_home,
-                    auth_mode,
-                };
+                let request = add_profile_request_from_args(args)?;
                 Ok(Output::success(
                     "profile created",
                     app.add_profile(request)?,
@@ -234,51 +258,40 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 ))
             }
             ProfilesSubcommand::Edit(args) => {
-                let auth_mode = args.auth_mode.as_deref().map(parse_auth_mode).transpose()?;
-                let request = EditProfileRequest {
-                    nickname: args.nickname,
-                    priority: args.priority,
-                    config_path: if args.clear_config_path {
-                        Some(None)
-                    } else {
-                        args.config_path.map(Some)
-                    },
-                    codex_home: if args.clear_codex_home {
-                        Some(None)
-                    } else {
-                        args.codex_home.map(Some)
-                    },
-                    auth_mode,
-                };
+                let (id, request) = edit_profile_request_from_args(args)?;
                 Ok(Output::success(
                     "profile updated",
-                    app.edit_profile(&args.id, request)?,
+                    app.edit_profile(&id, request)?,
                     cli.json,
                 ))
             }
             ProfilesSubcommand::Remove(args) => Ok(Output::success(
                 "profile removed",
-                app.remove_profile(&args.id)?,
+                app.remove_profile(&profile_id_from_args(args)?)?,
                 cli.json,
             )),
             ProfilesSubcommand::Enable(args) => Ok(Output::success(
                 "profile enabled",
-                app.set_profile_enabled(&args.id, true)?,
+                app.set_profile_enabled(&profile_id_from_args(args)?, true)?,
                 cli.json,
             )),
             ProfilesSubcommand::Disable(args) => Ok(Output::success(
                 "profile disabled",
-                app.set_profile_enabled(&args.id, false)?,
+                app.set_profile_enabled(&profile_id_from_args(args)?, false)?,
                 cli.json,
             )),
-            ProfilesSubcommand::ImportCodex(args) => Ok(Output::success(
-                "codex profile imported",
-                app.import_codex_profile(args.nickname, args.priority)?,
-                cli.json,
-            )),
+            ProfilesSubcommand::ImportCodex(args) => {
+                let payload = import_codex_input_from_args(args)?;
+                Ok(Output::success(
+                    "codex profile imported",
+                    app.import_codex_profile(payload.nickname, payload.priority)?,
+                    cli.json,
+                ))
+            }
         },
         Commands::Switch(command) => {
-            if command.target == "next" {
+            let target = switch_target_from_args(command)?;
+            if target == "next" {
                 Ok(Output::success(
                     "switch completed",
                     app.switch_next_profile()?,
@@ -287,7 +300,7 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
             } else {
                 Ok(Output::success(
                     "switch completed",
-                    app.switch_to_profile(&command.target)?,
+                    app.switch_to_profile(&target)?,
                     cli.json,
                 ))
             }
@@ -303,20 +316,34 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 app.set_auto_switch_enabled(false)?,
                 cli.json,
             )),
+            AutoSwitchSubcommand::Set(args) => {
+                let enabled = auto_switch_enabled_from_args(args)?;
+                Ok(Output::success(
+                    if enabled {
+                        "auto-switch enabled"
+                    } else {
+                        "auto-switch disabled"
+                    },
+                    app.set_auto_switch_enabled(enabled)?,
+                    cli.json,
+                ))
+            }
         },
         Commands::Events(command) => match command.command {
-            EventsSubcommand::List(args) => Ok(Output::success(
-                "events loaded",
-                app.list_failure_events(args.limit)?,
-                cli.json,
-            )),
+            EventsSubcommand::List(args) => {
+                let limit = events_limit_from_args(args)?;
+                Ok(Output::success(
+                    "events loaded",
+                    app.list_failure_events(limit)?,
+                    cli.json,
+                ))
+            }
         },
         Commands::Logs(command) => match command.command {
-            LogsSubcommand::Tail(args) => Ok(Output::success(
-                "logs loaded",
-                app.logs_tail(args.lines)?,
-                cli.json,
-            )),
+            LogsSubcommand::Tail(args) => {
+                let lines = log_lines_from_args(args)?;
+                Ok(Output::success("logs loaded", app.logs_tail(lines)?, cli.json))
+            }
         },
         Commands::Diagnostics(command) => match command.command {
             DiagnosticsSubcommand::Export => Ok(Output::success(
@@ -337,6 +364,264 @@ fn parse_auth_mode(value: &str) -> Result<AuthMode, RelayError> {
             "unsupported auth mode: {other}"
         ))),
     }
+}
+
+fn add_profile_request_from_args(args: AddProfileArgs) -> Result<AddProfileRequest, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(
+            input_json,
+            &[
+                args.nickname.is_some(),
+                args.priority.is_some(),
+                args.config_path.is_some(),
+                args.codex_home.is_some(),
+                args.auth_mode.is_some(),
+            ],
+        )?;
+        let payload: AddProfileInput = read_json_input(input_json)?;
+        return Ok(AddProfileRequest {
+            nickname: payload.nickname,
+            priority: payload.priority,
+            config_path: payload.config_path,
+            agent_home: payload.agent_home,
+            auth_mode: payload.auth_mode,
+        });
+    }
+
+    Ok(AddProfileRequest {
+        nickname: require_field(args.nickname, "profile nickname is required")?,
+        priority: args.priority.unwrap_or(100),
+        config_path: args.config_path,
+        agent_home: args.codex_home,
+        auth_mode: args
+            .auth_mode
+            .as_deref()
+            .map(parse_auth_mode)
+            .transpose()?
+            .unwrap_or(AuthMode::ConfigFilesystem),
+    })
+}
+
+fn edit_profile_request_from_args(
+    args: EditProfileArgs,
+) -> Result<(String, EditProfileRequest), RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(
+            input_json,
+            &[
+                args.id.is_some(),
+                args.nickname.is_some(),
+                args.priority.is_some(),
+                args.config_path.is_some(),
+                args.clear_config_path,
+                args.codex_home.is_some(),
+                args.clear_codex_home,
+                args.auth_mode.is_some(),
+            ],
+        )?;
+        let payload: EditProfileInput = read_json_input(input_json)?;
+        return Ok((
+            payload.id,
+            EditProfileRequest {
+                nickname: payload.nickname,
+                priority: payload.priority,
+                config_path: payload.config_path,
+                agent_home: payload.agent_home,
+                auth_mode: payload.auth_mode,
+            },
+        ));
+    }
+
+    let auth_mode = args.auth_mode.as_deref().map(parse_auth_mode).transpose()?;
+    Ok((
+        require_field(args.id, "profile id is required")?,
+        EditProfileRequest {
+            nickname: args.nickname,
+            priority: args.priority,
+            config_path: if args.clear_config_path {
+                Some(None)
+            } else {
+                args.config_path.map(Some)
+            },
+            agent_home: if args.clear_codex_home {
+                Some(None)
+            } else {
+                args.codex_home.map(Some)
+            },
+            auth_mode,
+        },
+    ))
+}
+
+fn import_codex_input_from_args(args: ImportCodexArgs) -> Result<ImportCodexInput, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(
+            input_json,
+            &[args.nickname.is_some(), args.priority.is_some()],
+        )?;
+        return read_json_input(input_json);
+    }
+
+    Ok(ImportCodexInput {
+        nickname: args.nickname,
+        priority: args.priority.unwrap_or(100),
+    })
+}
+
+fn profile_id_from_args(args: ProfileIdArgs) -> Result<String, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(input_json, &[args.id.is_some()])?;
+        let payload: ProfileIdInput = read_json_input(input_json)?;
+        return Ok(payload.id);
+    }
+
+    require_field(args.id, "profile id is required")
+}
+
+fn switch_target_from_args(args: SwitchCommand) -> Result<String, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(input_json, &[args.target.is_some()])?;
+        let payload: SwitchInput = read_json_input(input_json)?;
+        return Ok(payload.target);
+    }
+
+    require_field(args.target, "switch target is required")
+}
+
+fn auto_switch_enabled_from_args(args: AutoSwitchSetArgs) -> Result<bool, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(input_json, &[args.enabled.is_some()])?;
+        let payload: AutoSwitchInput = read_json_input(input_json)?;
+        return Ok(payload.enabled);
+    }
+
+    require_field(args.enabled, "auto-switch enabled value is required")
+}
+
+fn events_limit_from_args(args: ListArgs) -> Result<usize, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(input_json, &[args.limit.is_some()])?;
+        let payload: EventsListInput = read_json_input(input_json)?;
+        return Ok(payload.limit);
+    }
+
+    Ok(args.limit.unwrap_or(50))
+}
+
+fn log_lines_from_args(args: TailArgs) -> Result<usize, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(input_json, &[args.lines.is_some()])?;
+        let payload: LogsTailInput = read_json_input(input_json)?;
+        return Ok(payload.lines);
+    }
+
+    Ok(args.lines.unwrap_or(50))
+}
+
+fn ensure_json_input_is_exclusive(path: &PathBuf, conflicts: &[bool]) -> Result<(), RelayError> {
+    if conflicts.iter().any(|value| *value) {
+        return Err(RelayError::InvalidInput(format!(
+            "--input-json {} cannot be combined with inline command arguments",
+            path.display()
+        )));
+    }
+    Ok(())
+}
+
+fn read_json_input<T>(path: &PathBuf) -> Result<T, RelayError>
+where
+    T: for<'de> Deserialize<'de>,
+{
+    let body = if path.as_os_str() == "-" {
+        let mut buffer = String::new();
+        io::stdin()
+            .read_to_string(&mut buffer)
+            .map_err(|error| RelayError::Io(error.to_string()))?;
+        buffer
+    } else {
+        fs::read_to_string(path)?
+    };
+
+    serde_json::from_str(&body).map_err(|error| {
+        RelayError::InvalidInput(format!("invalid JSON input in {}: {error}", path.display()))
+    })
+}
+
+fn require_field<T>(value: Option<T>, message: &str) -> Result<T, RelayError> {
+    value.ok_or_else(|| RelayError::InvalidInput(message.into()))
+}
+
+fn default_priority() -> i32 {
+    100
+}
+
+fn default_auth_mode() -> AuthMode {
+    AuthMode::ConfigFilesystem
+}
+
+#[derive(Debug, Deserialize)]
+struct AddProfileInput {
+    nickname: String,
+    #[serde(default = "default_priority")]
+    priority: i32,
+    config_path: Option<PathBuf>,
+    #[serde(alias = "codex_home")]
+    agent_home: Option<PathBuf>,
+    #[serde(default = "default_auth_mode")]
+    auth_mode: AuthMode,
+}
+
+#[derive(Debug, Deserialize)]
+struct EditProfileInput {
+    id: String,
+    nickname: Option<String>,
+    priority: Option<i32>,
+    config_path: Option<Option<PathBuf>>,
+    #[serde(alias = "codex_home")]
+    agent_home: Option<Option<PathBuf>>,
+    auth_mode: Option<AuthMode>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ProfileIdInput {
+    id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct SwitchInput {
+    target: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct AutoSwitchInput {
+    enabled: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct ImportCodexInput {
+    nickname: Option<String>,
+    #[serde(default = "default_priority")]
+    priority: i32,
+}
+
+#[derive(Debug, Deserialize)]
+struct EventsListInput {
+    #[serde(default = "default_list_limit")]
+    limit: usize,
+}
+
+#[derive(Debug, Deserialize)]
+struct LogsTailInput {
+    #[serde(default = "default_tail_lines")]
+    lines: usize,
+}
+
+fn default_list_limit() -> usize {
+    50
+}
+
+fn default_tail_lines() -> usize {
+    50
 }
 
 struct Output {

@@ -21,7 +21,7 @@ struct DoctorReport: Decodable, Sendable {
 
 struct StatusReport: Decodable, Sendable {
     let relayHome: String
-    let liveCodexHome: String
+    let liveAgentHome: String
     let profileCount: Int
     let activeState: ActiveState
     let settings: AppSettings
@@ -46,11 +46,34 @@ struct Profile: Decodable, Identifiable, Sendable {
     let agent: AgentKind
     let priority: Int
     let enabled: Bool
-    let codexHome: String?
+    let agentHome: String?
     let configPath: String?
     let authMode: AuthMode
     let createdAt: Date
     let updatedAt: Date
+}
+
+struct UsageSnapshot: Decodable, Sendable {
+    let profileID: String?
+    let profileName: String?
+    let source: UsageSource
+    let confidence: UsageConfidence
+    let stale: Bool
+    let lastRefreshedAt: Date
+    let nextResetAt: Date?
+    let session: UsageWindow
+    let weekly: UsageWindow
+    let autoSwitchReason: FailureReason?
+    let canAutoSwitch: Bool
+    let message: String?
+}
+
+struct UsageWindow: Decodable, Sendable {
+    let usedPercent: Double?
+    let windowMinutes: Int?
+    let resetAt: Date?
+    let status: UsageStatus
+    let exact: Bool
 }
 
 struct FailureEvent: Decodable, Identifiable, Sendable {
@@ -86,13 +109,15 @@ enum AgentKind: String, Decodable, Sendable {
     case codex = "Codex"
 }
 
-enum AuthMode: String, Decodable, Sendable, CaseIterable {
+enum AuthMode: String, Codable, Sendable, CaseIterable {
     case configFilesystem = "ConfigFilesystem"
     case envReference = "EnvReference"
     case keychainReference = "KeychainReference"
 }
 
 enum FailureReason: String, Decodable, Sendable {
+    case sessionExhausted = "SessionExhausted"
+    case weeklyExhausted = "WeeklyExhausted"
     case authInvalid = "AuthInvalid"
     case quotaExhausted = "QuotaExhausted"
     case rateLimited = "RateLimited"
@@ -105,6 +130,25 @@ enum SwitchOutcome: String, Decodable, Sendable {
     case notRun = "NotRun"
     case success = "Success"
     case failed = "Failed"
+}
+
+enum UsageSource: String, Decodable, Sendable {
+    case local = "Local"
+    case fallback = "Fallback"
+    case webEnhanced = "WebEnhanced"
+}
+
+enum UsageConfidence: String, Decodable, Sendable {
+    case high = "High"
+    case medium = "Medium"
+    case low = "Low"
+}
+
+enum UsageStatus: String, Decodable, Sendable {
+    case healthy = "Healthy"
+    case warning = "Warning"
+    case exhausted = "Exhausted"
+    case unknown = "Unknown"
 }
 
 extension AuthMode {
@@ -134,47 +178,47 @@ extension AuthMode {
 struct ProfileDraft: Sendable {
     var nickname: String
     var priority: Int
-    var codexHome: String
+    var agentHome: String
     var configPath: String
     var authMode: AuthMode
-    var clearCodexHome: Bool
+    var clearAgentHome: Bool
     var clearConfigPath: Bool
 
     static let empty = ProfileDraft(
         nickname: "",
         priority: 100,
-        codexHome: "",
+        agentHome: "",
         configPath: "",
         authMode: .configFilesystem,
-        clearCodexHome: false,
+        clearAgentHome: false,
         clearConfigPath: false
     )
 
     init(
         nickname: String,
         priority: Int,
-        codexHome: String,
+        agentHome: String,
         configPath: String,
         authMode: AuthMode,
-        clearCodexHome: Bool,
+        clearAgentHome: Bool,
         clearConfigPath: Bool
     ) {
         self.nickname = nickname
         self.priority = priority
-        self.codexHome = codexHome
+        self.agentHome = agentHome
         self.configPath = configPath
         self.authMode = authMode
-        self.clearCodexHome = clearCodexHome
+        self.clearAgentHome = clearAgentHome
         self.clearConfigPath = clearConfigPath
     }
 
     init(profile: Profile) {
         self.nickname = profile.nickname
         self.priority = profile.priority
-        self.codexHome = profile.codexHome ?? ""
+        self.agentHome = profile.agentHome ?? ""
         self.configPath = profile.configPath ?? ""
         self.authMode = profile.authMode
-        self.clearCodexHome = false
+        self.clearAgentHome = false
         self.clearConfigPath = false
     }
 }
@@ -197,6 +241,14 @@ extension JSONDecoder {
             )
         }
         return decoder
+    }
+}
+
+extension JSONEncoder {
+    static var relayEncoder: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        return encoder
     }
 }
 
