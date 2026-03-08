@@ -1,3 +1,4 @@
+pub mod codex_link_service;
 pub mod diagnostics_service;
 pub mod doctor_service;
 pub mod events_service;

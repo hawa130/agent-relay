@@ -179,7 +179,12 @@ mod tests {
             priority: 10,
             enabled: true,
             agent_home: Some(profile_home.to_string_lossy().into_owned()),
-            config_path: Some(profile_home.join("config.toml").to_string_lossy().into_owned()),
+            config_path: Some(
+                profile_home
+                    .join("config.toml")
+                    .to_string_lossy()
+                    .into_owned(),
+            ),
             auth_mode: crate::models::AuthMode::ConfigFilesystem,
             metadata: serde_json::json!({}),
             created_at: Utc::now().to_rfc3339(),
@@ -191,7 +196,10 @@ mod tests {
         assert!(matches!(error, RelayError::Store(_)));
 
         let restored_state = state_store.load().expect("load state");
-        assert_eq!(restored_state.active_profile_id, previous_state.active_profile_id);
+        assert_eq!(
+            restored_state.active_profile_id,
+            previous_state.active_profile_id
+        );
         assert_eq!(
             fs::read_to_string(live_home.join("config.toml")).expect("live config"),
             "model = 'old'"

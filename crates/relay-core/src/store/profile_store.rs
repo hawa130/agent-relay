@@ -1,13 +1,13 @@
 use crate::models::{
-    AppSettings, FailureEvent, FailureReason, Profile, RelayError, SwitchHistoryEntry,
-    SwitchOutcome,
+    AppSettings, FailureEvent, FailureReason, ProbeProvider, Profile, ProfileProbeIdentity,
+    RelayError, SwitchHistoryEntry, SwitchOutcome, UsageSourceMode,
 };
 use chrono::{DateTime, Utc};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
-const CURRENT_SCHEMA_VERSION: i32 = 1;
+const CURRENT_SCHEMA_VERSION: i32 = 2;
 const SCHEMA_V1_SQL: &str = "
 CREATE TABLE IF NOT EXISTS profiles (
     id TEXT PRIMARY KEY,
@@ -44,6 +44,19 @@ CREATE TABLE IF NOT EXISTS failure_events (
     message TEXT NOT NULL,
     cooldown_until TEXT,
     created_at TEXT NOT NULL
+);";
+const SCHEMA_V2_SQL: &str = "
+CREATE TABLE IF NOT EXISTS profile_probe_identities (
+    profile_id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    access_token TEXT NOT NULL,
+    refresh_token TEXT,
+    id_token TEXT,
+    email TEXT,
+    plan_hint TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
 );";
 
 #[derive(Debug, Clone)]
@@ -134,6 +147,15 @@ impl SqliteStore {
                 .execute_batch(SCHEMA_V1_SQL)
                 .map_err(|error| RelayError::Store(error.to_string()))?;
             transaction
+                .pragma_update(None, "user_version", 1)
+                .map_err(|error| RelayError::Store(error.to_string()))?;
+        }
+
+        if current_version < 2 {
+            transaction
+                .execute_batch(SCHEMA_V2_SQL)
+                .map_err(|error| RelayError::Store(error.to_string()))?;
+            transaction
                 .pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)
                 .map_err(|error| RelayError::Store(error.to_string()))?;
         }
@@ -169,6 +191,30 @@ impl SqliteStore {
                 [defaults.cooldown_seconds.to_string()],
             )
             .map_err(|error| RelayError::Store(error.to_string()))?;
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('usage_source_mode', ?1)",
+                [usage_source_mode_value(&defaults.usage_source_mode)],
+            )
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('menu_open_refresh_stale_after_seconds', ?1)",
+                [defaults.menu_open_refresh_stale_after_seconds.to_string()],
+            )
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('usage_background_refresh_enabled', ?1)",
+                [if defaults.usage_background_refresh_enabled { "true" } else { "false" }],
+            )
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        connection
+            .execute(
+                "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('usage_background_refresh_interval_seconds', ?1)",
+                [defaults.usage_background_refresh_interval_seconds.to_string()],
+            )
+            .map_err(|error| RelayError::Store(error.to_string()))?;
         Ok(())
     }
 
@@ -189,6 +235,32 @@ impl SqliteStore {
             metadata,
             created_at: row.get(9)?,
             updated_at: row.get(10)?,
+        })
+    }
+
+    fn row_to_probe_identity(
+        row: &rusqlite::Row<'_>,
+    ) -> Result<ProfileProbeIdentity, rusqlite::Error> {
+        let provider =
+            parse_probe_provider(row.get::<_, String>(1)?.as_str()).map_err(|error| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Text,
+                    Box::new(std::io::Error::other(error.to_string())),
+                )
+            })?;
+
+        Ok(ProfileProbeIdentity {
+            profile_id: row.get(0)?,
+            provider,
+            account_id: row.get(2)?,
+            access_token: row.get(3)?,
+            refresh_token: row.get(4)?,
+            id_token: row.get(5)?,
+            email: row.get(6)?,
+            plan_hint: row.get(7)?,
+            created_at: row.get(8)?,
+            updated_at: row.get(9)?,
         })
     }
 
@@ -324,10 +396,75 @@ impl SqliteStore {
         let affected = connection
             .execute("DELETE FROM profiles WHERE id = ?1", [id])
             .map_err(|error| RelayError::Store(error.to_string()))?;
+        connection
+            .execute(
+                "DELETE FROM profile_probe_identities WHERE profile_id = ?1",
+                [id],
+            )
+            .map_err(|error| RelayError::Store(error.to_string()))?;
         if affected == 0 {
             return Err(RelayError::NotFound(format!("profile not found: {id}")));
         }
         Ok(profile)
+    }
+
+    pub fn get_probe_identity(
+        &self,
+        profile_id: &str,
+    ) -> Result<Option<ProfileProbeIdentity>, RelayError> {
+        if self.read_only && !self.db_path.exists() {
+            return Ok(None);
+        }
+        let connection = self.open()?;
+        let mut statement = connection
+            .prepare(
+                "SELECT profile_id, provider, account_id, access_token, refresh_token, id_token, email, plan_hint, created_at, updated_at
+                 FROM profile_probe_identities
+                 WHERE profile_id = ?1",
+            )
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+
+        statement
+            .query_row([profile_id], Self::row_to_probe_identity)
+            .optional()
+            .map_err(|error| RelayError::Store(error.to_string()))
+    }
+
+    pub fn upsert_probe_identity(
+        &self,
+        identity: &ProfileProbeIdentity,
+    ) -> Result<ProfileProbeIdentity, RelayError> {
+        let connection = self.open()?;
+        connection
+            .execute(
+                "INSERT INTO profile_probe_identities
+                 (profile_id, provider, account_id, access_token, refresh_token, id_token, email, plan_hint, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+                 ON CONFLICT(profile_id) DO UPDATE SET
+                    provider = excluded.provider,
+                    account_id = excluded.account_id,
+                    access_token = excluded.access_token,
+                    refresh_token = excluded.refresh_token,
+                    id_token = excluded.id_token,
+                    email = excluded.email,
+                    plan_hint = excluded.plan_hint,
+                    updated_at = excluded.updated_at",
+                params![
+                    identity.profile_id,
+                    stringify_probe_provider(&identity.provider),
+                    identity.account_id,
+                    identity.access_token,
+                    identity.refresh_token,
+                    identity.id_token,
+                    identity.email,
+                    identity.plan_hint,
+                    identity.created_at,
+                    identity.updated_at,
+                ],
+            )
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        self.get_probe_identity(&identity.profile_id)?
+            .ok_or_else(|| RelayError::Store("failed to reload probe identity".into()))
     }
 
     pub fn set_enabled(&self, id: &str, enabled: bool) -> Result<Profile, RelayError> {
@@ -373,10 +510,56 @@ impl SqliteStore {
             .map_err(|error| RelayError::Store(error.to_string()))?
             .and_then(|value| value.parse::<i64>().ok())
             .unwrap_or(600);
+        let usage_source_mode = connection
+            .query_row(
+                "SELECT value FROM app_settings WHERE key = 'usage_source_mode'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|error| RelayError::Store(error.to_string()))?
+            .as_deref()
+            .map(parse_usage_source_mode)
+            .transpose()?
+            .unwrap_or(UsageSourceMode::Auto);
+        let menu_open_refresh_stale_after_seconds = connection
+            .query_row(
+                "SELECT value FROM app_settings WHERE key = 'menu_open_refresh_stale_after_seconds'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|error| RelayError::Store(error.to_string()))?
+            .and_then(|value| value.parse::<i64>().ok())
+            .unwrap_or(10);
+        let usage_background_refresh_enabled = connection
+            .query_row(
+                "SELECT value FROM app_settings WHERE key = 'usage_background_refresh_enabled'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|error| RelayError::Store(error.to_string()))?
+            .map(|value| value == "true")
+            .unwrap_or(true);
+        let usage_background_refresh_interval_seconds = connection
+            .query_row(
+                "SELECT value FROM app_settings WHERE key = 'usage_background_refresh_interval_seconds'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|error| RelayError::Store(error.to_string()))?
+            .and_then(|value| value.parse::<i64>().ok())
+            .unwrap_or(120);
 
         Ok(AppSettings {
             auto_switch_enabled,
             cooldown_seconds,
+            usage_source_mode,
+            menu_open_refresh_stale_after_seconds,
+            usage_background_refresh_enabled,
+            usage_background_refresh_interval_seconds,
         })
     }
 
@@ -390,6 +573,41 @@ impl SqliteStore {
 
     pub fn set_cooldown_seconds(&self, value: i64) -> Result<AppSettings, RelayError> {
         self.set_setting("cooldown_seconds", &value.to_string())?;
+        self.get_settings()
+    }
+
+    pub fn set_usage_source_mode(&self, mode: UsageSourceMode) -> Result<AppSettings, RelayError> {
+        self.set_setting("usage_source_mode", usage_source_mode_value(&mode))?;
+        self.get_settings()
+    }
+
+    pub fn set_menu_open_refresh_stale_after_seconds(
+        &self,
+        value: i64,
+    ) -> Result<AppSettings, RelayError> {
+        self.set_setting("menu_open_refresh_stale_after_seconds", &value.to_string())?;
+        self.get_settings()
+    }
+
+    pub fn set_usage_background_refresh_enabled(
+        &self,
+        enabled: bool,
+    ) -> Result<AppSettings, RelayError> {
+        self.set_setting(
+            "usage_background_refresh_enabled",
+            if enabled { "true" } else { "false" },
+        )?;
+        self.get_settings()
+    }
+
+    pub fn set_usage_background_refresh_interval_seconds(
+        &self,
+        value: i64,
+    ) -> Result<AppSettings, RelayError> {
+        self.set_setting(
+            "usage_background_refresh_interval_seconds",
+            &value.to_string(),
+        )?;
         self.get_settings()
     }
 
@@ -492,7 +710,8 @@ impl SqliteStore {
         let transaction = connection
             .unchecked_transaction()
             .map_err(|error| RelayError::Store(error.to_string()))?;
-        let event = insert_failure_event(&transaction, profile_id, reason, message, cooldown_until)?;
+        let event =
+            insert_failure_event(&transaction, profile_id, reason, message, cooldown_until)?;
         transaction
             .commit()
             .map_err(|error| RelayError::Store(error.to_string()))?;
@@ -535,6 +754,24 @@ impl SqliteStore {
 
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(|error| RelayError::Store(error.to_string()))
+    }
+
+    #[cfg(test)]
+    pub fn record_failure_event_for_test(
+        &self,
+        profile_id: &str,
+        reason: FailureReason,
+        message: impl AsRef<str>,
+    ) -> Result<FailureEvent, RelayError> {
+        let mut connection = self.open()?;
+        let transaction = connection
+            .transaction()
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        let event = insert_failure_event(&transaction, Some(profile_id), reason, message, None)?;
+        transaction
+            .commit()
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        Ok(event)
     }
 }
 
@@ -626,6 +863,40 @@ fn parse_auth_mode(value: &str) -> crate::models::AuthMode {
         "env-reference" => crate::models::AuthMode::EnvReference,
         "keychain-reference" => crate::models::AuthMode::KeychainReference,
         _ => crate::models::AuthMode::ConfigFilesystem,
+    }
+}
+
+fn usage_source_mode_value(mode: &UsageSourceMode) -> &'static str {
+    match mode {
+        UsageSourceMode::Auto => "auto",
+        UsageSourceMode::Local => "local",
+        UsageSourceMode::WebEnhanced => "web-enhanced",
+    }
+}
+
+fn parse_usage_source_mode(value: &str) -> Result<UsageSourceMode, RelayError> {
+    match value {
+        "auto" => Ok(UsageSourceMode::Auto),
+        "local" => Ok(UsageSourceMode::Local),
+        "web-enhanced" => Ok(UsageSourceMode::WebEnhanced),
+        other => Err(RelayError::Store(format!(
+            "unsupported usage source mode: {other}"
+        ))),
+    }
+}
+
+fn stringify_probe_provider(provider: &ProbeProvider) -> &'static str {
+    match provider {
+        ProbeProvider::CodexOfficial => "codex-official",
+    }
+}
+
+fn parse_probe_provider(value: &str) -> Result<ProbeProvider, RelayError> {
+    match value {
+        "codex-official" => Ok(ProbeProvider::CodexOfficial),
+        other => Err(RelayError::Store(format!(
+            "unsupported probe provider: {other}"
+        ))),
     }
 }
 

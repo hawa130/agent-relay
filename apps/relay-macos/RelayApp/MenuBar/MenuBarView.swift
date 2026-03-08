@@ -17,15 +17,14 @@ public struct MenuBarView: View {
             profileList
             Divider()
             usagePanel
+            footer
             Divider()
             appActions
-            Divider()
-            footer
         }
         .padding(16)
-        .frame(width: 360)
+        .frame(width: 420)
         .task {
-            await model.refresh()
+            await model.refreshForMenuOpen()
         }
     }
 
@@ -58,10 +57,20 @@ public struct MenuBarView: View {
         HStack(spacing: 10) {
             Button("Refresh") {
                 Task {
-                    await model.refresh()
+                    await model.refreshEnabledUsage()
                 }
             }
             .disabled(model.isRefreshing)
+
+            Button("Refresh Selected") {
+                guard let profileID = model.selectedProfile?.id else {
+                    return
+                }
+                Task {
+                    await model.refreshUsage(profileID: profileID)
+                }
+            }
+            .disabled(model.selectedProfile == nil)
 
             Button("Settings") {
                 NSApplication.shared.activate(ignoringOtherApps: true)
@@ -79,38 +88,69 @@ public struct MenuBarView: View {
                 Text("No profiles configured.")
                     .foregroundStyle(.secondary)
             } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Selected")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Text(model.activeProfile?.nickname ?? "No Active Profile")
-                        .font(.subheadline.weight(.medium))
-                        .lineLimit(1)
-                }
-
-                Picker("Switch Profile", selection: profileSelection) {
+                VStack(alignment: .leading, spacing: 6) {
                     ForEach(model.profiles) { profile in
-                        Text(profile.enabled ? profile.nickname : "\(profile.nickname) (Disabled)")
-                            .tag(profile.id)
+                        Button {
+                            model.selectProfile(profile.id)
+                        } label: {
+                            HStack(alignment: .top, spacing: 10) {
+                                Circle()
+                                    .fill(profile.enabled ? Color.green : Color.gray.opacity(0.6))
+                                    .frame(width: 8, height: 8)
+                                    .padding(.top, 5)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(profile.nickname)
+                                        .font(.subheadline.weight(model.selectedProfileID == profile.id ? .semibold : .regular))
+                                        .foregroundStyle(.primary)
+                                    Text(profileSubtitle(profile))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+
+                                Spacer(minLength: 8)
+
+                                if model.activeProfileID == profile.id {
+                                    Image(systemName: "checkmark.square.fill")
+                                        .foregroundStyle(.tint)
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(model.selectedProfileID == profile.id ? Color.accentColor.opacity(0.14) : Color.gray.opacity(0.08))
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .pickerStyle(.menu)
-                .disabled(model.isSwitching || model.profiles.isEmpty)
             }
         }
     }
 
     private var usagePanel: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Usage")
-                .font(.headline)
+            HStack {
+                Text(model.selectedProfile?.nickname ?? "Usage")
+                    .font(.headline)
+                Spacer()
+                if let profile = model.selectedProfile, profile.enabled {
+                    Button("Switch") {
+                        Task {
+                            await model.switchToProfile(profile.id)
+                        }
+                    }
+                    .disabled(model.activeProfileID == profile.id || model.isSwitching)
+                }
+            }
 
-            if let usage = model.usage {
+            if let usage = model.selectedUsage {
                 UsageRow(title: "Session", window: usage.session)
                 UsageRow(title: "Weekly", window: usage.weekly)
 
-                Text("Source: \(usage.source.rawValue) • \(usage.confidence.rawValue)")
+                Text(sourceLine(for: usage))
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -125,6 +165,9 @@ public struct MenuBarView: View {
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
+            } else if let profile = model.selectedProfile, !profile.enabled {
+                Text("Disabled profile. Refresh manually to inspect usage.")
+                    .foregroundStyle(.secondary)
             } else {
                 Text("Usage data unavailable.")
                     .foregroundStyle(.secondary)
@@ -153,6 +196,11 @@ public struct MenuBarView: View {
 
     private var footer: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if let settings = model.status?.settings {
+                Text("Source mode: \(settings.usageSourceMode.displayName)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             if let lastRefresh = model.lastRefresh {
                 Text("Last refresh: \(lastRefresh.formatted(date: .omitted, time: .standard))")
                     .font(.caption)
@@ -160,18 +208,24 @@ public struct MenuBarView: View {
             }
         }
     }
-    private var profileSelection: Binding<String> {
-        Binding(
-            get: { model.activeProfileID ?? model.profiles.first?.id ?? "" },
-            set: { profileID in
-                guard !profileID.isEmpty, profileID != model.activeProfileID else {
-                    return
-                }
-                Task {
-                    await model.switchToProfile(profileID)
-                }
+
+    private func profileSubtitle(_ profile: Profile) -> String {
+        if let usage = model.usageSnapshot(for: profile.id) {
+            if usage.message == "usage not fetched yet" {
+                return profile.enabled ? "usage not fetched yet" : "Disabled"
             }
-        )
+            let freshness = usage.stale ? "stale" : "fresh"
+            return "\(usage.source.rawValue) • \(freshness)"
+        }
+        return profile.enabled ? "usage not fetched yet" : "Disabled"
+    }
+
+    private func sourceLine(for usage: UsageSnapshot) -> String {
+        var line = "Source: \(usage.source.rawValue) • \(usage.confidence.rawValue)"
+        if usage.stale {
+            line += " • stale"
+        }
+        return line
     }
 }
 
