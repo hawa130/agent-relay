@@ -7,7 +7,9 @@
 - `done`: V1 CLI foundation and command surface
 - `done`: real Codex switching transaction
 - `done`: diagnostics, events, and auto-switch policy
-- `pending`: macOS menu bar app
+- `done`: repository CI for `fmt`, `clippy`, and `test`
+- `done`: SQLite schema versioning policy and automatic migration bootstrap
+- `done`: native macOS control plane built on top of Relay CLI JSON
 
 ## Phase 0: Foundation
 
@@ -17,9 +19,9 @@
 - [x] Define stable JSON response envelope.
 - [x] Define stable error code taxonomy.
 - [x] Add baseline `.gitignore` and formatting config.
-- [ ] Initialize repository CI for `fmt`, `clippy`, and `test`.
+- [x] Expand repository CI from `fmt` + `test` to `fmt`, `clippy`, and `test`.
 - [x] Add contributor setup document and local dev bootstrap script.
-- [ ] Add `apps/relay-macos` skeleton and build instructions.
+- [x] Expand the placeholder `apps/relay-macos` directory into a buildable skeleton with build instructions.
 
 ## Phase 1: Doctor + Profile Management
 
@@ -73,20 +75,20 @@
 
 ## Phase 5: macOS App
 
-- [ ] Create native macOS target with `MenuBarExtra`.
-- [ ] Build a CLI client wrapper using `Process`.
-- [ ] Add status polling and JSON decoding layer.
-- [ ] Add menu bar profile list and manual switch action.
-- [ ] Add settings window for profiles and auto-switch.
-- [ ] Add activity/diagnostics views.
-- [ ] Add launch-at-login.
-- [ ] Add notification flows for switch success/failure.
+- [x] Create native macOS target with `MenuBarExtra`.
+- [x] Build a CLI client wrapper using `Process`.
+- [x] Add status polling and JSON decoding layer.
+- [x] Add menu bar profile list and manual switch action.
+- [x] Add settings window for profiles and auto-switch.
+- [x] Add activity/diagnostics views.
+- [x] Add launch-at-login.
+- [x] Add notification flows for switch success/failure.
 
 ## Cross-Cutting
 
-- [ ] Define semantic versioning and migration policy for SQLite schema.
+- [x] Define semantic versioning and migration policy for SQLite schema.
 - [x] Add `relay db migrate` or automatic migration bootstrap.
 - [x] Add release packaging scripts.
-- [ ] Add Linux support matrix and platform test plan.
-- [ ] Add security review checklist for secrets and rollback safety.
+- [x] Add Linux support matrix and platform test plan.
+- [x] Add security review checklist for secrets and rollback safety.
 - [x] Add user-facing documentation for install, upgrade, and recovery.

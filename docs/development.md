@@ -62,8 +62,14 @@ The CLI integration suite lives in:
 Before cutting a release:
 
 1. run `cargo fmt --all`
-2. run `cargo test`
-3. verify `cargo install --path apps/relay-cli`
-4. smoke test `relay doctor --json`
-5. smoke test `relay switch` against temp Codex homes
+2. run `cargo clippy --workspace --all-targets -- -D warnings`
+3. run `cargo test`
+4. verify `cargo install --path apps/relay-cli`
+5. smoke test `relay doctor --json`
+6. smoke test `relay switch` against temp Codex homes
 
+## Supporting Docs
+
+- SQLite migration policy: `docs/sqlite-migrations.md`
+- Linux support matrix and test plan: `docs/linux-support.md`
+- Security release checklist: `docs/security-checklist.md`
