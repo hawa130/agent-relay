@@ -1,5 +1,5 @@
 use crate::adapters::CodexAdapter;
-use crate::models::{CodexLinkResult, ProbeProvider, Profile, ProfileProbeIdentity, RelayError};
+use crate::models::{CodexLinkResult, Profile, ProfileProbeIdentity, RelayError};
 use crate::platform::find_binary;
 use crate::store::{AddProfileRecord, SqliteStore};
 use base64::Engine;
@@ -32,8 +32,8 @@ pub fn login_new_profile(
     let profile = store.add_profile(AddProfileRecord {
         nickname: nickname.unwrap_or_else(|| {
             identity
-                .email
-                .clone()
+                .email()
+                .map(ToOwned::to_owned)
                 .unwrap_or_else(|| format!("Codex {}", Utc::now().format("%Y%m%d-%H%M%S")))
         }),
         priority,
@@ -164,18 +164,17 @@ pub fn load_probe_identity_from_home(
     let id_token = tokens.id_token.clone();
 
     let now = Utc::now().to_rfc3339();
-    Ok(ProfileProbeIdentity {
-        profile_id: profile_id.into(),
-        provider: ProbeProvider::CodexOfficial,
+    Ok(ProfileProbeIdentity::codex_official(
+        profile_id.into(),
         account_id,
         access_token,
-        refresh_token: tokens.refresh_token,
-        id_token: id_token.clone(),
-        email: extract_email(id_token.as_deref()),
-        plan_hint: None,
-        created_at: now.clone(),
-        updated_at: now,
-    })
+        tokens.refresh_token,
+        id_token.clone(),
+        extract_email(id_token.as_deref()),
+        None,
+        now.clone(),
+        now,
+    ))
 }
 
 fn extract_email(id_token: Option<&str>) -> Option<String> {

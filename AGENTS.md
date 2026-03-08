@@ -46,6 +46,7 @@ Do not reintroduce tiny crates for `types`, `store`, `platform`, or `adapters` u
 - Do not modify project-local `.codex/`; V1 only works on user-level Codex state.
 - Keep shared infrastructure agent-agnostic where practical. Transport, caching, refresh coordination, and persistence plumbing should not be hardwired to `Codex` if they can cleanly live behind adapters/providers.
 - Keep agent-specific protocols, endpoints, auth formats, and file semantics at the adapter/provider edge instead of leaking them into generic models or control-flow layers.
+- Profile-linked identities and credentials must support provider-specific payload shapes. Do not keep expanding shared tables with one nullable column per provider credential field; prefer a stable generic envelope plus provider-specific payload/metadata.
 
 ## Product Constraints
 

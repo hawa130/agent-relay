@@ -472,7 +472,11 @@ fn codex_login_and_remote_usage_probe_work() {
         .expect("profile id")
         .to_string();
     assert_eq!(
-        logged_in["data"]["probe_identity"]["account_id"],
+        logged_in["data"]["probe_identity"]["principal_id"],
+        "acct-123"
+    );
+    assert_eq!(
+        logged_in["data"]["probe_identity"]["credentials"]["account_id"],
         "acct-123"
     );
 
@@ -493,8 +497,8 @@ fn codex_login_and_remote_usage_probe_work() {
         &["--json", "profiles", "relink-codex", &profile_id],
         &envs,
     );
-    assert_eq!(relinked["data"]["account_id"], "acct-live");
-    assert_eq!(relinked["data"]["email"], "live@example.com");
+    assert_eq!(relinked["data"]["principal_id"], "acct-live");
+    assert_eq!(relinked["data"]["metadata"]["email"], "live@example.com");
 }
 
 #[test]

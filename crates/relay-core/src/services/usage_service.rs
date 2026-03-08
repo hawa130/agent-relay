@@ -387,8 +387,7 @@ fn fetch_official_usage_snapshot(
     let mut response = official_usage_request(&identity)?;
     if should_refresh_official_response(&response)
         && identity
-            .refresh_token
-            .as_deref()
+            .refresh_token()
             .is_some_and(|token| !token.is_empty())
     {
         identity = refresh_probe_identity(store, &identity)?;
@@ -432,8 +431,8 @@ fn refresh_probe_identity(
     identity: &ProfileProbeIdentity,
 ) -> Result<ProfileProbeIdentity, RelayError> {
     let refresh_token = identity
-        .refresh_token
-        .clone()
+        .refresh_token()
+        .map(ToOwned::to_owned)
         .ok_or_else(|| RelayError::Validation("probe identity is missing refresh_token".into()))?;
     let body = serde_json::json!({
         "client_id": OFFICIAL_REFRESH_CLIENT_ID,
@@ -459,34 +458,44 @@ fn refresh_probe_identity(
 
     let refreshed: OfficialRefreshResponse = serde_json::from_str(&response.body)
         .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
-    let updated = ProfileProbeIdentity {
-        profile_id: identity.profile_id.clone(),
-        provider: identity.provider.clone(),
-        account_id: identity.account_id.clone(),
-        access_token: refreshed.access_token,
-        refresh_token: refreshed
+    let updated = ProfileProbeIdentity::codex_official(
+        identity.profile_id.clone(),
+        identity
+            .account_id()
+            .map(ToOwned::to_owned)
+            .ok_or_else(|| RelayError::Validation("probe identity is missing account_id".into()))?,
+        refreshed.access_token,
+        refreshed
             .refresh_token
-            .or_else(|| identity.refresh_token.clone()),
-        id_token: refreshed.id_token.or_else(|| identity.id_token.clone()),
-        email: identity.email.clone(),
-        plan_hint: identity.plan_hint.clone(),
-        created_at: identity.created_at.clone(),
-        updated_at: Utc::now().to_rfc3339(),
-    };
+            .or_else(|| identity.refresh_token().map(ToOwned::to_owned)),
+        refreshed
+            .id_token
+            .or_else(|| identity.id_token().map(ToOwned::to_owned)),
+        identity.email().map(ToOwned::to_owned),
+        identity.plan_hint().map(ToOwned::to_owned),
+        identity.created_at.clone(),
+        Utc::now().to_rfc3339(),
+    );
 
     store.upsert_probe_identity(&updated)
 }
 
 fn official_usage_request(identity: &ProfileProbeIdentity) -> Result<HttpResponse, RelayError> {
+    let access_token = identity
+        .access_token()
+        .ok_or_else(|| RelayError::Validation("probe identity is missing access_token".into()))?;
+    let account_id = identity
+        .account_id()
+        .ok_or_else(|| RelayError::Validation("probe identity is missing account_id".into()))?;
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
     headers.insert(
         AUTHORIZATION,
-        header_value(&format!("Bearer {}", identity.access_token))?,
+        header_value(&format!("Bearer {access_token}"))?,
     );
     headers.insert(
         HeaderName::from_static("chatgpt-account-id"),
-        header_value(&identity.account_id)?,
+        header_value(account_id)?,
     );
 
     run_http_json(&official_usage_url(), reqwest::Method::GET, headers, None)

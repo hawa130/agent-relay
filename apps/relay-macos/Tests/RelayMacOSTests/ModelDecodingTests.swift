@@ -147,9 +147,17 @@ final class ModelDecodingTests: XCTestCase {
           },
           "probe_identity": {
             "profile_id": "p_browser",
-            "account_id": "acct-123",
-            "email": "browser@example.com",
-            "plan_hint": "team"
+            "provider": "CodexOfficial",
+            "principal_id": "acct-123",
+            "display_name": "browser@example.com",
+            "credentials": {
+              "account_id": "acct-123",
+              "access_token": "access-token"
+            },
+            "metadata": {
+              "email": "browser@example.com",
+              "plan_hint": "team"
+            }
           },
           "activated": false
         }

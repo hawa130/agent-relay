@@ -103,12 +103,10 @@ Fields:
 
 - `profile_id`
 - `provider`
-- `account_id`
-- `access_token`
-- `refresh_token`
-- `id_token`
-- `email`
-- `plan_hint`
+- `principal_id`
+- `display_name`
+- `credentials`
+- `metadata`
 - `created_at` / `updated_at`
 
 Why this is separate:
@@ -116,6 +114,7 @@ Why this is separate:
 - tokens refresh independently of profile config
 - one profile can have stable local config while credentials rotate
 - usage probing should not force the main profile record to become provider-specific
+- provider-specific auth shapes can evolve without forcing a new shared table column for every provider
 
 ## Usage Model
 
@@ -146,7 +145,7 @@ SQLite persistence is implemented in:
 
 - [`profile_store.rs`](/Users/hawa130/SoftwareProjects/relay-agent-switch/crates/relay-core/src/store/profile_store.rs)
 
-Current schema version: `2`
+Current schema version: `3`
 
 Tables:
 
@@ -178,12 +177,10 @@ Stores per-profile remote account identity:
 
 - `profile_id`
 - `provider`
-- `account_id`
-- `access_token`
-- `refresh_token`
-- `id_token`
-- `email`
-- `plan_hint`
+- `principal_id`
+- `display_name`
+- `credentials_json`
+- `metadata_json`
 - `created_at`
 - `updated_at`
 
