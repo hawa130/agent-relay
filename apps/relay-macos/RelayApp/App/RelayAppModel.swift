@@ -3,7 +3,7 @@ import SwiftUI
 import Defaults
 
 @MainActor
-final class RelayAppModel: ObservableObject {
+public final class RelayAppModel: ObservableObject {
     @Published private(set) var status: StatusReport?
     @Published private(set) var usage: UsageSnapshot?
     @Published private(set) var doctor: DoctorReport?
@@ -20,7 +20,7 @@ final class RelayAppModel: ObservableObject {
     private let notificationService = RelayNotificationService()
     private var pollTask: Task<Void, Never>?
 
-    init() {
+    public init() {
         Task {
             await notificationService.requestAuthorizationIfNeeded()
             await refresh()
@@ -32,11 +32,11 @@ final class RelayAppModel: ObservableObject {
         pollTask?.cancel()
     }
 
-    var menuBarTitle: String {
+    public var menuBarTitle: String {
         activeProfile?.nickname ?? "Relay"
     }
 
-    var menuBarSymbol: String {
+    public var menuBarSymbol: String {
         switch status?.activeState.lastSwitchResult {
         case .success:
             return "bolt.circle.fill"
