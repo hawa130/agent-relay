@@ -181,9 +181,8 @@ fn init_tracing() -> Result<(), String> {
 fn run() -> Result<(), RelayError> {
     let cli = Cli::parse();
     let json = cli.json;
-    let app = RelayApp::bootstrap()?;
 
-    match dispatch(cli, app) {
+    match execute(cli) {
         Ok(handled) => handled.write(),
         Err(error) => {
             if json {
@@ -194,6 +193,11 @@ fn run() -> Result<(), RelayError> {
             Err(error)
         }
     }
+}
+
+fn execute(cli: Cli) -> Result<Output, RelayError> {
+    let app = RelayApp::bootstrap()?;
+    dispatch(cli, app)
 }
 
 fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
@@ -329,7 +333,9 @@ fn parse_auth_mode(value: &str) -> Result<AuthMode, RelayError> {
         "config-filesystem" => Ok(AuthMode::ConfigFilesystem),
         "env-reference" => Ok(AuthMode::EnvReference),
         "keychain-reference" => Ok(AuthMode::KeychainReference),
-        other => Err(RelayError::InvalidInput(format!("unsupported auth mode: {other}")).into()),
+        other => Err(RelayError::InvalidInput(format!(
+            "unsupported auth mode: {other}"
+        ))),
     }
 }
 

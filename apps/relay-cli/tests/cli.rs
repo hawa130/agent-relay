@@ -42,6 +42,15 @@ fn run_failure(relay_home: &Path, codex_home: &Path, args: &[&str]) -> Value {
     serde_json::from_slice(&output.stdout).expect("json output")
 }
 
+fn run_failure_raw(relay_home: &Path, codex_home: &Path, args: &[&str]) -> std::process::Output {
+    Command::new(relay_bin())
+        .args(args)
+        .env("RELAY_HOME", relay_home)
+        .env("CODEX_HOME", codex_home)
+        .output()
+        .expect("command output")
+}
+
 #[test]
 fn profile_crud_and_auto_switch_commands_work() {
     let temp = tempdir().expect("tempdir");
@@ -211,4 +220,30 @@ fn import_switch_events_logs_and_diagnostics_work() {
         .as_str()
         .expect("archive path");
     assert!(Path::new(archive_path).exists());
+}
+
+#[test]
+fn json_commands_still_emit_json_when_bootstrap_fails() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home_file = temp.path().join("relay-home-file");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+    fs::write(&relay_home_file, "not a directory").expect("relay home file");
+
+    let output = run_failure_raw(&relay_home_file, &live_codex_home, &["--json", "status"]);
+    assert!(!output.status.success(), "command unexpectedly succeeded");
+
+    let response: Value = serde_json::from_slice(&output.stdout).expect("json output");
+    assert_eq!(response["success"], false);
+    assert_eq!(response["error_code"], "RELAY_IO");
+    assert!(
+        response["message"]
+            .as_str()
+            .unwrap_or("")
+            .contains("Not a directory")
+            || response["message"]
+                .as_str()
+                .unwrap_or("")
+                .contains("File exists")
+    );
 }
