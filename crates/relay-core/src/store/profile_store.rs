@@ -7,6 +7,45 @@ use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
+const CURRENT_SCHEMA_VERSION: i32 = 1;
+const SCHEMA_V1_SQL: &str = "
+CREATE TABLE IF NOT EXISTS profiles (
+    id TEXT PRIMARY KEY,
+    nickname TEXT NOT NULL,
+    agent TEXT NOT NULL,
+    priority INTEGER NOT NULL,
+    enabled INTEGER NOT NULL,
+    codex_home TEXT,
+    config_path TEXT,
+    auth_mode TEXT NOT NULL,
+    metadata TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS switch_history (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT,
+    previous_profile_id TEXT,
+    outcome TEXT NOT NULL,
+    reason TEXT,
+    checkpoint_id TEXT,
+    rollback_performed INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    details TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS failure_events (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT,
+    reason TEXT NOT NULL,
+    message TEXT NOT NULL,
+    cooldown_until TEXT,
+    created_at TEXT NOT NULL
+);";
+
 #[derive(Debug, Clone)]
 pub struct AddProfileRecord {
     pub nickname: String,
@@ -53,56 +92,52 @@ impl SqliteStore {
     }
 
     fn initialize(&self) -> Result<(), RelayError> {
-        let connection = self.open()?;
-        connection
-            .execute_batch(
-                "BEGIN;
-                CREATE TABLE IF NOT EXISTS profiles (
-                    id TEXT PRIMARY KEY,
-                    nickname TEXT NOT NULL,
-                    agent TEXT NOT NULL,
-                    priority INTEGER NOT NULL,
-                    enabled INTEGER NOT NULL,
-                    codex_home TEXT,
-                    config_path TEXT,
-                    auth_mode TEXT NOT NULL,
-                    metadata TEXT NOT NULL,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS app_settings (
-                    key TEXT PRIMARY KEY,
-                    value TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS switch_history (
-                    id TEXT PRIMARY KEY,
-                    profile_id TEXT,
-                    previous_profile_id TEXT,
-                    outcome TEXT NOT NULL,
-                    reason TEXT,
-                    checkpoint_id TEXT,
-                    rollback_performed INTEGER NOT NULL,
-                    created_at TEXT NOT NULL,
-                    details TEXT NOT NULL
-                );
-                CREATE TABLE IF NOT EXISTS failure_events (
-                    id TEXT PRIMARY KEY,
-                    profile_id TEXT,
-                    reason TEXT NOT NULL,
-                    message TEXT NOT NULL,
-                    cooldown_until TEXT,
-                    created_at TEXT NOT NULL
-                );
-                COMMIT;",
-            )
-            .map_err(|error| RelayError::Store(error.to_string()))?;
-        self.ensure_default_settings()?;
+        let mut connection = self.open()?;
+        self.run_migrations(&mut connection)?;
+        self.ensure_default_settings(&connection)?;
         Ok(())
     }
 
-    fn ensure_default_settings(&self) -> Result<(), RelayError> {
-        let defaults = AppSettings::default();
+    fn run_migrations(&self, connection: &mut Connection) -> Result<(), RelayError> {
+        let current_version = self.schema_version_from(connection)?;
+        if current_version > CURRENT_SCHEMA_VERSION {
+            return Err(RelayError::Store(format!(
+                "database schema version {current_version} is newer than supported version {CURRENT_SCHEMA_VERSION}"
+            )));
+        }
+
+        let transaction = connection
+            .transaction()
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+
+        if current_version < 1 {
+            transaction
+                .execute_batch(SCHEMA_V1_SQL)
+                .map_err(|error| RelayError::Store(error.to_string()))?;
+            transaction
+                .pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)
+                .map_err(|error| RelayError::Store(error.to_string()))?;
+        }
+
+        transaction
+            .commit()
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        Ok(())
+    }
+
+    fn schema_version_from(&self, connection: &Connection) -> Result<i32, RelayError> {
+        connection
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .map_err(|error| RelayError::Store(error.to_string()))
+    }
+
+    pub fn schema_version(&self) -> Result<i32, RelayError> {
         let connection = self.open()?;
+        self.schema_version_from(&connection)
+    }
+
+    fn ensure_default_settings(&self, connection: &Connection) -> Result<(), RelayError> {
+        let defaults = AppSettings::default();
         connection
             .execute(
                 "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('auto_switch_enabled', ?1)",
@@ -203,8 +238,8 @@ impl SqliteStore {
                     id,
                     record.nickname,
                     record.priority,
-                    record.codex_home.as_ref().map(path_to_string),
-                    record.config_path.as_ref().map(path_to_string),
+                    record.codex_home.as_ref().map(|path| path_to_string(path)),
+                    record.config_path.as_ref().map(|path| path_to_string(path)),
                     auth_mode,
                     metadata_text,
                     now,
@@ -243,8 +278,8 @@ impl SqliteStore {
                     id,
                     nickname,
                     priority,
-                    codex_home.as_ref().map(path_to_string),
-                    config_path.as_ref().map(path_to_string),
+                    codex_home.as_ref().map(|path| path_to_string(path)),
+                    config_path.as_ref().map(|path| path_to_string(path)),
                     stringify_auth_mode(&auth_mode),
                     updated_at,
                 ],
@@ -553,7 +588,7 @@ fn slugify(value: &str) -> String {
     output.trim_matches('_').to_string()
 }
 
-fn path_to_string(path: &PathBuf) -> String {
+fn path_to_string(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
@@ -567,6 +602,10 @@ mod tests {
         let temp = tempdir().expect("tempdir");
         let db_path = temp.path().join("relay.db");
         let store = SqliteStore::new(&db_path).expect("store");
+        assert_eq!(
+            store.schema_version().expect("schema version"),
+            CURRENT_SCHEMA_VERSION
+        );
 
         let created = store
             .add_profile(AddProfileRecord {
@@ -618,5 +657,22 @@ mod tests {
         assert_eq!(store.list_failure_events(10).expect("events").len(), 1);
         assert_eq!(store.list_switch_history(10).expect("history").len(), 1);
         assert_eq!(store.list_profiles().expect("profiles").len(), 1);
+    }
+
+    #[test]
+    fn initializes_legacy_database_with_version_stamp() {
+        let temp = tempdir().expect("tempdir");
+        let db_path = temp.path().join("relay.db");
+
+        let connection = Connection::open(&db_path).expect("connection");
+        connection
+            .execute_batch(SCHEMA_V1_SQL)
+            .expect("legacy schema without user_version");
+
+        let store = SqliteStore::new(&db_path).expect("store");
+        assert_eq!(
+            store.schema_version().expect("schema version"),
+            CURRENT_SCHEMA_VERSION
+        );
     }
 }
