@@ -1,6 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 use relay_core::models::JsonResponse;
-use relay_core::{AddProfileRequest, AuthMode, EditProfileRequest, RelayApp, RelayError};
+use relay_core::{
+    AddProfileRequest, AuthMode, BootstrapMode, EditProfileRequest, RelayApp, RelayError,
+};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::{self, Read};
@@ -222,7 +224,23 @@ fn run() -> Result<(), RelayError> {
 }
 
 fn execute(cli: Cli) -> Result<Output, RelayError> {
-    let app = RelayApp::bootstrap()?;
+    let bootstrap_mode = match &cli.command {
+        Commands::Doctor | Commands::Status | Commands::Usage => BootstrapMode::ReadOnly,
+        Commands::Profiles(command) => match command.command {
+            ProfilesSubcommand::List => BootstrapMode::ReadOnly,
+            _ => BootstrapMode::ReadWrite,
+        },
+        Commands::Events(command) => match command.command {
+            EventsSubcommand::List(_) => BootstrapMode::ReadOnly,
+        },
+        Commands::Logs(command) => match command.command {
+            LogsSubcommand::Tail(_) => BootstrapMode::ReadOnly,
+        },
+        Commands::Switch(_) | Commands::AutoSwitch(_) | Commands::Diagnostics(_) => {
+            BootstrapMode::ReadWrite
+        }
+    };
+    let app = RelayApp::bootstrap_with_mode(bootstrap_mode)?;
     dispatch(cli, app)
 }
 
@@ -342,7 +360,11 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
         Commands::Logs(command) => match command.command {
             LogsSubcommand::Tail(args) => {
                 let lines = log_lines_from_args(args)?;
-                Ok(Output::success("logs loaded", app.logs_tail(lines)?, cli.json))
+                Ok(Output::success(
+                    "logs loaded",
+                    app.logs_tail(lines)?,
+                    cli.json,
+                ))
             }
         },
         Commands::Diagnostics(command) => match command.command {

@@ -5,6 +5,7 @@ pub mod platform;
 pub mod services;
 pub mod store;
 
+pub use app::BootstrapMode;
 pub use app::{AddProfileRequest, EditProfileRequest, RelayApp};
 pub use models::{
     ActiveState, AgentKind, AppSettings, AuthMode, DiagnosticsExport, DoctorReport, ErrorCode,

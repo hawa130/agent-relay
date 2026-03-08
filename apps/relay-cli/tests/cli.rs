@@ -357,14 +357,18 @@ fn json_input_mutations_and_stdin_work() {
 }
 
 #[test]
-fn json_commands_still_emit_json_when_bootstrap_fails() {
+fn json_commands_still_emit_json_when_write_bootstrap_fails() {
     let temp = tempdir().expect("tempdir");
     let relay_home_file = temp.path().join("relay-home-file");
     let live_codex_home = temp.path().join("live-codex");
     make_codex_home(&live_codex_home, "live");
     fs::write(&relay_home_file, "not a directory").expect("relay home file");
 
-    let output = run_failure_raw(&relay_home_file, &live_codex_home, &["--json", "status"]);
+    let output = run_failure_raw(
+        &relay_home_file,
+        &live_codex_home,
+        &["--json", "auto-switch", "enable"],
+    );
     assert!(!output.status.success(), "command unexpectedly succeeded");
 
     let response: Value = serde_json::from_slice(&output.stdout).expect("json output");
@@ -380,4 +384,59 @@ fn json_commands_still_emit_json_when_bootstrap_fails() {
                 .unwrap_or("")
                 .contains("File exists")
     );
+}
+
+#[test]
+fn read_only_commands_do_not_create_relay_home() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+
+    let status = run_json(&relay_home, &live_codex_home, &["--json", "status"]);
+    assert_eq!(status["data"]["profile_count"], 0);
+    assert!(
+        !relay_home.exists(),
+        "read-only status should not create relay home"
+    );
+
+    let usage = run_json(&relay_home, &live_codex_home, &["--json", "usage"]);
+    assert_eq!(usage["data"]["source"], "Local");
+    assert!(
+        !relay_home.exists(),
+        "read-only usage should not create relay home or usage cache"
+    );
+}
+
+#[test]
+fn failed_add_does_not_persist_invalid_profile() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let invalid_home = temp.path().join("invalid-home");
+    make_codex_home(&live_codex_home, "live");
+    fs::create_dir_all(&invalid_home).expect("invalid home");
+
+    let failure = run_failure(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "profiles",
+            "add",
+            "--nickname",
+            "broken",
+            "--codex-home",
+            invalid_home.to_string_lossy().as_ref(),
+        ],
+    );
+    assert_eq!(failure["success"], false);
+    assert_eq!(failure["error_code"], "RELAY_VALIDATION");
+
+    let list = run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "profiles", "list"],
+    );
+    assert_eq!(list["data"], serde_json::json!([]));
 }

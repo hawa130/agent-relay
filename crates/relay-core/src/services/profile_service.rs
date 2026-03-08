@@ -11,30 +11,10 @@ pub fn add_profile(
 ) -> Result<Profile, RelayError> {
     validate_nickname(&record.nickname)?;
     validate_source_inputs(record.config_path.as_ref(), record.codex_home.as_ref())?;
+    validate_source_paths(record.config_path.as_ref(), record.codex_home.as_ref())?;
 
-    if let Some(path) = record.config_path.as_ref() {
-        if !path.exists() {
-            return Err(RelayError::Validation(format!(
-                "config path does not exist: {}",
-                path.display()
-            )));
-        }
-    }
-
-    if let Some(path) = record.codex_home.as_ref() {
-        if !path.exists() {
-            return Err(RelayError::Validation(format!(
-                "agent home does not exist: {}",
-                path.display()
-            )));
-        }
-        if !path.is_dir() {
-            return Err(RelayError::Validation(format!(
-                "agent home is not a directory: {}",
-                path.display()
-            )));
-        }
-    }
+    let candidate = candidate_profile_from_add_record(&record);
+    adapter.validate_profile(&candidate)?;
 
     let profile = store.add_profile(record)?;
     adapter.validate_profile(&profile)?;
@@ -82,6 +62,18 @@ pub fn edit_profile(
         updated_at: current.updated_at.clone(),
     };
     validate_source_inputs(
+        candidate
+            .config_path
+            .as_ref()
+            .map(std::path::PathBuf::from)
+            .as_ref(),
+        candidate
+            .agent_home
+            .as_ref()
+            .map(std::path::PathBuf::from)
+            .as_ref(),
+    )?;
+    validate_source_paths(
         candidate
             .config_path
             .as_ref()
@@ -164,4 +156,58 @@ fn validate_source_inputs(
         ));
     }
     Ok(())
+}
+
+fn validate_source_paths(
+    config_path: Option<&std::path::PathBuf>,
+    codex_home: Option<&std::path::PathBuf>,
+) -> Result<(), RelayError> {
+    if let Some(path) = config_path {
+        if !path.exists() {
+            return Err(RelayError::Validation(format!(
+                "config path does not exist: {}",
+                path.display()
+            )));
+        }
+    }
+
+    if let Some(path) = codex_home {
+        if !path.exists() {
+            return Err(RelayError::Validation(format!(
+                "agent home does not exist: {}",
+                path.display()
+            )));
+        }
+        if !path.is_dir() {
+            return Err(RelayError::Validation(format!(
+                "agent home is not a directory: {}",
+                path.display()
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+fn candidate_profile_from_add_record(record: &AddProfileRecord) -> Profile {
+    let now = Utc::now().to_rfc3339();
+    Profile {
+        id: "candidate".into(),
+        nickname: record.nickname.clone(),
+        agent: crate::models::AgentKind::Codex,
+        priority: record.priority,
+        enabled: true,
+        agent_home: record
+            .codex_home
+            .as_ref()
+            .map(|path| path.to_string_lossy().into_owned()),
+        config_path: record
+            .config_path
+            .as_ref()
+            .map(|path| path.to_string_lossy().into_owned()),
+        auth_mode: record.auth_mode.clone(),
+        metadata: serde_json::json!({}),
+        created_at: now.clone(),
+        updated_at: now,
+    }
 }
