@@ -109,6 +109,15 @@ impl CodexAdapter {
         })
     }
 
+    pub fn rollback_checkpoint(
+        &self,
+        snapshot_root: &Path,
+        checkpoint_id: &str,
+    ) -> Result<(), RelayError> {
+        let backup_dir = snapshot_root.join(checkpoint_id).join("live_backup");
+        self.restore_backup(&backup_dir)
+    }
+
     fn validate_live_against(&self, sources: &ManagedSourceFiles) -> Result<(), RelayError> {
         ensure_same_contents(&sources.config, &self.live_home.join("config.toml"))?;
 

@@ -15,6 +15,12 @@ use crate::store::{
 use std::fs;
 use std::path::PathBuf;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BootstrapMode {
+    ReadOnly,
+    ReadWrite,
+}
+
 #[derive(Debug, Clone)]
 pub struct AddProfileRequest {
     pub nickname: String,
@@ -40,14 +46,28 @@ pub struct RelayApp {
     usage_store: FileUsageStore,
     log_store: FileLogStore,
     codex_adapter: CodexAdapter,
+    bootstrap_mode: BootstrapMode,
 }
 
 impl RelayApp {
     pub fn bootstrap() -> Result<Self, RelayError> {
-        let paths = RelayPaths::from_env()?;
-        paths.ensure_layout()?;
+        Self::bootstrap_with_mode(BootstrapMode::ReadWrite)
+    }
 
-        let store = SqliteStore::new(&paths.db_path)?;
+    pub fn bootstrap_read_only() -> Result<Self, RelayError> {
+        Self::bootstrap_with_mode(BootstrapMode::ReadOnly)
+    }
+
+    pub fn bootstrap_with_mode(bootstrap_mode: BootstrapMode) -> Result<Self, RelayError> {
+        let paths = RelayPaths::from_env()?;
+        if bootstrap_mode == BootstrapMode::ReadWrite {
+            paths.ensure_layout()?;
+        }
+
+        let store = match bootstrap_mode {
+            BootstrapMode::ReadOnly => SqliteStore::open_read_only(&paths.db_path),
+            BootstrapMode::ReadWrite => SqliteStore::new(&paths.db_path)?,
+        };
         let state_store = FileStateStore::new(&paths.state_path);
         let usage_store = FileUsageStore::new(&paths.usage_path);
         let log_store = FileLogStore::new(&paths.log_file);
@@ -60,6 +80,7 @@ impl RelayApp {
             usage_store,
             log_store,
             codex_adapter,
+            bootstrap_mode,
         })
     }
 
@@ -230,6 +251,7 @@ impl RelayApp {
             &self.usage_store,
             active_profile.as_ref(),
             self.codex_adapter.live_home(),
+            self.bootstrap_mode == BootstrapMode::ReadWrite,
         )
     }
 

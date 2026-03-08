@@ -3,7 +3,7 @@ use crate::models::{
     SwitchOutcome,
 };
 use chrono::{DateTime, Utc};
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
@@ -77,21 +77,40 @@ pub struct SwitchHistoryRecord {
 #[derive(Debug, Clone)]
 pub struct SqliteStore {
     db_path: PathBuf,
+    read_only: bool,
 }
 
 impl SqliteStore {
     pub fn new(db_path: impl AsRef<Path>) -> Result<Self, RelayError> {
         let db_path = db_path.as_ref().to_path_buf();
-        let store = Self { db_path };
+        let store = Self {
+            db_path,
+            read_only: false,
+        };
         store.initialize()?;
         Ok(store)
     }
 
+    pub fn open_read_only(db_path: impl AsRef<Path>) -> Self {
+        Self {
+            db_path: db_path.as_ref().to_path_buf(),
+            read_only: true,
+        }
+    }
+
     fn open(&self) -> Result<Connection, RelayError> {
-        Connection::open(&self.db_path).map_err(|error| RelayError::Store(error.to_string()))
+        let connection = if self.read_only {
+            Connection::open_with_flags(&self.db_path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        } else {
+            Connection::open(&self.db_path)
+        };
+        connection.map_err(|error| RelayError::Store(error.to_string()))
     }
 
     fn initialize(&self) -> Result<(), RelayError> {
+        if self.read_only {
+            return Ok(());
+        }
         let mut connection = self.open()?;
         self.run_migrations(&mut connection)?;
         self.ensure_default_settings(&connection)?;
@@ -174,6 +193,9 @@ impl SqliteStore {
     }
 
     pub fn list_profiles(&self) -> Result<Vec<Profile>, RelayError> {
+        if self.read_only && !self.db_path.exists() {
+            return Ok(Vec::new());
+        }
         let connection = self.open()?;
         let mut statement = connection
             .prepare(
@@ -200,6 +222,9 @@ impl SqliteStore {
     }
 
     pub fn get_profile(&self, id: &str) -> Result<Profile, RelayError> {
+        if self.read_only && !self.db_path.exists() {
+            return Err(RelayError::NotFound(format!("profile not found: {id}")));
+        }
         let connection = self.open()?;
         let mut statement = connection
             .prepare(
@@ -324,6 +349,9 @@ impl SqliteStore {
     }
 
     pub fn get_settings(&self) -> Result<AppSettings, RelayError> {
+        if self.read_only && !self.db_path.exists() {
+            return Ok(AppSettings::default());
+        }
         let connection = self.open()?;
         let auto_switch_enabled = connection
             .query_row(
@@ -381,43 +409,46 @@ impl SqliteStore {
         &self,
         record: SwitchHistoryRecord,
     ) -> Result<SwitchHistoryEntry, RelayError> {
-        let id = format!("sw_{}", Utc::now().timestamp_millis());
-        let created_at = Utc::now();
-        let outcome = stringify_outcome(&record.outcome);
-        let details = json!({}).to_string();
-
         let connection = self.open()?;
-        connection
-            .execute(
-                "INSERT INTO switch_history (id, profile_id, previous_profile_id, outcome, reason, checkpoint_id, rollback_performed, created_at, details)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-                params![
-                    id,
-                    record.profile_id,
-                    record.previous_profile_id,
-                    outcome,
-                    record.reason,
-                    record.checkpoint_id,
-                    if record.rollback_performed { 1_i64 } else { 0_i64 },
-                    created_at.to_rfc3339(),
-                    details,
-                ],
-            )
+        let transaction = connection
+            .unchecked_transaction()
             .map_err(|error| RelayError::Store(error.to_string()))?;
+        let entry = insert_switch_history(&transaction, record)?;
+        transaction
+            .commit()
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        Ok(entry)
+    }
 
-        Ok(SwitchHistoryEntry {
-            id,
-            profile_id: record.profile_id,
-            previous_profile_id: record.previous_profile_id,
-            outcome: record.outcome,
-            reason: record.reason,
-            checkpoint_id: record.checkpoint_id,
-            rollback_performed: record.rollback_performed,
-            created_at,
-        })
+    pub fn record_switch_failure(
+        &self,
+        record: SwitchHistoryRecord,
+        failure_reason: FailureReason,
+        failure_message: impl AsRef<str>,
+        cooldown_until: Option<DateTime<Utc>>,
+    ) -> Result<(SwitchHistoryEntry, FailureEvent), RelayError> {
+        let mut connection = self.open()?;
+        let transaction = connection
+            .transaction()
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        let entry = insert_switch_history(&transaction, record)?;
+        let event = insert_failure_event(
+            &transaction,
+            entry.profile_id.as_deref(),
+            failure_reason,
+            failure_message,
+            cooldown_until,
+        )?;
+        transaction
+            .commit()
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        Ok((entry, event))
     }
 
     pub fn list_switch_history(&self, limit: usize) -> Result<Vec<SwitchHistoryEntry>, RelayError> {
+        if self.read_only && !self.db_path.exists() {
+            return Ok(Vec::new());
+        }
         let connection = self.open()?;
         let mut statement = connection
             .prepare(
@@ -457,36 +488,21 @@ impl SqliteStore {
         message: impl AsRef<str>,
         cooldown_until: Option<DateTime<Utc>>,
     ) -> Result<FailureEvent, RelayError> {
-        let id = format!("ev_{}", Utc::now().timestamp_millis());
-        let created_at = Utc::now();
-        let event = FailureEvent {
-            id: id.clone(),
-            profile_id: profile_id.map(ToOwned::to_owned),
-            reason: reason.clone(),
-            message: message.as_ref().to_string(),
-            cooldown_until,
-            created_at,
-        };
-
         let connection = self.open()?;
-        connection
-            .execute(
-                "INSERT INTO failure_events (id, profile_id, reason, message, cooldown_until, created_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                params![
-                    event.id,
-                    event.profile_id,
-                    stringify_reason(&event.reason),
-                    event.message,
-                    event.cooldown_until.map(|value| value.to_rfc3339()),
-                    event.created_at.to_rfc3339(),
-                ],
-            )
+        let transaction = connection
+            .unchecked_transaction()
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        let event = insert_failure_event(&transaction, profile_id, reason, message, cooldown_until)?;
+        transaction
+            .commit()
             .map_err(|error| RelayError::Store(error.to_string()))?;
         Ok(event)
     }
 
     pub fn list_failure_events(&self, limit: usize) -> Result<Vec<FailureEvent>, RelayError> {
+        if self.read_only && !self.db_path.exists() {
+            return Ok(Vec::new());
+        }
         let connection = self.open()?;
         let mut statement = connection
             .prepare(
@@ -520,6 +536,81 @@ impl SqliteStore {
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(|error| RelayError::Store(error.to_string()))
     }
+}
+
+fn insert_switch_history(
+    connection: &Connection,
+    record: SwitchHistoryRecord,
+) -> Result<SwitchHistoryEntry, RelayError> {
+    let id = format!("sw_{}", Utc::now().timestamp_millis());
+    let created_at = Utc::now();
+    let outcome = stringify_outcome(&record.outcome);
+    let details = json!({}).to_string();
+
+    connection
+        .execute(
+            "INSERT INTO switch_history (id, profile_id, previous_profile_id, outcome, reason, checkpoint_id, rollback_performed, created_at, details)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                id,
+                record.profile_id,
+                record.previous_profile_id,
+                outcome,
+                record.reason,
+                record.checkpoint_id,
+                if record.rollback_performed { 1_i64 } else { 0_i64 },
+                created_at.to_rfc3339(),
+                details,
+            ],
+        )
+        .map_err(|error| RelayError::Store(error.to_string()))?;
+
+    Ok(SwitchHistoryEntry {
+        id,
+        profile_id: record.profile_id,
+        previous_profile_id: record.previous_profile_id,
+        outcome: record.outcome,
+        reason: record.reason,
+        checkpoint_id: record.checkpoint_id,
+        rollback_performed: record.rollback_performed,
+        created_at,
+    })
+}
+
+fn insert_failure_event(
+    connection: &Connection,
+    profile_id: Option<&str>,
+    reason: FailureReason,
+    message: impl AsRef<str>,
+    cooldown_until: Option<DateTime<Utc>>,
+) -> Result<FailureEvent, RelayError> {
+    let id = format!("ev_{}", Utc::now().timestamp_millis());
+    let created_at = Utc::now();
+    let event = FailureEvent {
+        id: id.clone(),
+        profile_id: profile_id.map(ToOwned::to_owned),
+        reason: reason.clone(),
+        message: message.as_ref().to_string(),
+        cooldown_until,
+        created_at,
+    };
+
+    connection
+        .execute(
+            "INSERT INTO failure_events (id, profile_id, reason, message, cooldown_until, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            params![
+                event.id,
+                event.profile_id,
+                stringify_reason(&event.reason),
+                event.message,
+                event.cooldown_until.map(|value| value.to_rfc3339()),
+                event.created_at.to_rfc3339(),
+            ],
+        )
+        .map_err(|error| RelayError::Store(error.to_string()))?;
+
+    Ok(event)
 }
 
 fn stringify_auth_mode(mode: &crate::models::AuthMode) -> &'static str {

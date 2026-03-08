@@ -8,7 +8,7 @@ V1 scope:
 
 - Core execution engine is a Rust CLI.
 - Primary supported agent is `Codex`.
-- Future macOS menu bar app is only a control plane over CLI JSON commands.
+- macOS menu bar app is a control plane over CLI JSON commands.
 
 Primary references:
 
@@ -39,8 +39,10 @@ Do not reintroduce tiny crates for `types`, `store`, `platform`, or `adapters` u
 - Any future macOS UI must call `relay` CLI commands and parse JSON output.
 - UI code must not directly mutate Codex files.
 - All user-visible commands must support `--json`.
+- All parameterized UI-to-CLI calls should use JSON input, not ad hoc flag assembly.
 - Errors exposed to callers must use stable project error codes.
 - All live config mutations must be transactional and recoverable.
+- Read-only CLI commands should avoid unnecessary filesystem or database writes when possible.
 - Do not modify project-local `.codex/`; V1 only works on user-level Codex state.
 
 ## Product Constraints
@@ -74,6 +76,7 @@ Implemented now:
 - switch checkpoints, rollback, switch history, and failure events
 - CLI integration tests and core unit tests
 - native macOS menu bar control plane built on top of CLI JSON
+- Swift package tests for JSON decoding and CLI client integration
 
 Not implemented yet:
 - web-enhanced usage
@@ -89,9 +92,11 @@ cargo fmt --all
 cargo test
 cargo run -p relay-cli --bin relay -- status --json
 cargo run -p relay-cli --bin relay -- doctor --json
+cargo run -p relay-cli --bin relay -- usage --json
 cargo run -p relay-cli --bin relay -- profiles list --json
 cargo install --path apps/relay-cli
 ./scripts/release-local.sh
+cd apps/relay-macos && swift test
 ```
 
 Use `RELAY_HOME` for isolated testing:
@@ -108,6 +113,7 @@ RELAY_HOME=/tmp/relay-smoke cargo run -p relay-cli --bin relay -- status --json
 - Put persistence details behind `store`.
 - Keep agent-specific validation and activation behavior in `adapters`.
 - Add tests for new store logic and service behavior.
+- For UI/CLI protocol changes, add Swift-side decoding or client tests as needed.
 - Use temp directories for tests touching filesystem state.
 
 ## Near-Term Priorities
@@ -117,4 +123,4 @@ Work in this order unless the task explicitly says otherwise:
 1. SQLite migration/versioning policy
 2. Linux support hardening
 3. release packaging polish
-4. macOS menu bar app
+4. usage confidence/source policy hardening

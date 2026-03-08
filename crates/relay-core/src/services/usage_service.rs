@@ -22,19 +22,26 @@ pub fn build(
     usage_store: &FileUsageStore,
     active_profile: Option<&Profile>,
     live_home: &Path,
+    allow_cache_writes: bool,
 ) -> Result<UsageSnapshot, RelayError> {
     if let Some(snapshot) = collect_app_server_snapshot(active_profile, live_home)? {
-        usage_store.save(&snapshot)?;
+        if allow_cache_writes {
+            usage_store.save(&snapshot)?;
+        }
         return Ok(snapshot);
     }
 
     if let Some(snapshot) = collect_local_snapshot(active_profile, live_home)? {
-        usage_store.save(&snapshot)?;
+        if allow_cache_writes {
+            usage_store.save(&snapshot)?;
+        }
         return Ok(snapshot);
     }
 
     if let Some(snapshot) = collect_fallback_snapshot(store, active_profile)? {
-        usage_store.save(&snapshot)?;
+        if allow_cache_writes {
+            usage_store.save(&snapshot)?;
+        }
         return Ok(snapshot);
     }
 
@@ -297,7 +304,7 @@ fn collect_fallback_snapshot(
     snapshot.last_refreshed_at = event.created_at;
     snapshot.confidence = UsageConfidence::Medium;
     snapshot.auto_switch_reason = fallback_auto_switch_reason(&event.reason);
-    snapshot.can_auto_switch = snapshot.auto_switch_reason.is_some();
+    snapshot.can_auto_switch = false;
 
     match event.reason {
         FailureReason::SessionExhausted => snapshot.session.status = UsageStatus::Exhausted,
@@ -640,8 +647,14 @@ mod tests {
 
         let store = SqliteStore::new(temp.path().join("relay.db")).expect("store");
         let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
-        let snapshot =
-            build(&store, &usage_store, Some(&make_profile()), temp.path()).expect("usage");
+        let snapshot = build(
+            &store,
+            &usage_store,
+            Some(&make_profile()),
+            temp.path(),
+            true,
+        )
+        .expect("usage");
 
         assert_eq!(snapshot.source, UsageSource::Local);
         assert_eq!(snapshot.profile_name.as_deref(), Some("Work"));
@@ -727,14 +740,15 @@ mod tests {
             )
             .expect("event");
 
-        let snapshot = build(&store, &usage_store, Some(&profile), temp.path()).expect("usage");
+        let snapshot =
+            build(&store, &usage_store, Some(&profile), temp.path(), true).expect("usage");
 
         assert_eq!(snapshot.source, UsageSource::Fallback);
         assert_eq!(
             snapshot.auto_switch_reason,
             Some(FailureReason::RateLimited)
         );
-        assert!(snapshot.can_auto_switch);
+        assert!(!snapshot.can_auto_switch);
         assert_eq!(snapshot.session.status, UsageStatus::Warning);
         assert_eq!(snapshot.weekly.status, UsageStatus::Unknown);
     }

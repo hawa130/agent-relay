@@ -129,64 +129,22 @@ struct RelayCLIClient {
         as type: Response.Type
     ) async throws -> Response {
         let command = try resolvedRelayCLIPath()
-        let task = Task.detached(priority: .userInitiated) {
-            let process = Process()
-            let stdout = Pipe()
-            let stderr = Pipe()
-
-            process.executableURL = URL(fileURLWithPath: command)
-            process.arguments = ["--json"] + arguments
-            process.standardOutput = stdout
-            process.standardError = stderr
-            if inputData != nil {
-                process.standardInput = Pipe()
+        return try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let response = try runRelayProcess(
+                        command: command,
+                        arguments: arguments,
+                        inputData: inputData,
+                        environment: environment,
+                        as: type
+                    )
+                    continuation.resume(returning: response)
+                } catch {
+                    continuation.resume(throwing: error)
+                }
             }
-            process.environment = environment
-
-            do {
-                try process.run()
-            } catch {
-                throw RelayCLIClientError.launchFailed(error.localizedDescription)
-            }
-
-            if let inputData, let stdin = process.standardInput as? Pipe {
-                stdin.fileHandleForWriting.write(inputData)
-                try? stdin.fileHandleForWriting.close()
-            }
-
-            process.waitUntilExit()
-
-            let output = stdout.fileHandleForReading.readDataToEndOfFile()
-            let errorOutput = stderr.fileHandleForReading.readDataToEndOfFile()
-            let decoder = JSONDecoder.relayDecoder
-
-            if output.isEmpty {
-                let stderrText = String(decoding: errorOutput, as: UTF8.self)
-                throw RelayCLIClientError.emptyOutput(stderrText)
-            }
-
-            let envelope: RelayEnvelope<Response>
-            do {
-                envelope = try decoder.decode(RelayEnvelope<Response>.self, from: output)
-            } catch {
-                throw RelayCLIClientError.decodeFailed(error.localizedDescription)
-            }
-
-            guard envelope.success else {
-                throw RelayCLIClientError.commandFailed(
-                    code: envelope.errorCode,
-                    message: envelope.message
-                )
-            }
-
-            guard let data = envelope.data else {
-                throw RelayCLIClientError.emptyOutput("Relay returned no data payload.")
-            }
-
-            return data
         }
-
-        return try await task.value
     }
 
     private func resolvedRelayCLIPath() throws -> String {
@@ -263,6 +221,112 @@ struct RelayCLIClient {
 
         var seen = Set<String>()
         return candidates.filter { seen.insert($0).inserted }
+    }
+}
+
+private func runRelayProcess<Response: Decodable & Sendable>(
+    command: String,
+    arguments: [String],
+    inputData: Data?,
+    environment: [String: String],
+    as type: Response.Type
+) throws -> Response {
+    let process = Process()
+    let stdout = Pipe()
+    let stderr = Pipe()
+    let stdoutBuffer = LockedDataBuffer()
+    let stderrBuffer = LockedDataBuffer()
+    let stdoutDone = DispatchSemaphore(value: 0)
+    let stderrDone = DispatchSemaphore(value: 0)
+
+    process.executableURL = URL(fileURLWithPath: command)
+    process.arguments = ["--json"] + arguments
+    process.standardOutput = stdout
+    process.standardError = stderr
+    if inputData != nil {
+        process.standardInput = Pipe()
+    }
+    process.environment = environment
+
+    stdout.fileHandleForReading.readabilityHandler = { handle in
+        let data = handle.availableData
+        if data.isEmpty {
+            handle.readabilityHandler = nil
+            stdoutDone.signal()
+            return
+        }
+        stdoutBuffer.append(data)
+    }
+
+    stderr.fileHandleForReading.readabilityHandler = { handle in
+        let data = handle.availableData
+        if data.isEmpty {
+            handle.readabilityHandler = nil
+            stderrDone.signal()
+            return
+        }
+        stderrBuffer.append(data)
+    }
+
+    do {
+        try process.run()
+    } catch {
+        throw RelayCLIClientError.launchFailed(error.localizedDescription)
+    }
+
+    if let inputData, let stdin = process.standardInput as? Pipe {
+        stdin.fileHandleForWriting.write(inputData)
+        try? stdin.fileHandleForWriting.close()
+    }
+
+    process.waitUntilExit()
+    stdoutDone.wait()
+    stderrDone.wait()
+
+    let output = stdoutBuffer.snapshot()
+    let errorOutput = stderrBuffer.snapshot()
+    let decoder = JSONDecoder.relayDecoder
+
+    if output.isEmpty {
+        let stderrText = String(decoding: errorOutput, as: UTF8.self)
+        throw RelayCLIClientError.emptyOutput(stderrText)
+    }
+
+    let envelope: RelayEnvelope<Response>
+    do {
+        envelope = try decoder.decode(RelayEnvelope<Response>.self, from: output)
+    } catch {
+        throw RelayCLIClientError.decodeFailed(error.localizedDescription)
+    }
+
+    guard envelope.success else {
+        throw RelayCLIClientError.commandFailed(
+            code: envelope.errorCode,
+            message: envelope.message
+        )
+    }
+
+    guard let data = envelope.data else {
+        throw RelayCLIClientError.emptyOutput("Relay returned no data payload.")
+    }
+
+    return data
+}
+
+private final class LockedDataBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+
+    func append(_ chunk: Data) {
+        lock.lock()
+        data.append(chunk)
+        lock.unlock()
+    }
+
+    func snapshot() -> Data {
+        lock.lock()
+        defer { lock.unlock() }
+        return data
     }
 }
 

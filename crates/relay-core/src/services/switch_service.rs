@@ -42,14 +42,23 @@ pub fn switch_to_profile(
                 last_error: None,
             };
             state_store.save(&next_state)?;
-            store.record_switch(SwitchHistoryRecord {
+            if let Err(error) = store.record_switch(SwitchHistoryRecord {
                 profile_id: Some(profile.id.clone()),
                 previous_profile_id: previous_profile_id.clone(),
                 outcome: SwitchOutcome::Success,
                 reason: Some("manual".into()),
                 checkpoint_id: Some(checkpoint.checkpoint_id.clone()),
                 rollback_performed: false,
-            })?;
+            }) {
+                rollback_success_persistence(
+                    adapter,
+                    paths,
+                    &checkpoint.checkpoint_id,
+                    &current_state,
+                    state_store,
+                )?;
+                return Err(error);
+            }
             log_store.append("info", "switch.success", format!("active={}", profile.id))?;
 
             Ok(SwitchReport {
@@ -72,24 +81,38 @@ pub fn switch_to_profile(
                 last_error: Some(error.to_string()),
             };
             state_store.save(&next_state)?;
-            store.record_switch(SwitchHistoryRecord {
-                profile_id: Some(profile.id.clone()),
-                previous_profile_id,
-                outcome: SwitchOutcome::Failed,
-                reason: Some(error.to_string()),
-                checkpoint_id: None,
-                rollback_performed: true,
-            })?;
-            store.record_failure_event(
-                Some(&profile.id),
+            if let Err(persist_error) = store.record_switch_failure(
+                SwitchHistoryRecord {
+                    profile_id: Some(profile.id.clone()),
+                    previous_profile_id,
+                    outcome: SwitchOutcome::Failed,
+                    reason: Some(error.to_string()),
+                    checkpoint_id: None,
+                    rollback_performed: true,
+                },
                 classify_failure_reason(&error),
                 error.to_string(),
                 Some(now + Duration::seconds(settings.cooldown_seconds)),
-            )?;
+            ) {
+                state_store.save(&current_state)?;
+                return Err(persist_error);
+            }
             log_store.append("error", "switch.failed", error.to_string())?;
             Err(error)
         }
     }
+}
+
+fn rollback_success_persistence(
+    adapter: &CodexAdapter,
+    paths: &RelayPaths,
+    checkpoint_id: &str,
+    previous_state: &ActiveState,
+    state_store: &FileStateStore,
+) -> Result<(), RelayError> {
+    adapter.rollback_checkpoint(&paths.snapshots_dir, checkpoint_id)?;
+    state_store.save(previous_state)?;
+    Ok(())
 }
 
 fn classify_failure_reason(error: &RelayError) -> FailureReason {
@@ -104,5 +127,78 @@ fn classify_failure_reason(error: &RelayError) -> FailureReason {
         FailureReason::CommandFailed
     } else {
         FailureReason::ValidationFailed
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::platform::RelayPaths;
+    use crate::store::{FileLogStore, FileStateStore};
+    use chrono::Utc;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[cfg(unix)]
+    use std::os::unix::fs::PermissionsExt;
+
+    #[cfg(unix)]
+    #[test]
+    fn restores_live_files_and_state_when_switch_persistence_fails() {
+        let temp = tempdir().expect("tempdir");
+        let relay_root = temp.path().join("relay");
+        let live_home = temp.path().join("live");
+        let profile_home = temp.path().join("profile");
+        fs::create_dir_all(&live_home).expect("live");
+        fs::create_dir_all(&profile_home).expect("profile");
+        fs::write(live_home.join("config.toml"), "model = 'old'").expect("live config");
+        fs::write(live_home.join("auth.json"), "{\"token\":\"old\"}").expect("live auth");
+        fs::write(profile_home.join("config.toml"), "model = 'new'").expect("profile config");
+        fs::write(profile_home.join("auth.json"), "{\"token\":\"new\"}").expect("profile auth");
+
+        let paths = RelayPaths::from_root(relay_root);
+        paths.ensure_layout().expect("layout");
+        let store = SqliteStore::new(&paths.db_path).expect("store");
+        let state_store = FileStateStore::new(&paths.state_path);
+        let log_store = FileLogStore::new(&paths.log_file);
+        let adapter = CodexAdapter::with_live_home(&live_home);
+
+        let previous_state = ActiveState::default();
+        state_store.save(&previous_state).expect("save state");
+
+        let mut permissions = fs::metadata(&paths.db_path)
+            .expect("db metadata")
+            .permissions();
+        permissions.set_mode(0o444);
+        fs::set_permissions(&paths.db_path, permissions).expect("readonly db");
+
+        let profile = Profile {
+            id: "p_new".into(),
+            nickname: "New".into(),
+            agent: crate::models::AgentKind::Codex,
+            priority: 10,
+            enabled: true,
+            agent_home: Some(profile_home.to_string_lossy().into_owned()),
+            config_path: Some(profile_home.join("config.toml").to_string_lossy().into_owned()),
+            auth_mode: crate::models::AuthMode::ConfigFilesystem,
+            metadata: serde_json::json!({}),
+            created_at: Utc::now().to_rfc3339(),
+            updated_at: Utc::now().to_rfc3339(),
+        };
+
+        let error = switch_to_profile(&store, &state_store, &log_store, &adapter, &paths, &profile)
+            .expect_err("switch should fail on readonly db");
+        assert!(matches!(error, RelayError::Store(_)));
+
+        let restored_state = state_store.load().expect("load state");
+        assert_eq!(restored_state.active_profile_id, previous_state.active_profile_id);
+        assert_eq!(
+            fs::read_to_string(live_home.join("config.toml")).expect("live config"),
+            "model = 'old'"
+        );
+        assert_eq!(
+            fs::read_to_string(live_home.join("auth.json")).expect("live auth"),
+            "{\"token\":\"old\"}"
+        );
     }
 }
