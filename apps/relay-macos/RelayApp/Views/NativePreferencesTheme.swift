@@ -34,4 +34,57 @@ public enum NativePreferencesTheme {
         public static let mutedText = Color.secondary
         public static let sectionBorder = Color(nsColor: .separatorColor).opacity(0.55)
     }
+
+    public enum Badge {
+        public enum Kind {
+            case success
+            case warning
+            case danger
+            case info
+            case neutral
+        }
+
+        public static func fill(_ kind: Kind) -> Color {
+            switch kind {
+            case .success:
+                return dynamicColor(light: NSColor(red: 0.82, green: 0.92, blue: 0.82, alpha: 1), dark: NSColor(red: 0.16, green: 0.29, blue: 0.18, alpha: 1))
+            case .warning:
+                return dynamicColor(light: NSColor(red: 0.98, green: 0.89, blue: 0.74, alpha: 1), dark: NSColor(red: 0.34, green: 0.24, blue: 0.08, alpha: 1))
+            case .danger:
+                return dynamicColor(light: NSColor(red: 0.97, green: 0.82, blue: 0.82, alpha: 1), dark: NSColor(red: 0.37, green: 0.13, blue: 0.14, alpha: 1))
+            case .info:
+                return dynamicColor(light: NSColor(red: 0.81, green: 0.88, blue: 0.98, alpha: 1), dark: NSColor(red: 0.15, green: 0.24, blue: 0.40, alpha: 1))
+            case .neutral:
+                return dynamicColor(light: NSColor(red: 0.88, green: 0.88, blue: 0.89, alpha: 1), dark: NSColor(red: 0.25, green: 0.25, blue: 0.26, alpha: 1))
+            }
+        }
+
+        public static func text(_ kind: Kind) -> Color {
+            switch kind {
+            case .success:
+                return dynamicColor(light: NSColor(red: 0.11, green: 0.38, blue: 0.14, alpha: 1), dark: NSColor(red: 0.69, green: 0.88, blue: 0.70, alpha: 1))
+            case .warning:
+                return dynamicColor(light: NSColor(red: 0.58, green: 0.33, blue: 0.04, alpha: 1), dark: NSColor(red: 0.96, green: 0.78, blue: 0.39, alpha: 1))
+            case .danger:
+                return dynamicColor(light: NSColor(red: 0.63, green: 0.13, blue: 0.15, alpha: 1), dark: NSColor(red: 0.98, green: 0.72, blue: 0.73, alpha: 1))
+            case .info:
+                return dynamicColor(light: NSColor(red: 0.12, green: 0.30, blue: 0.67, alpha: 1), dark: NSColor(red: 0.72, green: 0.82, blue: 1.0, alpha: 1))
+            case .neutral:
+                return dynamicColor(light: NSColor(red: 0.34, green: 0.34, blue: 0.36, alpha: 1), dark: NSColor(red: 0.78, green: 0.78, blue: 0.80, alpha: 1))
+            }
+        }
+
+        private static func dynamicColor(light: NSColor, dark: NSColor) -> Color {
+            Color(
+                nsColor: NSColor(name: nil) { appearance in
+                    switch appearance.bestMatch(from: [.darkAqua, .aqua]) {
+                    case .darkAqua:
+                        return dark
+                    default:
+                        return light
+                    }
+                }
+            )
+        }
+    }
 }

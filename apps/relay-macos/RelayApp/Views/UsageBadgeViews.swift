@@ -21,8 +21,8 @@ struct UsageBadge: View {
             .font(.system(size: 10, weight: .semibold, design: .monospaced))
             .padding(.horizontal, 5)
             .padding(.vertical, 2.5)
-            .background(tint.opacity(stale ? 0.14 : 0.2), in: Capsule())
-            .foregroundStyle(stale ? .secondary : tint)
+            .background(NativePreferencesTheme.Badge.fill(kind).opacity(stale ? 0.78 : 1), in: Capsule())
+            .foregroundStyle(stale ? .secondary : NativePreferencesTheme.Badge.text(kind))
     }
 
     private var label: String {
@@ -32,16 +32,16 @@ struct UsageBadge: View {
         return window.status.shortLabel
     }
 
-    private var tint: Color {
+    private var kind: NativePreferencesTheme.Badge.Kind {
         switch window.status {
         case .healthy:
-            return .green
+            return .success
         case .warning:
-            return .orange
+            return .warning
         case .exhausted:
-            return .red
+            return .danger
         case .unknown:
-            return .gray
+            return .neutral
         }
     }
 }
