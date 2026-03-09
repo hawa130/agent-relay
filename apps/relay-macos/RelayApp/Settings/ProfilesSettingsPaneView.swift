@@ -129,8 +129,10 @@ public struct ProfilesSettingsPaneView: View {
     private func profileHero(_ profile: Profile) -> some View {
         SettingsSurfaceCard(nil) {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 18) {
-                    VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .top, spacing: 14) {
+                    ProfileHeroAgentIcon(agent: profile.agent)
+
+                    VStack(alignment: .leading, spacing: 0) {
                         Text(profile.agent.rawValue)
                             .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
                             .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
@@ -149,6 +151,7 @@ public struct ProfilesSettingsPaneView: View {
                                 ProfileStateBadge(title: "Active", kind: .info)
                             }
                         }
+                        .padding(.top, 4)
                     }
 
                     Spacer(minLength: 20)
@@ -262,6 +265,35 @@ public struct ProfilesSettingsPaneView: View {
     }
 }
 
+private struct ProfileHeroAgentIcon: View {
+    let agent: AgentKind
+
+    var body: some View {
+        Group {
+            if let descriptor = AgentSettingsCatalog.descriptor(for: agent) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.secondary.opacity(0.12))
+                        .frame(width: 40, height: 40)
+
+                    AgentBrandIcon(descriptor: descriptor, size: 20)
+                }
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.secondary.opacity(0.12))
+                        .frame(width: 40, height: 40)
+
+                    Image(systemName: "terminal")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(width: 40, height: 40)
+    }
+}
+
 private struct ProfileListRow: View {
     let profile: Profile
     let usage: UsageSnapshot?
@@ -269,29 +301,19 @@ private struct ProfileListRow: View {
     let isSelected: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(profile.nickname)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+        VStack(alignment: .leading, spacing: 5) {
+            ProfileListAgentLabel(agent: profile.agent)
 
-                    if isActive {
-                        Circle()
-                            .fill(Color.accentColor)
-                            .frame(width: 7, height: 7)
-                    }
-                }
+            Text(profile.nickname)
+                .font(.system(size: 13, weight: .semibold, design: .rounded))
 
-                Text(subtitle)
-                    .font(NativePreferencesTheme.Typography.detail)
-                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+            Text(subtitle)
+                .font(NativePreferencesTheme.Typography.detail)
+                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
 
-                if let usage {
-                    UsageBadgeRow(usage: usage)
-                }
+            if let usage {
+                UsageBadgeRow(usage: usage)
             }
-
-            Spacer(minLength: 10)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 9)
@@ -301,6 +323,13 @@ private struct ProfileListRow: View {
             RoundedRectangle(cornerRadius: 9, style: .continuous)
                 .strokeBorder(rowBorder, lineWidth: isSelected ? 1 : 0.5)
         )
+        .overlay(alignment: .topTrailing) {
+            if isActive {
+                ProfileStateBadge(title: "Current", kind: .info)
+                    .padding(.top, 9)
+                    .padding(.trailing, 10)
+            }
+        }
         .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
@@ -333,6 +362,28 @@ private struct ProfileListRow: View {
             return Color.accentColor.opacity(0.28)
         }
         return NativePreferencesTheme.Colors.sectionBorder.opacity(0.55)
+    }
+}
+
+private struct ProfileListAgentLabel: View {
+    let agent: AgentKind
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if let descriptor = AgentSettingsCatalog.descriptor(for: agent) {
+                AgentBrandIcon(descriptor: descriptor, size: 12, tint: .secondary)
+                    .frame(width: 12, height: 12)
+            } else {
+                Image(systemName: "terminal")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 12, height: 12)
+            }
+
+            Text(agent.rawValue.uppercased())
+                .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
+                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+        }
     }
 }
 

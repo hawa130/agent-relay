@@ -29,7 +29,10 @@ let package = Package(
                 .product(name: "LaunchAtLogin", package: "LaunchAtLogin-Modern"),
             ],
             path: "RelayApp",
-            exclude: ["Resources/README.md", "Resources/Info.plist"]
+            exclude: ["Resources/README.md", "Resources/Info.plist"],
+            resources: [
+                .process("Resources"),
+            ]
         ),
         .executableTarget(
             name: "RelayMacOS",

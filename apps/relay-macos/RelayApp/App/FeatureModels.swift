@@ -36,17 +36,35 @@ public final class SettingsSessionModel: ObservableObject {
 }
 
 @MainActor
-public final class CodexSettingsPaneModel: ObservableObject {
+public final class SettingsPaneModel: ObservableObject {
     private let session: RelayAppModel
     private var cancellables: Set<AnyCancellable> = []
+    @Published private(set) var selectedItem: SettingsSidebarSelection
 
     public init(session: RelayAppModel) {
         self.session = session
+        self.selectedItem = SettingsSidebarSelection.persistedSelection
         bindSession()
     }
 
+    var autoSwitchEnabled: Bool { session.autoSwitchEnabled }
+    var profilesCount: Int { session.status?.profileCount ?? session.profiles.count }
+    var agents: [AgentSettingsDescriptor] { AgentSettingsCatalog.supportedAgents }
     var codexSettings: CodexSettings? { session.codexSettings }
     var lastErrorMessage: String? { session.lastErrorMessage }
+
+    func selectItem(_ item: SettingsSidebarSelection) {
+        guard selectedItem != item else {
+            return
+        }
+
+        selectedItem = item
+        SettingsSidebarSelection.persistedSelection = item
+    }
+
+    func setAutoSwitch(enabled: Bool) async {
+        await session.setAutoSwitch(enabled: enabled)
+    }
 
     func setUsageSourceMode(_ mode: UsageSourceMode) async {
         await session.setCodexUsageSourceMode(mode)
