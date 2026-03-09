@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AgentKind {
     Codex,
 }
@@ -20,7 +20,6 @@ pub struct Profile {
     pub agent: AgentKind,
     pub priority: i32,
     pub enabled: bool,
-    #[serde(alias = "codex_home")]
     pub agent_home: Option<String>,
     pub config_path: Option<String>,
     pub auth_mode: AuthMode,
