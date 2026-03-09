@@ -225,7 +225,7 @@ fn collect_session_snapshot(
         message: None,
     };
     if stale {
-        snapshot.message = Some("local usage data is stale".into());
+        snapshot.message = Some("Usage may be outdated.".into());
     }
     apply_auto_switch_policy(&mut snapshot);
     Ok(Some(snapshot))
@@ -246,10 +246,7 @@ fn fetch_official_usage_snapshot(
         response = official_usage_request(&identity)?;
     }
     if response.http_code != 200 {
-        return Ok(remote_error_snapshot(
-            profile,
-            &format!("official usage returned HTTP {}", response.http_code),
-        ));
+        return Ok(remote_error_snapshot(profile));
     }
 
     let payload: OfficialUsageResponse = serde_json::from_str(&response.body)
@@ -268,7 +265,7 @@ fn fetch_official_usage_snapshot(
         weekly,
         auto_switch_reason: None,
         can_auto_switch: false,
-        message: Some("official usage API".into()),
+        message: None,
     };
     apply_auto_switch_policy(&mut snapshot);
     Ok(snapshot)
@@ -426,7 +423,7 @@ fn official_window(window: Option<&OfficialRateLimitWindow>) -> UsageWindow {
     )
 }
 
-fn remote_error_snapshot(profile: &Profile, message: &str) -> UsageSnapshot {
+fn remote_error_snapshot(profile: &Profile) -> UsageSnapshot {
     UsageSnapshot {
         profile_id: Some(profile.id.clone()),
         profile_name: Some(profile.nickname.clone()),
@@ -451,7 +448,7 @@ fn remote_error_snapshot(profile: &Profile, message: &str) -> UsageSnapshot {
         },
         auto_switch_reason: None,
         can_auto_switch: false,
-        message: Some(message.into()),
+        message: Some("Enhanced usage is currently unavailable.".into()),
     }
 }
 
@@ -496,7 +493,7 @@ fn build_window(
 fn snapshot_from_rate_limit_snapshot(
     snapshot: AppServerRateLimitSnapshot,
     profile: Option<&Profile>,
-    message: &str,
+    message: Option<&str>,
 ) -> UsageSnapshot {
     let session = app_server_window(snapshot.primary);
     let weekly = app_server_window(snapshot.secondary);
@@ -513,7 +510,7 @@ fn snapshot_from_rate_limit_snapshot(
         weekly,
         auto_switch_reason: None,
         can_auto_switch: false,
-        message: Some(message.into()),
+        message: message.map(str::to_string),
     };
     apply_auto_switch_policy(&mut snapshot);
     snapshot
@@ -731,7 +728,7 @@ fn parse_app_server_message(
     Ok(Some(snapshot_from_rate_limit_snapshot(
         rate_limits,
         profile,
-        "codex app-server rate limit RPC",
+        None,
     )))
 }
 

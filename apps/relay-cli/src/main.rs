@@ -10,8 +10,8 @@ use relay_core::{
     AgentLoginRequest, AppSettings, AuthMode, BootstrapMode, DiagnosticsExport, DoctorReport,
     EditProfileRequest, FailureEvent, FailureReason, ImportProfileRequest, LogTail, ProbeProvider,
     Profile, ProfileDetail, ProfileProbeIdentity, RelayApp, RelayError, SwitchOutcome,
-    SwitchReport, SystemSettingsUpdateRequest, SystemStatusReport, UsageConfidence,
-    UsageSettingsUpdateRequest, UsageSnapshot, UsageSourceMode, UsageStatus, UsageWindow,
+    SwitchReport, SystemSettingsUpdateRequest, SystemStatusReport, UsageSettingsUpdateRequest,
+    UsageSnapshot, UsageSourceMode, UsageStatus, UsageWindow,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -688,11 +688,9 @@ fn render_usage_list(
         "Profile",
         "State",
         "Source",
-        "Confidence",
         "Session",
         "Weekly",
         "Next Reset",
-        "Notes",
     ]);
 
     for snapshot in snapshots {
@@ -710,19 +708,14 @@ fn render_usage_list(
             ),
             styled_cell(usage_source_label(&snapshot.source), CellTone::Info),
             styled_cell(
-                usage_confidence_label(&snapshot.confidence),
-                confidence_tone(snapshot.confidence.clone()),
-            ),
-            styled_cell(
-                window_label(&snapshot.session),
+                list_window_label(&snapshot.session),
                 status_tone(snapshot.session.status.clone()),
             ),
             styled_cell(
-                window_label(&snapshot.weekly),
+                list_window_label(&snapshot.weekly),
                 status_tone(snapshot.weekly.status.clone()),
             ),
             Cell::new(format_optional_datetime(snapshot.next_reset_at)),
-            Cell::new(snapshot.message.clone().unwrap_or_else(|| "-".into())),
         ]));
     }
 
@@ -733,10 +726,6 @@ fn render_usage_detail(snapshot: &UsageSnapshot) -> String {
     let mut fields = vec![
         ("Profile", display_profile(snapshot)),
         ("Source", usage_source_label(&snapshot.source).into()),
-        (
-            "Confidence",
-            usage_confidence_label(&snapshot.confidence).into(),
-        ),
         (
             "Freshness",
             if snapshot.stale { "stale" } else { "fresh" }.into(),
@@ -761,8 +750,8 @@ fn render_usage_detail(snapshot: &UsageSnapshot) -> String {
             },
         ),
     ];
-    if let Some(message) = &snapshot.message {
-        fields.push(("Notes", message.clone()));
+    if let Some(message) = user_facing_usage_note(snapshot) {
+        fields.push(("Notes", message));
     }
     render_sections(vec![("Usage", fields)])
 }
@@ -788,7 +777,6 @@ fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> String {
         "Weekly",
         "Source",
         "Auth",
-        "Notes",
     ]);
 
     for item in items {
@@ -821,7 +809,7 @@ fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> String {
             ),
             styled_cell(
                 usage
-                    .map(|value| window_label(&value.session))
+                    .map(|value| list_window_label(&value.session))
                     .unwrap_or_else(|| "-".into()),
                 usage
                     .map(|value| status_tone(value.session.status.clone()))
@@ -829,7 +817,7 @@ fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> String {
             ),
             styled_cell(
                 usage
-                    .map(|value| window_label(&value.weekly))
+                    .map(|value| list_window_label(&value.weekly))
                     .unwrap_or_else(|| "-".into()),
                 usage
                     .map(|value| status_tone(value.weekly.status.clone()))
@@ -841,11 +829,6 @@ fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> String {
                     .unwrap_or_else(|| "-".into()),
             ),
             Cell::new(auth_mode_label(&profile.auth_mode)),
-            Cell::new(
-                usage
-                    .and_then(|value| value.message.clone())
-                    .unwrap_or_else(|| "-".into()),
-            ),
         ]));
     }
 
@@ -1075,6 +1058,39 @@ fn window_label(window: &UsageWindow) -> String {
     }
 }
 
+fn list_window_label(window: &UsageWindow) -> String {
+    match (window.used_percent, window.reset_at) {
+        (Some(percent), Some(reset_at)) => {
+            format!("{percent:.0}% · {}", compact_reset_label(reset_at))
+        }
+        (Some(percent), None) => format!("{percent:.0}%"),
+        (None, _) => "-".into(),
+    }
+}
+
+fn compact_reset_label(reset_at: DateTime<Utc>) -> String {
+    let interval = reset_at.signed_duration_since(Utc::now());
+    if interval.num_seconds() <= 0 {
+        return "now".into();
+    }
+
+    let total_minutes = ((interval.num_seconds() + 59) / 60).max(1);
+    let days = total_minutes / (24 * 60);
+    let hours = (total_minutes % (24 * 60)) / 60;
+    let minutes = total_minutes % 60;
+    let mut parts = Vec::new();
+    if days > 0 {
+        parts.push(format!("{days}d"));
+    }
+    if hours > 0 {
+        parts.push(format!("{hours}h"));
+    }
+    if minutes > 0 || parts.is_empty() {
+        parts.push(format!("{minutes}m"));
+    }
+    parts.join(" ")
+}
+
 fn detail_window_line(window: &UsageWindow) -> String {
     let mut parts = vec![window_label(window)];
     if let Some(minutes) = window.window_minutes {
@@ -1093,10 +1109,6 @@ fn usage_fields(snapshot: &UsageSnapshot) -> Vec<(&'static str, String)> {
     let mut fields = vec![
         ("Source", usage_source_label(&snapshot.source).into()),
         (
-            "Confidence",
-            usage_confidence_label(&snapshot.confidence).into(),
-        ),
-        (
             "Freshness",
             if snapshot.stale { "stale" } else { "fresh" }.into(),
         ),
@@ -1108,8 +1120,8 @@ fn usage_fields(snapshot: &UsageSnapshot) -> Vec<(&'static str, String)> {
             format_optional_datetime(snapshot.next_reset_at),
         ),
     ];
-    if let Some(message) = &snapshot.message {
-        fields.push(("Notes", message.clone()));
+    if let Some(message) = user_facing_usage_note(snapshot) {
+        fields.push(("Notes", message));
     }
     fields
 }
@@ -1204,14 +1216,6 @@ fn usage_tone(snapshot: &UsageSnapshot) -> CellTone {
     }
 }
 
-fn confidence_tone(confidence: UsageConfidence) -> CellTone {
-    match confidence {
-        UsageConfidence::High => CellTone::Good,
-        UsageConfidence::Medium => CellTone::Warn,
-        UsageConfidence::Low => CellTone::Muted,
-    }
-}
-
 fn status_tone(status: UsageStatus) -> CellTone {
     match status {
         UsageStatus::Healthy => CellTone::Good,
@@ -1246,14 +1250,6 @@ fn usage_source_mode_label(mode: &UsageSourceMode) -> &'static str {
         UsageSourceMode::Auto => "Auto",
         UsageSourceMode::Local => "Local",
         UsageSourceMode::WebEnhanced => "WebEnhanced",
-    }
-}
-
-fn usage_confidence_label(confidence: &UsageConfidence) -> &'static str {
-    match confidence {
-        UsageConfidence::High => "High",
-        UsageConfidence::Medium => "Medium",
-        UsageConfidence::Low => "Low",
     }
 }
 
@@ -1309,6 +1305,15 @@ fn switch_outcome_label(outcome: &SwitchOutcome) -> &'static str {
 
 fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
+}
+
+fn user_facing_usage_note(snapshot: &UsageSnapshot) -> Option<String> {
+    snapshot
+        .message
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
 }
 
 fn active_state_fields(state: &ActiveState) -> Vec<(&'static str, String)> {

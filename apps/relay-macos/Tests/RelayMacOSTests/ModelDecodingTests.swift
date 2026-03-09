@@ -277,4 +277,92 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertTrue(item.isActive)
         XCTAssertEqual(item.usageSummary?.profileId, "p_1")
     }
+
+    func testUsageSnapshotUserFacingNoteRewritesInternalMessages() throws {
+        let fallback = UsageSnapshot(
+            profileId: "p_1",
+            profileName: "work",
+            source: .fallback,
+            confidence: .medium,
+            stale: true,
+            lastRefreshedAt: Date(),
+            nextResetAt: nil,
+            session: UsageWindow(
+                usedPercent: nil,
+                windowMinutes: 300,
+                resetAt: nil,
+                status: .unknown,
+                exact: false
+            ),
+            weekly: UsageWindow(
+                usedPercent: nil,
+                windowMinutes: 10080,
+                resetAt: nil,
+                status: .unknown,
+                exact: false
+            ),
+            autoSwitchReason: nil,
+            canAutoSwitch: false,
+            message: "Usage is currently unavailable."
+        )
+        let localFallback = UsageSnapshot(
+            profileId: "p_2",
+            profileName: "local",
+            source: .local,
+            confidence: .high,
+            stale: false,
+            lastRefreshedAt: Date(),
+            nextResetAt: nil,
+            session: UsageWindow(
+                usedPercent: 20,
+                windowMinutes: 300,
+                resetAt: nil,
+                status: .healthy,
+                exact: true
+            ),
+            weekly: UsageWindow(
+                usedPercent: 30,
+                windowMinutes: 10080,
+                resetAt: nil,
+                status: .healthy,
+                exact: true
+            ),
+            autoSwitchReason: nil,
+            canAutoSwitch: false,
+            message: "Using local usage because enhanced usage is unavailable."
+        )
+        let official = UsageSnapshot(
+            profileId: "p_3",
+            profileName: "remote",
+            source: .webEnhanced,
+            confidence: .high,
+            stale: false,
+            lastRefreshedAt: Date(),
+            nextResetAt: nil,
+            session: UsageWindow(
+                usedPercent: 10,
+                windowMinutes: 300,
+                resetAt: nil,
+                status: .healthy,
+                exact: true
+            ),
+            weekly: UsageWindow(
+                usedPercent: 15,
+                windowMinutes: 10080,
+                resetAt: nil,
+                status: .healthy,
+                exact: true
+            ),
+            autoSwitchReason: nil,
+            canAutoSwitch: false,
+            message: nil
+        )
+
+        XCTAssertEqual(fallback.userFacingNote, "Usage is currently unavailable.")
+        XCTAssertEqual(
+            localFallback.userFacingNote,
+            "Using local usage because enhanced usage is unavailable."
+        )
+        XCTAssertNil(official.userFacingNote)
+    }
 }

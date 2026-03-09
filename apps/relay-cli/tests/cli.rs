@@ -726,7 +726,11 @@ fn usage_profile_list_refresh_and_config_work() {
         &live_codex_home,
         &["--json", "switch", &active_id],
     );
-    run_json(&relay_home, &live_codex_home, &["--json", "refresh", &active_id]);
+    run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "refresh", &active_id],
+    );
     let current = run_json(&relay_home, &live_codex_home, &["--json", "show"]);
     assert_eq!(current["data"]["profile"]["id"], active_id);
     assert_eq!(current["data"]["usage"]["source"], "Local");
@@ -1021,10 +1025,13 @@ fn usage_text_output_renders_table_and_detail_views() {
     assert!(list.contains("Session"));
     assert!(list.contains(&active_id));
     assert!(list.contains(&alternate_id));
+    assert!(!list.contains("Notes"));
+    assert!(!list.contains("Healthy ("));
 
     let detail = run_text(&relay_home, &live_codex_home, &["show"]);
     assert!(detail.contains("Session"));
     assert!(detail.contains("Weekly"));
+    assert!(!detail.contains("Confidence"));
 }
 
 #[test]
@@ -1072,6 +1079,7 @@ fn human_readable_outputs_cover_core_command_families() {
     let profiles = run_text(&relay_home, &live_codex_home, &["list"]);
     assert!(profiles.contains("Nickname"));
     assert!(profiles.contains("Profile ID"));
+    assert!(!profiles.contains("Notes"));
 
     let status = run_text(&relay_home, &live_codex_home, &["status"]);
     assert!(status.contains("Active State"));

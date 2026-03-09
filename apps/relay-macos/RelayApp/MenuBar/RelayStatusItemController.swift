@@ -252,19 +252,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func currentCardNotes(usage: UsageSnapshot?) -> [String] {
-        guard let usage else {
-            return []
-        }
-
-        if usage.stale {
-            return [usage.message ?? "Usage data is stale."]
-        }
-
-        if let message = usage.message, message != "usage not fetched yet" {
-            return [message]
-        }
-
-        return []
+        usage?.userFacingNote.map { [$0] } ?? []
     }
 
     private func makeProfileMenuItem(_ profile: Profile) -> NSMenuItem {
