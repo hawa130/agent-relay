@@ -44,7 +44,10 @@ pub fn export_bundle(
             "os": std::env::consts::OS,
             "arch": std::env::consts::ARCH,
             "relay_home": paths.relay_home,
-            "codex_home_env": std::env::var("CODEX_HOME").ok(),
+            "agent_home_env": {
+                "name": doctor.agent_home_env_name,
+                "value": doctor.agent_home_env_value,
+            },
         }),
     )?;
 

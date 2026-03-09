@@ -89,18 +89,18 @@ struct RelayCLIClient {
         )
     }
 
-    func importCodexProfile(nickname: String?, priority: Int) async throws -> Profile {
+    func importProfile(agent: AgentKind, nickname: String?, priority: Int) async throws -> Profile {
         try await run(
-            ["profiles", "import", "--input-json", "-"],
-            input: ImportProfilePayload(nickname: nickname, priority: priority),
+            ["profiles", "import", agent.cliArgument, "--input-json", "-"],
+            input: ImportProfilePayload(agent: agent.cliArgument, nickname: nickname, priority: priority),
             as: Profile.self
         )
     }
 
-    func loginCodexProfile(nickname: String?, priority: Int) async throws -> AgentLinkResult {
+    func loginProfile(agent: AgentKind, nickname: String?, priority: Int) async throws -> AgentLinkResult {
         try await run(
-            ["profiles", "login", "--input-json", "-"],
-            input: LoginProfilePayload(nickname: nickname, priority: priority),
+            ["profiles", "login", agent.cliArgument, "--input-json", "-"],
+            input: LoginProfilePayload(agent: agent.cliArgument, nickname: nickname, priority: priority),
             as: AgentLinkResult.self
         )
     }

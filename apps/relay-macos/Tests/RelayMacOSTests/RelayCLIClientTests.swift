@@ -37,12 +37,12 @@ final class RelayCLIClientTests: XCTestCase {
         XCTAssertFalse(settings.usageBackgroundRefreshEnabled)
     }
 
-    func testImportCodexCommandUsesAgentAwareJSONWithoutInlineArgs() async throws {
+    func testImportProfileCommandUsesAgentAwareJSON() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
 
         let client = RelayCLIClient(relayCLIPathOverride: fixture.scriptPath, environment: [:])
-        let profile = try await client.importCodexProfile(nickname: "live", priority: 100)
+        let profile = try await client.importProfile(agent: .codex, nickname: "live", priority: 100)
         let payloadData = try Data(contentsOf: URL(fileURLWithPath: fixture.payloadPath))
         let payload = try XCTUnwrap(
             JSONSerialization.jsonObject(with: payloadData) as? [String: Any]
@@ -54,12 +54,12 @@ final class RelayCLIClientTests: XCTestCase {
         XCTAssertEqual(payload["priority"] as? Int, 100)
     }
 
-    func testLoginCodexCommandUsesJSON() async throws {
+    func testLoginProfileCommandUsesAgentAwareJSON() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
 
         let client = RelayCLIClient(relayCLIPathOverride: fixture.scriptPath, environment: [:])
-        let link = try await client.loginCodexProfile(nickname: "browser", priority: 90)
+        let link = try await client.loginProfile(agent: .codex, nickname: "browser", priority: 90)
         let payloadData = try Data(contentsOf: URL(fileURLWithPath: fixture.payloadPath))
         let payload = try XCTUnwrap(
             JSONSerialization.jsonObject(with: payloadData) as? [String: Any]
@@ -126,14 +126,14 @@ EOF
 {"success":true,"error_code":null,"message":"usage settings updated","data":{"auto_switch_enabled":false,"cooldown_seconds":600,"usage_source_mode":"WebEnhanced","menu_open_refresh_stale_after_seconds":5,"usage_background_refresh_enabled":false,"usage_background_refresh_interval_seconds":300}}
 EOF
     ;;
-  "--json profiles import --input-json -")
+  "--json profiles import codex --input-json -")
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
     cat <<'EOF'
 {"success":true,"error_code":null,"message":"profile imported","data":{"id":"p_live","nickname":"live","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/live-home","config_path":"/tmp/live-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"}}
 EOF
     ;;
-  "--json profiles login --input-json -")
+  "--json profiles login codex --input-json -")
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
     cat <<'EOF'

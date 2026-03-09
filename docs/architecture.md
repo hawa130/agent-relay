@@ -37,10 +37,10 @@ docs/
 
 ### Core Services
 
-- `doctor_service`: environment checks, Codex discovery, config-path inspection.
-- `profile_service`: CRUD, validation, import flow, enable/disable.
+- `doctor_service`: environment checks, adapter discovery, config-path inspection.
+- `profile_service`: CRUD, validation, enable/disable.
 - `status_service`: read current cached state and summarize runtime health.
-- `usage_service`: collect local-first Codex usage, apply fallback logic, and cache usage snapshots.
+- `usage_service`: choose a usage provider, apply fallback logic, and cache usage snapshots.
 - `switch_service`: transactional activation, validation, rollback.
 - `policy_service`: next-profile selection, cooldown, auto-switch policy.
 - `diagnostics_service`: export logs, environment, redacted state.
@@ -53,9 +53,9 @@ docs/
 
 ### Platform
 
-- Resolve `RELAY_HOME`, `~/.relay`, `~/.codex`, and agent-related paths.
+- Resolve `RELAY_HOME`, `~/.relay`, and shared runtime paths.
 - Provide filesystem helpers for atomic writes and process execution.
-- Keep macOS/Linux-specific code isolated behind small modules.
+- Keep macOS/Linux-specific code isolated behind small modules. Agent home discovery belongs in adapters, not the shared platform layer.
 
 ## Package Strategy
 

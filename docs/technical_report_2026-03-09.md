@@ -4,12 +4,12 @@ Date: 2026-03-09
 
 ## Summary
 
-Relay is currently a CLI-first local profile orchestrator centered on Codex, with a SwiftUI macOS control plane layered on top of the CLI JSON protocol.
+Relay is currently a CLI-first local profile orchestrator with a SwiftUI macOS control plane layered on top of the CLI JSON protocol. `Codex` is the only implemented adapter today.
 
 The implementation has three main goals:
 
 - keep Relay's own profile state as the orchestration truth
-- safely synchronize active profile state into live Codex files
+- safely synchronize active profile state into live agent files
 - collect and display usage with clear source and confidence semantics
 
 The codebase is split into:
@@ -54,7 +54,7 @@ Important services:
 - [`profile_service.rs`](/Users/hawa130/SoftwareProjects/relay-agent-switch/crates/relay-core/src/services/profile_service.rs)
 - [`switch_service.rs`](/Users/hawa130/SoftwareProjects/relay-agent-switch/crates/relay-core/src/services/switch_service.rs)
 - [`usage_service.rs`](/Users/hawa130/SoftwareProjects/relay-agent-switch/crates/relay-core/src/services/usage_service.rs)
-- [`codex_link_service.rs`](/Users/hawa130/SoftwareProjects/relay-agent-switch/crates/relay-core/src/services/codex_link_service.rs)
+- Codex-specific login, auth, and usage logic now lives under [`adapters/codex`](/Users/hawa130/SoftwareProjects/relay-agent-switch/crates/relay-core/src/adapters/codex)
 
 ### macOS App
 
@@ -145,7 +145,7 @@ SQLite persistence is implemented in:
 
 - [`profile_store.rs`](/Users/hawa130/SoftwareProjects/relay-agent-switch/crates/relay-core/src/store/profile_store.rs)
 
-Current schema version: `3`
+Current schema version: `4`
 
 Tables:
 
@@ -164,7 +164,7 @@ Stores the core orchestrator state for each profile:
 - `agent`
 - `priority`
 - `enabled`
-- `codex_home`
+- `agent_home`
 - `config_path`
 - `auth_mode`
 - `metadata`
@@ -237,8 +237,8 @@ Provider order is controlled by `UsageSourceMode`.
 Current sources:
 
 - `Local`
-  - `codex app-server` for the active profile when possible
-  - local session JSONL parsing
+  - adapter-local RPC for the active profile when possible
+  - adapter-local session parsing
 - `WebEnhanced`
   - official remote usage endpoint for profiles with stored probe identity
 - `Fallback`
@@ -246,7 +246,7 @@ Current sources:
 
 Important correction already made:
 
-- inactive profiles no longer incorrectly fall back to the current live `CODEX_HOME` when they lack their own `agent_home`
+- inactive profiles no longer incorrectly fall back to the current live agent home when they lack their own `agent_home`
 
 ## Switching
 
@@ -276,14 +276,14 @@ Managed live file set:
 Current behavior after the latest fixes:
 
 - UI remains a control plane
-- UI calls CLI `profiles login-codex`
+- UI calls CLI `profiles login codex`
 - CLI/core directly runs `codex login`
 - on successful login, Relay creates a new profile snapshot and imports the resulting auth state
 - default nickname is derived from the logged-in account email when available
 
 Related files:
 
-- [`codex_link_service.rs`](/Users/hawa130/SoftwareProjects/relay-agent-switch/crates/relay-core/src/services/codex_link_service.rs)
+- [`login.rs`](/Users/hawa130/SoftwareProjects/relay-agent-switch/crates/relay-core/src/adapters/codex/login.rs)
 - [`SettingsView.swift`](/Users/hawa130/SoftwareProjects/relay-agent-switch/apps/relay-macos/RelayApp/Settings/SettingsView.swift)
 
 ## Design Rationale
@@ -301,14 +301,12 @@ This keeps the project extensible without over-building a multi-agent platform b
 ## Known Tradeoffs
 
 - some runtime truth is still split across SQLite and file caches
-- the `profiles` table still uses the legacy `codex_home` column name internally
 - `agent` persistence is structurally present but still effectively Codex-only in practice
 - remote usage probing currently depends on provider-specific identity material stored per profile
 
 ## Recommended Next Steps
 
 1. Consolidate more runtime state into a clearer transactional boundary.
-2. Rename legacy storage fields like `codex_home` when the migration cost is justified.
-3. Introduce a more formal provider abstraction for future non-Codex agents.
-4. Add explicit documentation for the `login-codex` and `relink-codex` lifecycle.
-5. Expand technical docs for the menu-open refresh policy and usage source selection rules.
+2. Introduce a more formal provider abstraction for future non-Codex agents.
+3. Add explicit documentation for the `profiles login codex` and `profiles relink codex` lifecycle.
+4. Expand technical docs for the menu-open refresh policy and usage source selection rules.

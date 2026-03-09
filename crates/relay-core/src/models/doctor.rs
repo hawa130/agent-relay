@@ -7,6 +7,8 @@ pub struct DoctorReport {
     pub relay_db_path: String,
     pub relay_log_path: String,
     pub primary_agent: crate::models::AgentKind,
+    pub agent_home_env_name: Option<String>,
+    pub agent_home_env_value: Option<String>,
     pub live_agent_home: String,
     pub agent_binary: Option<String>,
     pub default_agent_home: Option<String>,

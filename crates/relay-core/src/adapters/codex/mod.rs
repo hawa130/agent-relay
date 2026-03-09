@@ -7,7 +7,7 @@ use crate::models::{
     AgentKind, AgentLinkResult, Profile, ProfileProbeIdentity, RelayError, SwitchCheckpoint,
     UsageSnapshot,
 };
-use crate::platform::{RelayPaths, default_codex_home, find_binary, live_codex_home};
+use crate::platform::{RelayPaths, find_binary};
 use crate::store::SqliteStore;
 use chrono::Utc;
 use std::fs;
@@ -220,6 +220,10 @@ impl AgentAdapter for CodexAdapter {
         "codex"
     }
 
+    fn home_env_var_name(&self) -> Option<&'static str> {
+        Some("CODEX_HOME")
+    }
+
     fn default_home(&self) -> Option<PathBuf> {
         default_codex_home()
     }
@@ -323,6 +327,16 @@ impl AgentAdapter for CodexAdapter {
         let backup_dir = snapshot_root.join(checkpoint_id).join("live_backup");
         self.restore_backup(&backup_dir)
     }
+}
+
+fn default_codex_home() -> Option<PathBuf> {
+    dirs::home_dir().map(|path| path.join(".codex"))
+}
+
+fn live_codex_home() -> Option<PathBuf> {
+    std::env::var_os("CODEX_HOME")
+        .map(PathBuf::from)
+        .or_else(default_codex_home)
 }
 
 impl UsageProvider for CodexAdapter {

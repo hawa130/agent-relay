@@ -249,6 +249,10 @@ struct AgentLinkResult: Decodable, Sendable {
 
 enum AgentKind: String, Decodable, Sendable {
     case codex = "Codex"
+
+    var cliArgument: String {
+        rawValue.lowercased()
+    }
 }
 
 enum AuthMode: String, Codable, Sendable, CaseIterable {
@@ -406,13 +410,13 @@ struct ProfileIdPayload: Encodable, Sendable {
 }
 
 struct ImportProfilePayload: Encodable, Sendable {
-    let agent = "codex"
+    let agent: String
     let nickname: String?
     let priority: Int
 }
 
 struct LoginProfilePayload: Encodable, Sendable {
-    let agent = "codex"
+    let agent: String
     let nickname: String?
     let priority: Int
 }
