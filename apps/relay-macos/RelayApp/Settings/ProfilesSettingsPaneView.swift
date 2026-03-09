@@ -425,19 +425,23 @@ private struct ProfileEditorSheet: View {
                 .padding(.top, 18)
 
             Form {
-                Section("Identity") {
+                Section {
                     TextField("Nickname", text: $draft.nickname)
-                    NativeStepperRow(
-                        title: "Priority",
-                        valueText: "\(draft.priority)",
-                        value: $draft.priority,
-                        range: 0...10_000
-                    )
-                    Picker("Auth Mode", selection: $draft.authMode) {
-                        ForEach(AuthMode.allCases, id: \.self) { mode in
-                            Text(mode.displayName).tag(mode)
-                        }
+                    VStack(alignment: .leading, spacing: 0) {
+                        NativeStepperRow(
+                            title: "Priority",
+                            valueText: "\(draft.priority)",
+                            value: $draft.priority,
+                            range: 0...10_000
+                        )
+
+                        Text("Lower numbers are preferred first during switching.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                } header: {
+                    Text("Identity")
                 }
             }
             .formStyle(.grouped)
@@ -500,13 +504,22 @@ private struct AddAccountSheet: View {
                 .padding(.top, 18)
 
             Form {
-                Section("Profile") {
-                    NativeStepperRow(
-                        title: "Priority",
-                        valueText: "\(priority)",
-                        value: $priority,
-                        range: 0...10_000
-                    )
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        NativeStepperRow(
+                            title: "Priority",
+                            valueText: "\(priority)",
+                            value: $priority,
+                            range: 0...10_000
+                        )
+
+                        Text("Lower numbers are preferred first during switching.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                } header: {
+                    Text("Profile")
                 }
 
                 Section("Flow") {
