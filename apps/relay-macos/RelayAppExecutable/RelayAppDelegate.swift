@@ -8,12 +8,18 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         _ = notification
+        NSApp.setActivationPolicy(.accessory)
         statusItemController = RelayStatusItemController(
             model: model,
             openSettings: { [weak self] in
                 self?.openSettingsWindow()
             }
         )
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        _ = sender
+        return false
     }
 
     private func openSettingsWindow() {
