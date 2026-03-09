@@ -1,5 +1,6 @@
 mod auth;
 mod login;
+mod settings;
 mod usage;
 
 use crate::adapters::{AgentAdapter, UsageProvider};
@@ -13,6 +14,8 @@ use chrono::Utc;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+pub use settings::{CodexSettings, CodexSettingsUpdateRequest};
 
 const REQUIRED_MANAGED_FILES: [&str; 1] = ["config.toml"];
 const OPTIONAL_MANAGED_FILES: [&str; 2] = ["auth.json", "version.json"];

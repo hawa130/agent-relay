@@ -2,12 +2,13 @@ use crate::models::{
     AgentKind, AppSettings, FailureEvent, FailureReason, ProbeProvider, Profile,
     ProfileProbeIdentity, RelayError, SwitchHistoryEntry, SwitchOutcome, UsageSourceMode,
 };
+use crate::{CodexSettings, CodexSettingsUpdateRequest};
 use chrono::{DateTime, Utc};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
-const CURRENT_SCHEMA_VERSION: i32 = 4;
+const CURRENT_SCHEMA_VERSION: i32 = 5;
 const SCHEMA_V1_SQL: &str = "
 CREATE TABLE IF NOT EXISTS profiles (
     id TEXT PRIMARY KEY,
@@ -122,6 +123,13 @@ CREATE TABLE profile_probe_identities (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );";
+const SCHEMA_V5_SQL: &str = "
+CREATE TABLE IF NOT EXISTS agent_settings (
+    agent TEXT PRIMARY KEY,
+    settings_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);";
 
 #[derive(Debug, Clone)]
 pub struct AddProfileRecord {
@@ -192,6 +200,7 @@ impl SqliteStore {
         let mut connection = self.open()?;
         self.run_migrations(&mut connection)?;
         self.ensure_default_settings(&connection)?;
+        self.ensure_default_agent_settings(&connection)?;
         Ok(())
     }
 
@@ -239,6 +248,16 @@ impl SqliteStore {
                 .execute_batch(SCHEMA_V4_SQL)
                 .map_err(|error| RelayError::Store(error.to_string()))?;
             transaction
+                .pragma_update(None, "user_version", 4)
+                .map_err(|error| RelayError::Store(error.to_string()))?;
+        }
+
+        if current_version < 5 {
+            transaction
+                .execute_batch(SCHEMA_V5_SQL)
+                .map_err(|error| RelayError::Store(error.to_string()))?;
+            migrate_legacy_codex_settings(&transaction)?;
+            transaction
                 .pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)
                 .map_err(|error| RelayError::Store(error.to_string()))?;
         }
@@ -276,26 +295,26 @@ impl SqliteStore {
             .map_err(|error| RelayError::Store(error.to_string()))?;
         connection
             .execute(
-                "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('usage_source_mode', ?1)",
-                [usage_source_mode_value(&defaults.usage_source_mode)],
+                "DELETE FROM app_settings WHERE key = 'usage_source_mode'",
+                [],
             )
             .map_err(|error| RelayError::Store(error.to_string()))?;
+        Ok(())
+    }
+
+    fn ensure_default_agent_settings(&self, connection: &Connection) -> Result<(), RelayError> {
+        let defaults = CodexSettings::default();
+        let timestamp = Utc::now().to_rfc3339();
         connection
             .execute(
-                "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('menu_open_refresh_stale_after_seconds', ?1)",
-                [defaults.menu_open_refresh_stale_after_seconds.to_string()],
-            )
-            .map_err(|error| RelayError::Store(error.to_string()))?;
-        connection
-            .execute(
-                "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('usage_background_refresh_enabled', ?1)",
-                [if defaults.usage_background_refresh_enabled { "true" } else { "false" }],
-            )
-            .map_err(|error| RelayError::Store(error.to_string()))?;
-        connection
-            .execute(
-                "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('usage_background_refresh_interval_seconds', ?1)",
-                [defaults.usage_background_refresh_interval_seconds.to_string()],
+                "INSERT OR IGNORE INTO agent_settings (agent, settings_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?3)",
+                params![
+                    stringify_agent_kind(&AgentKind::Codex),
+                    serde_json::to_string(&defaults)
+                        .map_err(|error| RelayError::Store(error.to_string()))?,
+                    timestamp,
+                ],
             )
             .map_err(|error| RelayError::Store(error.to_string()))?;
         Ok(())
@@ -597,56 +616,9 @@ impl SqliteStore {
             .map_err(|error| RelayError::Store(error.to_string()))?
             .and_then(|value| value.parse::<i64>().ok())
             .unwrap_or(600);
-        let usage_source_mode = connection
-            .query_row(
-                "SELECT value FROM app_settings WHERE key = 'usage_source_mode'",
-                [],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()
-            .map_err(|error| RelayError::Store(error.to_string()))?
-            .as_deref()
-            .map(parse_usage_source_mode)
-            .transpose()?
-            .unwrap_or(UsageSourceMode::Auto);
-        let menu_open_refresh_stale_after_seconds = connection
-            .query_row(
-                "SELECT value FROM app_settings WHERE key = 'menu_open_refresh_stale_after_seconds'",
-                [],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()
-            .map_err(|error| RelayError::Store(error.to_string()))?
-            .and_then(|value| value.parse::<i64>().ok())
-            .unwrap_or(10);
-        let usage_background_refresh_enabled = connection
-            .query_row(
-                "SELECT value FROM app_settings WHERE key = 'usage_background_refresh_enabled'",
-                [],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()
-            .map_err(|error| RelayError::Store(error.to_string()))?
-            .map(|value| value == "true")
-            .unwrap_or(true);
-        let usage_background_refresh_interval_seconds = connection
-            .query_row(
-                "SELECT value FROM app_settings WHERE key = 'usage_background_refresh_interval_seconds'",
-                [],
-                |row| row.get::<_, String>(0),
-            )
-            .optional()
-            .map_err(|error| RelayError::Store(error.to_string()))?
-            .and_then(|value| value.parse::<i64>().ok())
-            .unwrap_or(120);
-
         Ok(AppSettings {
             auto_switch_enabled,
             cooldown_seconds,
-            usage_source_mode,
-            menu_open_refresh_stale_after_seconds,
-            usage_background_refresh_enabled,
-            usage_background_refresh_interval_seconds,
         })
     }
 
@@ -663,39 +635,53 @@ impl SqliteStore {
         self.get_settings()
     }
 
-    pub fn set_usage_source_mode(&self, mode: UsageSourceMode) -> Result<AppSettings, RelayError> {
-        self.set_setting("usage_source_mode", usage_source_mode_value(&mode))?;
-        self.get_settings()
+    pub fn codex_settings(&self) -> Result<CodexSettings, RelayError> {
+        if self.read_only && !self.db_path.exists() {
+            return Ok(CodexSettings::default());
+        }
+        let connection = self.open()?;
+        let settings = connection
+            .query_row(
+                "SELECT settings_json FROM agent_settings WHERE agent = ?1",
+                [stringify_agent_kind(&AgentKind::Codex)],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|error| RelayError::Store(error.to_string()))?
+            .map(|value| {
+                serde_json::from_str::<CodexSettings>(&value)
+                    .map_err(|error| RelayError::Store(error.to_string()))
+            })
+            .transpose()?
+            .unwrap_or_default();
+        Ok(settings)
     }
 
-    pub fn set_menu_open_refresh_stale_after_seconds(
+    pub fn update_codex_settings(
         &self,
-        value: i64,
-    ) -> Result<AppSettings, RelayError> {
-        self.set_setting("menu_open_refresh_stale_after_seconds", &value.to_string())?;
-        self.get_settings()
-    }
-
-    pub fn set_usage_background_refresh_enabled(
-        &self,
-        enabled: bool,
-    ) -> Result<AppSettings, RelayError> {
-        self.set_setting(
-            "usage_background_refresh_enabled",
-            if enabled { "true" } else { "false" },
-        )?;
-        self.get_settings()
-    }
-
-    pub fn set_usage_background_refresh_interval_seconds(
-        &self,
-        value: i64,
-    ) -> Result<AppSettings, RelayError> {
-        self.set_setting(
-            "usage_background_refresh_interval_seconds",
-            &value.to_string(),
-        )?;
-        self.get_settings()
+        request: CodexSettingsUpdateRequest,
+    ) -> Result<CodexSettings, RelayError> {
+        let current = self.codex_settings()?;
+        let settings = CodexSettings {
+            usage_source_mode: request
+                .usage_source_mode
+                .unwrap_or(current.usage_source_mode),
+        };
+        let timestamp = Utc::now().to_rfc3339();
+        let payload = serde_json::to_string(&settings)
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        let connection = self.open()?;
+        connection
+            .execute(
+                "INSERT INTO agent_settings (agent, settings_json, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?3)
+                 ON CONFLICT(agent) DO UPDATE SET
+                    settings_json = excluded.settings_json,
+                    updated_at = excluded.updated_at",
+                params![stringify_agent_kind(&AgentKind::Codex), payload, timestamp],
+            )
+            .map_err(|error| RelayError::Store(error.to_string()))?;
+        self.codex_settings()
     }
 
     fn set_setting(&self, key: &str, value: &str) -> Result<(), RelayError> {
@@ -953,12 +939,47 @@ fn parse_auth_mode(value: &str) -> crate::models::AuthMode {
     }
 }
 
-fn usage_source_mode_value(mode: &UsageSourceMode) -> &'static str {
-    match mode {
-        UsageSourceMode::Auto => "auto",
-        UsageSourceMode::Local => "local",
-        UsageSourceMode::WebEnhanced => "web-enhanced",
+fn migrate_legacy_codex_settings(connection: &Connection) -> Result<(), RelayError> {
+    let existing = connection
+        .query_row(
+            "SELECT 1 FROM agent_settings WHERE agent = ?1",
+            [stringify_agent_kind(&AgentKind::Codex)],
+            |row| row.get::<_, i64>(0),
+        )
+        .optional()
+        .map_err(|error| RelayError::Store(error.to_string()))?;
+    if existing.is_some() {
+        return Ok(());
     }
+
+    let usage_source_mode = connection
+        .query_row(
+            "SELECT value FROM app_settings WHERE key = 'usage_source_mode'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|error| RelayError::Store(error.to_string()))?
+        .as_deref()
+        .map(parse_usage_source_mode)
+        .transpose()?
+        .unwrap_or(UsageSourceMode::Auto);
+    let settings = CodexSettings { usage_source_mode };
+    let timestamp = Utc::now().to_rfc3339();
+
+    connection
+        .execute(
+            "INSERT INTO agent_settings (agent, settings_json, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?3)",
+            params![
+                stringify_agent_kind(&AgentKind::Codex),
+                serde_json::to_string(&settings)
+                    .map_err(|error| RelayError::Store(error.to_string()))?,
+                timestamp,
+            ],
+        )
+        .map_err(|error| RelayError::Store(error.to_string()))?;
+    Ok(())
 }
 
 fn parse_usage_source_mode(value: &str) -> Result<UsageSourceMode, RelayError> {
@@ -1063,6 +1084,7 @@ fn path_to_string(path: &Path) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rusqlite::Connection;
     use tempfile::tempdir;
 
     #[test]
@@ -1174,5 +1196,69 @@ mod tests {
         assert_eq!(stored.access_token(), Some("access-token"));
         assert_eq!(stored.email(), Some("user@example.com"));
         assert_eq!(stored.plan_hint(), Some("team"));
+    }
+
+    #[test]
+    fn codex_settings_round_trip() {
+        let temp = tempdir().expect("tempdir");
+        let db_path = temp.path().join("relay.db");
+        let store = SqliteStore::new(&db_path).expect("store");
+
+        let defaults = store.codex_settings().expect("default codex settings");
+        assert_eq!(defaults.usage_source_mode, UsageSourceMode::Auto);
+
+        let updated = store
+            .update_codex_settings(CodexSettingsUpdateRequest {
+                usage_source_mode: Some(UsageSourceMode::WebEnhanced),
+            })
+            .expect("updated codex settings");
+        assert_eq!(updated.usage_source_mode, UsageSourceMode::WebEnhanced);
+        assert_eq!(
+            store.codex_settings().expect("reloaded codex settings"),
+            updated
+        );
+    }
+
+    #[test]
+    fn migrates_legacy_global_usage_source_mode_into_codex_settings() {
+        let temp = tempdir().expect("tempdir");
+        let db_path = temp.path().join("relay.db");
+        let connection = Connection::open(&db_path).expect("open db");
+        connection.execute_batch(SCHEMA_V4_SQL).expect("schema v4");
+        connection
+            .pragma_update(None, "user_version", 4)
+            .expect("user version");
+        connection
+            .execute(
+                "INSERT INTO app_settings (key, value) VALUES ('auto_switch_enabled', 'false')",
+                [],
+            )
+            .expect("auto switch");
+        connection
+            .execute(
+                "INSERT INTO app_settings (key, value) VALUES ('cooldown_seconds', '600')",
+                [],
+            )
+            .expect("cooldown");
+        connection
+            .execute(
+                "INSERT INTO app_settings (key, value) VALUES ('usage_source_mode', 'web-enhanced')",
+                [],
+            )
+            .expect("legacy usage source mode");
+        drop(connection);
+
+        let store = SqliteStore::new(&db_path).expect("migrated store");
+        assert_eq!(
+            store.schema_version().expect("schema version"),
+            CURRENT_SCHEMA_VERSION
+        );
+        assert_eq!(
+            store
+                .codex_settings()
+                .expect("codex settings")
+                .usage_source_mode,
+            UsageSourceMode::WebEnhanced
+        );
     }
 }

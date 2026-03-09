@@ -7,11 +7,12 @@ use comfy_table::{
 use relay_core::models::JsonResponse;
 use relay_core::{
     ActiveState, ActivityEventsQuery, AddProfileRequest, AgentKind, AgentLinkResult,
-    AgentLoginRequest, AppSettings, AuthMode, BootstrapMode, DiagnosticsExport, DoctorReport,
-    EditProfileRequest, FailureEvent, FailureReason, ImportProfileRequest, LogTail, ProbeProvider,
-    Profile, ProfileDetail, ProfileProbeIdentity, RelayApp, RelayError, SwitchOutcome,
-    SwitchReport, SystemSettingsUpdateRequest, SystemStatusReport, UsageSettingsUpdateRequest,
-    UsageSnapshot, UsageSourceMode, UsageStatus, UsageWindow,
+    AgentLoginRequest, AppSettings, AuthMode, BootstrapMode, CodexSettings,
+    CodexSettingsUpdateRequest, DiagnosticsExport, DoctorReport, EditProfileRequest, FailureEvent,
+    FailureReason, ImportProfileRequest, LogTail, ProbeProvider, Profile, ProfileDetail,
+    ProfileProbeIdentity, RelayApp, RelayError, SwitchOutcome, SwitchReport,
+    SystemSettingsUpdateRequest, SystemStatusReport, UsageSnapshot, UsageSourceMode, UsageStatus,
+    UsageWindow,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -69,7 +70,6 @@ struct SettingsCommand {
 #[derive(Debug, Subcommand)]
 enum SettingsSubcommand {
     Show,
-    Set(UsageConfigSetArgs),
 }
 
 #[derive(Debug, Args)]
@@ -146,20 +146,6 @@ struct LogsCommand {
 }
 
 #[derive(Debug, Args)]
-struct UsageConfigSetArgs {
-    #[arg(long)]
-    source_mode: Option<String>,
-    #[arg(long)]
-    menu_open_refresh_stale_after_seconds: Option<i64>,
-    #[arg(long)]
-    background_refresh_enabled: Option<bool>,
-    #[arg(long)]
-    background_refresh_interval_seconds: Option<i64>,
-    #[arg(long)]
-    input_json: Option<PathBuf>,
-}
-
-#[derive(Debug, Args)]
 struct CodexCommand {
     #[command(subcommand)]
     command: CodexSubcommand,
@@ -171,6 +157,27 @@ enum CodexSubcommand {
     Import(CodexImportArgs),
     Login(CodexLoginArgs),
     Relink(ProfileIdArgs),
+    Settings(CodexSettingsCommand),
+}
+
+#[derive(Debug, Args)]
+struct CodexSettingsCommand {
+    #[command(subcommand)]
+    command: Option<CodexSettingsSubcommand>,
+}
+
+#[derive(Debug, Subcommand)]
+enum CodexSettingsSubcommand {
+    Show,
+    Set(CodexSettingsSetArgs),
+}
+
+#[derive(Debug, Args)]
+struct CodexSettingsSetArgs {
+    #[arg(long)]
+    source_mode: Option<String>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -314,17 +321,25 @@ fn execute(cli: Cli) -> Result<Output, RelayError> {
         | Commands::Settings(SettingsCommand {
             command: None | Some(SettingsSubcommand::Show),
         }) => BootstrapMode::ReadOnly,
-        Commands::Settings(SettingsCommand {
-            command: Some(SettingsSubcommand::Set(_)),
-        })
-        | Commands::Edit(_)
+        Commands::Edit(_)
         | Commands::Remove(_)
         | Commands::Enable(_)
         | Commands::Disable(_)
         | Commands::Switch(_)
         | Commands::Refresh(_)
-        | Commands::Autoswitch(_)
-        | Commands::Codex(_) => BootstrapMode::ReadWrite,
+        | Commands::Autoswitch(_) => BootstrapMode::ReadWrite,
+        Commands::Codex(command) => match &command.command {
+            CodexSubcommand::Settings(CodexSettingsCommand {
+                command: None | Some(CodexSettingsSubcommand::Show),
+            }) => BootstrapMode::ReadOnly,
+            CodexSubcommand::Settings(CodexSettingsCommand {
+                command: Some(CodexSettingsSubcommand::Set(_)),
+            })
+            | CodexSubcommand::Add(_)
+            | CodexSubcommand::Import(_)
+            | CodexSubcommand::Login(_)
+            | CodexSubcommand::Relink(_) => BootstrapMode::ReadWrite,
+        },
         Commands::Activity(command) => match &command.command {
             ActivitySubcommand::Events(_) | ActivitySubcommand::Logs(_) => BootstrapMode::ReadOnly,
             ActivitySubcommand::Diagnostics(_) => BootstrapMode::ReadWrite,
@@ -359,16 +374,6 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 let settings = app.settings()?;
                 Ok(Output::success_rendered(
                     "settings loaded",
-                    settings.clone(),
-                    render_settings(&settings),
-                    cli.json,
-                ))
-            }
-            Some(SettingsSubcommand::Set(args)) => {
-                let settings =
-                    app.update_usage_settings(usage_settings_request_from_args(args)?)?;
-                Ok(Output::success_rendered(
-                    "settings updated",
                     settings.clone(),
                     render_settings(&settings),
                     cli.json,
@@ -584,6 +589,27 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                     cli.json,
                 ))
             }
+            CodexSubcommand::Settings(command) => match command.command {
+                None | Some(CodexSettingsSubcommand::Show) => {
+                    let settings = app.codex_settings()?;
+                    Ok(Output::success_rendered(
+                        "codex settings loaded",
+                        settings.clone(),
+                        render_codex_settings(&settings),
+                        cli.json,
+                    ))
+                }
+                Some(CodexSettingsSubcommand::Set(args)) => {
+                    let settings =
+                        app.update_codex_settings(codex_settings_request_from_args(args)?)?;
+                    Ok(Output::success_rendered(
+                        "codex settings updated",
+                        settings.clone(),
+                        render_codex_settings(&settings),
+                        cli.json,
+                    ))
+                }
+            },
         },
     }
 }
@@ -757,7 +783,11 @@ fn render_usage_detail(snapshot: &UsageSnapshot) -> String {
 }
 
 fn render_settings(settings: &AppSettings) -> String {
-    render_sections(vec![("Settings", usage_settings_fields(settings))])
+    render_sections(vec![("Settings", app_settings_fields(settings))])
+}
+
+fn render_codex_settings(settings: &CodexSettings) -> String {
+    render_sections(vec![("Codex Settings", codex_settings_fields(settings))])
 }
 
 fn render_autoswitch_settings(settings: &AppSettings) -> String {
@@ -1351,22 +1381,6 @@ fn app_settings_fields(settings: &AppSettings) -> Vec<(&'static str, String)> {
             yes_no(settings.auto_switch_enabled).into(),
         ),
         ("Cooldown Seconds", settings.cooldown_seconds.to_string()),
-        (
-            "Usage Source Mode",
-            usage_source_mode_label(&settings.usage_source_mode).into(),
-        ),
-        (
-            "Menu-open Refresh",
-            format!("{}s", settings.menu_open_refresh_stale_after_seconds),
-        ),
-        (
-            "Background Refresh",
-            yes_no(settings.usage_background_refresh_enabled).into(),
-        ),
-        (
-            "Background Interval",
-            format!("{}s", settings.usage_background_refresh_interval_seconds),
-        ),
     ]
 }
 
@@ -1380,25 +1394,11 @@ fn autoswitch_fields(settings: &AppSettings) -> Vec<(&'static str, String)> {
     ]
 }
 
-fn usage_settings_fields(settings: &AppSettings) -> Vec<(&'static str, String)> {
-    vec![
-        (
-            "Usage Source Mode",
-            usage_source_mode_label(&settings.usage_source_mode).into(),
-        ),
-        (
-            "Menu-open Refresh",
-            format!("{}s", settings.menu_open_refresh_stale_after_seconds),
-        ),
-        (
-            "Background Refresh",
-            yes_no(settings.usage_background_refresh_enabled).into(),
-        ),
-        (
-            "Background Interval",
-            format!("{}s", settings.usage_background_refresh_interval_seconds),
-        ),
-    ]
+fn codex_settings_fields(settings: &CodexSettings) -> Vec<(&'static str, String)> {
+    vec![(
+        "Usage Source Mode",
+        usage_source_mode_label(&settings.usage_source_mode).into(),
+    )]
 }
 
 fn probe_identity_fields(identity: &ProfileProbeIdentity) -> Vec<(&'static str, String)> {
@@ -1695,37 +1695,23 @@ fn parse_failure_reason(value: &str) -> Result<FailureReason, RelayError> {
     }
 }
 
-fn usage_settings_request_from_args(
-    args: UsageConfigSetArgs,
-) -> Result<UsageSettingsUpdateRequest, RelayError> {
+fn codex_settings_request_from_args(
+    args: CodexSettingsSetArgs,
+) -> Result<CodexSettingsUpdateRequest, RelayError> {
     if let Some(input_json) = args.input_json.as_ref() {
-        ensure_json_input_is_exclusive(
-            input_json,
-            &[
-                args.source_mode.is_some(),
-                args.menu_open_refresh_stale_after_seconds.is_some(),
-                args.background_refresh_enabled.is_some(),
-                args.background_refresh_interval_seconds.is_some(),
-            ],
-        )?;
-        let payload: UsageConfigSetInput = read_json_input(input_json)?;
-        return Ok(UsageSettingsUpdateRequest {
-            source_mode: payload.source_mode,
-            menu_open_refresh_stale_after_seconds: payload.menu_open_refresh_stale_after_seconds,
-            background_refresh_enabled: payload.background_refresh_enabled,
-            background_refresh_interval_seconds: payload.background_refresh_interval_seconds,
+        ensure_json_input_is_exclusive(input_json, &[args.source_mode.is_some()])?;
+        let payload: CodexSettingsSetInput = read_json_input(input_json)?;
+        return Ok(CodexSettingsUpdateRequest {
+            usage_source_mode: payload.source_mode,
         });
     }
 
-    Ok(UsageSettingsUpdateRequest {
-        source_mode: args
+    Ok(CodexSettingsUpdateRequest {
+        usage_source_mode: args
             .source_mode
             .as_deref()
             .map(parse_usage_source_mode)
             .transpose()?,
-        menu_open_refresh_stale_after_seconds: args.menu_open_refresh_stale_after_seconds,
-        background_refresh_enabled: args.background_refresh_enabled,
-        background_refresh_interval_seconds: args.background_refresh_interval_seconds,
     })
 }
 
@@ -1843,12 +1829,10 @@ struct AutoSwitchInput {
 }
 
 #[derive(Debug, Deserialize)]
-struct UsageConfigSetInput {
+#[serde(deny_unknown_fields)]
+struct CodexSettingsSetInput {
     #[serde(default, deserialize_with = "deserialize_usage_source_mode_option")]
     source_mode: Option<UsageSourceMode>,
-    menu_open_refresh_stale_after_seconds: Option<i64>,
-    background_refresh_enabled: Option<bool>,
-    background_refresh_interval_seconds: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]

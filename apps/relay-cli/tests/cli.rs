@@ -201,6 +201,33 @@ fn run_json_with_stdin_env(
     serde_json::from_slice(&output.stdout).expect("json output")
 }
 
+fn run_failure_with_stdin(
+    relay_home: &Path,
+    codex_home: &Path,
+    args: &[&str],
+    stdin: &str,
+) -> Value {
+    let mut child = Command::new(relay_bin())
+        .args(args)
+        .env("RELAY_HOME", relay_home)
+        .env("CODEX_HOME", codex_home)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn command");
+
+    child
+        .stdin
+        .as_mut()
+        .expect("stdin")
+        .write_all(stdin.as_bytes())
+        .expect("write stdin");
+    let output = child.wait_with_output().expect("wait output");
+    assert!(!output.status.success(), "command unexpectedly succeeded");
+    serde_json::from_slice(&output.stdout).expect("json output")
+}
+
 fn make_fake_bin(root: &Path) -> std::path::PathBuf {
     let bin_dir = root.join("bin");
     fs::create_dir_all(&bin_dir).expect("bin dir");
@@ -654,6 +681,113 @@ fn import_codex_defaults_nickname_to_live_email() {
     );
 
     assert_eq!(imported["data"]["nickname"], "imported@example.com");
+    let current = run_json(&relay_home, &live_codex_home, &["--json", "show"]);
+    assert_eq!(current["data"]["profile"]["id"], imported["data"]["id"]);
+}
+
+#[test]
+fn removing_active_profile_switches_to_remaining_enabled_profile() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let first_home = temp.path().join("first");
+    let second_home = temp.path().join("second");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&first_home, "first");
+    make_codex_home(&second_home, "second");
+
+    let first = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "codex",
+            "add",
+            "--nickname",
+            "first",
+            "--priority",
+            "10",
+            "--agent-home",
+            first_home.to_string_lossy().as_ref(),
+        ],
+    );
+    let first_id = first["data"]["id"].as_str().expect("first id").to_string();
+
+    let second = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "codex",
+            "add",
+            "--nickname",
+            "second",
+            "--priority",
+            "20",
+            "--agent-home",
+            second_home.to_string_lossy().as_ref(),
+        ],
+    );
+    let second_id = second["data"]["id"]
+        .as_str()
+        .expect("second id")
+        .to_string();
+
+    run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "switch", &first_id],
+    );
+    run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "remove", &first_id],
+    );
+
+    let current = run_json(&relay_home, &live_codex_home, &["--json", "show"]);
+    assert_eq!(current["data"]["profile"]["id"], second_id);
+}
+
+#[test]
+fn removing_last_active_profile_clears_active_state() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let only_home = temp.path().join("only");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&only_home, "only");
+
+    let only = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "codex",
+            "add",
+            "--nickname",
+            "only",
+            "--priority",
+            "10",
+            "--agent-home",
+            only_home.to_string_lossy().as_ref(),
+        ],
+    );
+    let only_id = only["data"]["id"].as_str().expect("only id").to_string();
+
+    run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "switch", &only_id],
+    );
+    run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "remove", &only_id],
+    );
+
+    let current = run_failure(&relay_home, &live_codex_home, &["--json", "show"]);
+    assert_eq!(current["error_code"], "RELAY_NOT_FOUND");
+    assert_eq!(current["message"], "no active profile");
 }
 
 #[test]
@@ -735,30 +869,53 @@ fn usage_profile_list_refresh_and_config_work() {
     assert_eq!(current["data"]["profile"]["id"], active_id);
     assert_eq!(current["data"]["usage"]["source"], "Local");
 
+    let global_settings = run_json(&relay_home, &live_codex_home, &["--json", "settings"]);
+    assert!(global_settings["data"].get("usage_source_mode").is_none());
+
     let updated_settings = run_json_with_stdin(
         &relay_home,
         &live_codex_home,
-        &["--json", "settings", "set", "--input-json", "-"],
-        r#"{
-            "source_mode":"web-enhanced",
-            "menu_open_refresh_stale_after_seconds":5,
-            "background_refresh_enabled":false,
-            "background_refresh_interval_seconds":300
-        }"#,
+        &["--json", "codex", "settings", "set", "--input-json", "-"],
+        r#"{"source_mode":"web-enhanced"}"#,
     );
     assert_eq!(updated_settings["data"]["usage_source_mode"], "WebEnhanced");
-    assert_eq!(
-        updated_settings["data"]["menu_open_refresh_stale_after_seconds"],
-        5
+}
+
+#[test]
+fn usage_settings_reject_removed_refresh_keys() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+
+    let invalid_flag = run_failure_raw(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "codex",
+            "settings",
+            "set",
+            "--menu-open-refresh-stale-after-seconds",
+            "5",
+        ],
     );
-    assert_eq!(
-        updated_settings["data"]["usage_background_refresh_enabled"],
-        false
+    assert!(
+        !invalid_flag.status.success(),
+        "command unexpectedly succeeded"
     );
-    assert_eq!(
-        updated_settings["data"]["usage_background_refresh_interval_seconds"],
-        300
+    assert!(
+        String::from_utf8_lossy(&invalid_flag.stderr)
+            .contains("--menu-open-refresh-stale-after-seconds")
     );
+
+    let invalid_json = run_failure_with_stdin(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "codex", "settings", "set", "--input-json", "-"],
+        r#"{"menu_open_refresh_stale_after_seconds":5}"#,
+    );
+    assert_eq!(invalid_json["error_code"], "RELAY_INVALID_INPUT");
 }
 
 #[test]
@@ -803,6 +960,7 @@ fn codex_login_and_remote_usage_probe_work() {
         .as_str()
         .expect("profile id")
         .to_string();
+    assert_eq!(logged_in["data"]["activated"], true);
     assert_eq!(
         logged_in["data"]["probe_identity"]["principal_id"],
         "acct-123"
@@ -811,6 +969,8 @@ fn codex_login_and_remote_usage_probe_work() {
         logged_in["data"]["probe_identity"]["credentials"]["account_id"],
         "acct-123"
     );
+    let current = run_json_with_env(&relay_home, &live_codex_home, &["--json", "show"], &envs);
+    assert_eq!(current["data"]["profile"]["id"], profile_id);
 
     let refreshed = run_json_with_env(
         &relay_home,

@@ -60,18 +60,10 @@ struct ActiveState: Decodable, Sendable {
 struct AppSettings: Decodable, Sendable {
     let autoSwitchEnabled: Bool
     let cooldownSeconds: Int
-    let usageSourceMode: UsageSourceMode
-    let menuOpenRefreshStaleAfterSeconds: Int
-    let usageBackgroundRefreshEnabled: Bool
-    let usageBackgroundRefreshIntervalSeconds: Int
 
     private enum CodingKeys: String, CodingKey {
         case autoSwitchEnabled
         case cooldownSeconds
-        case usageSourceMode
-        case menuOpenRefreshStaleAfterSeconds
-        case usageBackgroundRefreshEnabled
-        case usageBackgroundRefreshIntervalSeconds
     }
 
     init(from decoder: Decoder) throws {
@@ -82,18 +74,21 @@ struct AppSettings: Decodable, Sendable {
         cooldownSeconds =
             try container.decodeIfPresent(Int.self, forKey: .cooldownSeconds)
             ?? 600
+    }
+}
+
+struct CodexSettings: Decodable, Sendable {
+    let usageSourceMode: UsageSourceMode
+
+    private enum CodingKeys: String, CodingKey {
+        case usageSourceMode
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
         usageSourceMode =
             try container.decodeIfPresent(UsageSourceMode.self, forKey: .usageSourceMode)
             ?? .auto
-        menuOpenRefreshStaleAfterSeconds =
-            try container.decodeIfPresent(Int.self, forKey: .menuOpenRefreshStaleAfterSeconds)
-            ?? 10
-        usageBackgroundRefreshEnabled =
-            try container.decodeIfPresent(Bool.self, forKey: .usageBackgroundRefreshEnabled)
-            ?? true
-        usageBackgroundRefreshIntervalSeconds =
-            try container.decodeIfPresent(Int.self, forKey: .usageBackgroundRefreshIntervalSeconds)
-            ?? 120
     }
 }
 
@@ -140,11 +135,8 @@ struct UsageSnapshot: Decodable, Sendable {
     let message: String?
 }
 
-struct UsageSettingsDraft: Encodable, Sendable {
+struct CodexSettingsDraft: Encodable, Sendable {
     let sourceMode: UsageSourceMode?
-    let menuOpenRefreshStaleAfterSeconds: Int?
-    let backgroundRefreshEnabled: Bool?
-    let backgroundRefreshIntervalSeconds: Int?
 }
 
 struct UsageWindow: Decodable, Sendable {

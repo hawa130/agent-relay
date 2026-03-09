@@ -199,8 +199,7 @@ Key/value store for:
 - auto-switch enablement
 - cooldown
 - usage source mode
-- menu-open debounce
-- usage background refresh settings
+- Codex agent settings for usage source mode
 
 ### File-backed State
 
@@ -309,4 +308,4 @@ This keeps the project extensible without over-building a multi-agent platform b
 1. Consolidate more runtime state into a clearer transactional boundary.
 2. Introduce a more formal provider abstraction for future non-Codex agents.
 3. Add explicit documentation for the `profiles login codex` and `profiles relink codex` lifecycle.
-4. Expand technical docs for the menu-open refresh policy and usage source selection rules.
+4. Expand technical docs for agent-scoped usage source selection rules and Codex settings flows.

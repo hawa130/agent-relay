@@ -21,20 +21,35 @@ public final class SettingsSessionModel: ObservableObject {
         await session.setAutoSwitch(enabled: enabled)
     }
 
+    public func refreshIfStale() async {
+        await session.refreshIfStale(maxAge: 30)
+    }
+
+    private func bindSession() {
+        session.objectWillChange
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
+    }
+}
+
+@MainActor
+public final class CodexSettingsPaneModel: ObservableObject {
+    private let session: RelayAppModel
+    private var cancellables: Set<AnyCancellable> = []
+
+    public init(session: RelayAppModel) {
+        self.session = session
+        bindSession()
+    }
+
+    var codexSettings: CodexSettings? { session.codexSettings }
+    var lastErrorMessage: String? { session.lastErrorMessage }
+
     func setUsageSourceMode(_ mode: UsageSourceMode) async {
-        await session.setUsageSourceMode(mode)
-    }
-
-    func setMenuOpenRefreshStaleAfterSeconds(_ seconds: Int) async {
-        await session.setMenuOpenRefreshStaleAfterSeconds(seconds)
-    }
-
-    func setBackgroundRefreshEnabled(_ enabled: Bool) async {
-        await session.setBackgroundRefreshEnabled(enabled)
-    }
-
-    func setBackgroundRefreshIntervalSeconds(_ seconds: Int) async {
-        await session.setBackgroundRefreshIntervalSeconds(seconds)
+        await session.setCodexUsageSourceMode(mode)
     }
 
     public func refreshIfStale() async {

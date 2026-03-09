@@ -26,65 +26,6 @@ public struct GeneralSettingsPaneView: View {
                 LaunchAtLogin.Toggle("Launch at login")
             }
 
-            Section("Usage") {
-                Picker(
-                    "Usage source",
-                    selection: Binding(
-                        get: { model.status?.settings.usageSourceMode ?? .auto },
-                        set: { mode in
-                            Task {
-                                await model.setUsageSourceMode(mode)
-                            }
-                        }
-                    )
-                ) {
-                    ForEach(UsageSourceMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-
-                NativeStepperRow(
-                    title: "Menu-open debounce",
-                    valueText: "\((model.status?.settings.menuOpenRefreshStaleAfterSeconds ?? 10))s",
-                    value: Binding(
-                        get: { model.status?.settings.menuOpenRefreshStaleAfterSeconds ?? 10 },
-                        set: { value in
-                            Task {
-                                await model.setMenuOpenRefreshStaleAfterSeconds(value)
-                            }
-                        }
-                    ),
-                    range: 1...60
-                )
-
-                Toggle(
-                    "Background usage refresh",
-                    isOn: Binding(
-                        get: { model.status?.settings.usageBackgroundRefreshEnabled ?? true },
-                        set: { enabled in
-                            Task {
-                                await model.setBackgroundRefreshEnabled(enabled)
-                            }
-                        }
-                    )
-                )
-
-                NativeStepperRow(
-                    title: "Background interval",
-                    valueText: "\((model.status?.settings.usageBackgroundRefreshIntervalSeconds ?? 120))s",
-                    value: Binding(
-                        get: { model.status?.settings.usageBackgroundRefreshIntervalSeconds ?? 120 },
-                        set: { value in
-                            Task {
-                                await model.setBackgroundRefreshIntervalSeconds(value)
-                            }
-                        }
-                    ),
-                    range: 30...3600,
-                    step: 30
-                )
-            }
-
             if let error = model.lastErrorMessage {
                 Section("Last Error") {
                     Text(error)
@@ -101,6 +42,54 @@ public struct GeneralSettingsPaneView: View {
         }
     }
 
+}
+
+public struct CodexSettingsPaneView: View {
+    @ObservedObject var model: CodexSettingsPaneModel
+
+    public init(model: CodexSettingsPaneModel) {
+        self.model = model
+    }
+
+    public var body: some View {
+        Form {
+            Section("Codex") {
+                Picker(
+                    "Usage source",
+                    selection: Binding(
+                        get: { model.codexSettings?.usageSourceMode ?? .auto },
+                        set: { mode in
+                            Task {
+                                await model.setUsageSourceMode(mode)
+                            }
+                        }
+                    )
+                ) {
+                    ForEach(UsageSourceMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+
+                Text("Applies to all Codex profiles.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            if let error = model.lastErrorMessage {
+                Section("Last Error") {
+                    Text(error)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(NativePreferencesTheme.Colors.paneBackground)
+        .onAppear {
+            SettingsPaneID.persistedSelection = .codex
+        }
+    }
 }
 
 public struct ActivitySettingsPaneView: View {

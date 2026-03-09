@@ -30,26 +30,19 @@ final class RelayCLIClientTests: XCTestCase {
         XCTAssertEqual(status.profileCount, 1)
     }
 
-    func testRefreshUsageAndUsageSettingsUseJSONCommands() async throws {
+    func testRefreshUsageAndCodexSettingsUseJSONCommands() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
 
         let client = RelayCLIClient(relayCLIPathOverride: fixture.scriptPath, environment: [:])
         let usage = try await client.refreshUsage(profileId: "p_alt")
-        let settings = try await client.setUsageSettings(
-            UsageSettingsDraft(
-                sourceMode: .webEnhanced,
-                menuOpenRefreshStaleAfterSeconds: 5,
-                backgroundRefreshEnabled: false,
-                backgroundRefreshIntervalSeconds: 300
-            )
+        let settings = try await client.setCodexSettings(
+            CodexSettingsDraft(sourceMode: .webEnhanced)
         )
 
         XCTAssertEqual(usage.profileId, "p_alt")
         XCTAssertEqual(usage.source, .local)
         XCTAssertEqual(settings.usageSourceMode, .webEnhanced)
-        XCTAssertEqual(settings.menuOpenRefreshStaleAfterSeconds, 5)
-        XCTAssertFalse(settings.usageBackgroundRefreshEnabled)
     }
 
     func testImportProfileCommandUsesAgentSpecificJSON() async throws {
@@ -153,11 +146,16 @@ EOF
 {"success":true,"error_code":null,"message":"usage refreshed","data":{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}} 
 EOF
     ;;
-  "--json settings set --input-json -")
+  "--json codex settings")
+    cat <<'EOF'
+{"success":true,"error_code":null,"message":"codex settings loaded","data":{"usage_source_mode":"Auto"}}
+EOF
+    ;;
+  "--json codex settings set --input-json -")
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
     cat <<'EOF'
-{"success":true,"error_code":null,"message":"usage settings updated","data":{"auto_switch_enabled":false,"cooldown_seconds":600,"usage_source_mode":"WebEnhanced","menu_open_refresh_stale_after_seconds":5,"usage_background_refresh_enabled":false,"usage_background_refresh_interval_seconds":300}}
+{"success":true,"error_code":null,"message":"codex settings updated","data":{"usage_source_mode":"WebEnhanced"}}
 EOF
     ;;
   "--json codex import --input-json -")
@@ -171,7 +169,7 @@ EOF
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
     cat <<'EOF'
-{"success":true,"error_code":null,"message":"codex login profile created","data":{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"probe_identity":{"profile_id":"p_browser","provider":"CodexOfficial","principal_id":"acct-123","display_name":"browser@example.com","credentials":{"account_id":"acct-123","access_token":"access-token"},"metadata":{"email":"browser@example.com","plan_hint":"team"}},"activated":false}}
+{"success":true,"error_code":null,"message":"codex login profile created","data":{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"probe_identity":{"profile_id":"p_browser","provider":"CodexOfficial","principal_id":"acct-123","display_name":"browser@example.com","credentials":{"account_id":"acct-123","access_token":"access-token"},"metadata":{"email":"browser@example.com","plan_hint":"team"}},"activated":true}}
 EOF
     ;;
   "--json switch")

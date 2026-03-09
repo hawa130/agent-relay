@@ -14,6 +14,7 @@ use crate::store::{
     AddProfileRecord, FileLogStore, FileStateStore, FileUsageStore, ProfileUpdateRecord,
     SqliteStore,
 };
+use crate::{CodexSettings, CodexSettingsUpdateRequest};
 use std::fs;
 use std::path::PathBuf;
 
@@ -64,14 +65,6 @@ pub struct ImportProfileRequest {
     pub agent: AgentKind,
     pub nickname: Option<String>,
     pub priority: i32,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct UsageSettingsUpdateRequest {
-    pub source_mode: Option<UsageSourceMode>,
-    pub menu_open_refresh_stale_after_seconds: Option<i64>,
-    pub background_refresh_enabled: Option<bool>,
-    pub background_refresh_interval_seconds: Option<i64>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -150,6 +143,10 @@ impl RelayApp {
 
     pub fn settings(&self) -> Result<AppSettings, RelayError> {
         self.store.get_settings()
+    }
+
+    pub fn codex_settings(&self) -> Result<CodexSettings, RelayError> {
+        self.store.codex_settings()
     }
 
     pub fn list_profiles(&self) -> Result<Vec<Profile>, RelayError> {
@@ -249,6 +246,7 @@ impl RelayApp {
         let adapter = self.adapters.adapter(&request.agent);
         let profile =
             adapter.import_profile(&self.store, &self.paths, request.nickname, request.priority)?;
+        self.sync_active_profile(&profile)?;
         self.log_store
             .append("info", "profile.imported", format!("id={}", profile.id))?;
         Ok(profile)
@@ -256,12 +254,14 @@ impl RelayApp {
 
     pub fn login_profile(&self, request: AgentLoginRequest) -> Result<AgentLinkResult, RelayError> {
         let adapter = self.adapters.adapter(&request.agent);
-        let result = adapter.login_profile(
+        let mut result = adapter.login_profile(
             &self.store,
             &self.paths.profiles_dir,
             request.nickname,
             request.priority,
         )?;
+        self.sync_active_profile(&result.profile)?;
+        result.activated = true;
         let _ = self.refresh_usage_profile(&result.profile.id);
         self.log_store.append(
             "info",
@@ -292,6 +292,14 @@ impl RelayApp {
     }
 
     pub fn remove_profile(&self, id: &str) -> Result<Profile, RelayError> {
+        let active_state = self.state_store.load()?;
+        let removing_active = active_state.active_profile_id.as_deref() == Some(id);
+        if removing_active {
+            if let Some(replacement) = self.next_enabled_profile_excluding(id)? {
+                self.switch_to_profile(&replacement.id)?;
+            }
+        }
+
         let profile = profile_service::remove_profile(&self.store, id)?;
         if let Some(home) = profile.agent_home.as_ref() {
             let path = PathBuf::from(home);
@@ -397,7 +405,6 @@ impl RelayApp {
 
     pub fn usage_report(&self) -> Result<UsageSnapshot, RelayError> {
         let active_state = self.state_store.load()?;
-        let settings = self.store.get_settings()?;
         let active_profile = active_state
             .active_profile_id
             .as_deref()
@@ -407,12 +414,17 @@ impl RelayApp {
             .as_ref()
             .map(|profile| self.adapters.usage_provider(&profile.agent))
             .unwrap_or_else(|| self.adapters.primary_usage_provider());
+        let source_mode = active_profile
+            .as_ref()
+            .map(|profile| self.usage_source_mode_for_agent(&profile.agent))
+            .transpose()?
+            .unwrap_or_else(|| self.default_usage_source_mode());
         usage_service::build_active(
             &self.store,
             &self.usage_store,
             provider,
             active_profile.as_ref(),
-            settings.usage_source_mode,
+            source_mode,
             self.bootstrap_mode == BootstrapMode::ReadWrite,
         )
     }
@@ -428,7 +440,6 @@ impl RelayApp {
     }
 
     pub fn refresh_usage_profile(&self, id: &str) -> Result<UsageSnapshot, RelayError> {
-        let settings = self.store.get_settings()?;
         let active_state = self.state_store.load()?;
         let active_profile = active_state
             .active_profile_id
@@ -443,7 +454,7 @@ impl RelayApp {
             provider,
             Some(&profile),
             active_profile.as_ref(),
-            settings.usage_source_mode,
+            self.usage_source_mode_for_agent(&profile.agent)?,
             self.bootstrap_mode == BootstrapMode::ReadWrite,
         )
     }
@@ -458,32 +469,17 @@ impl RelayApp {
         self.refresh_usage_for_profiles(&profiles)
     }
 
-    pub fn update_usage_settings(
+    pub fn update_codex_settings(
         &self,
-        request: UsageSettingsUpdateRequest,
-    ) -> Result<AppSettings, RelayError> {
-        if let Some(source_mode) = request.source_mode {
-            self.store.set_usage_source_mode(source_mode)?;
-        }
-        if let Some(seconds) = request.menu_open_refresh_stale_after_seconds {
-            self.store
-                .set_menu_open_refresh_stale_after_seconds(seconds)?;
-        }
-        if let Some(enabled) = request.background_refresh_enabled {
-            self.store.set_usage_background_refresh_enabled(enabled)?;
-        }
-        if let Some(seconds) = request.background_refresh_interval_seconds {
-            self.store
-                .set_usage_background_refresh_interval_seconds(seconds)?;
-        }
-        self.store.get_settings()
+        request: CodexSettingsUpdateRequest,
+    ) -> Result<CodexSettings, RelayError> {
+        self.store.update_codex_settings(request)
     }
 
     fn refresh_usage_for_profiles(
         &self,
         profiles: &[Profile],
     ) -> Result<Vec<UsageSnapshot>, RelayError> {
-        let settings = self.store.get_settings()?;
         let active_state = self.state_store.load()?;
         let active_profile = active_state
             .active_profile_id
@@ -499,11 +495,48 @@ impl RelayApp {
                 provider,
                 Some(profile),
                 active_profile.as_ref(),
-                settings.usage_source_mode.clone(),
+                self.usage_source_mode_for_agent(&profile.agent)?,
                 self.bootstrap_mode == BootstrapMode::ReadWrite,
             )?);
         }
         Ok(snapshots)
+    }
+
+    fn usage_source_mode_for_agent(
+        &self,
+        agent: &AgentKind,
+    ) -> Result<UsageSourceMode, RelayError> {
+        match agent {
+            AgentKind::Codex => Ok(self.store.codex_settings()?.usage_source_mode),
+        }
+    }
+
+    fn default_usage_source_mode(&self) -> UsageSourceMode {
+        match self.adapters.primary_kind() {
+            AgentKind::Codex => CodexSettings::default().usage_source_mode,
+        }
+    }
+
+    fn next_enabled_profile_excluding(
+        &self,
+        excluded_id: &str,
+    ) -> Result<Option<Profile>, RelayError> {
+        Ok(self
+            .store
+            .list_enabled_profiles()?
+            .into_iter()
+            .find(|profile| profile.id != excluded_id))
+    }
+
+    fn sync_active_profile(&self, profile: &Profile) -> Result<(), RelayError> {
+        let mut state = self.state_store.load()?;
+        if state.active_profile_id.as_deref() == Some(profile.id.as_str()) {
+            return Ok(());
+        }
+
+        state.active_profile_id = Some(profile.id.clone());
+        state.last_error = None;
+        self.state_store.save(&state)
     }
 
     pub fn logs_tail(&self, lines: usize) -> Result<LogTail, RelayError> {
