@@ -11,11 +11,11 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settingsWindowController = SettingsWindowController(
         panes: [
             Settings.Pane(
-                identifier: .relaySettings,
-                title: SettingsPaneID.settings.title,
-                toolbarIcon: Self.toolbarIcon(SettingsPaneID.settings.symbol, description: SettingsPaneID.settings.title)
+                identifier: .relayProfiles,
+                title: SettingsPaneID.profiles.title,
+                toolbarIcon: Self.toolbarIcon(SettingsPaneID.profiles.symbol, description: SettingsPaneID.profiles.title)
             ) {
-                SettingsPaneView(model: self.settingsPaneModel)
+                ProfilesSettingsPaneView(model: self.profilesPaneModel)
                     .frame(
                         width: NativePreferencesTheme.Metrics.windowWidth,
                         height: NativePreferencesTheme.Metrics.windowHeight,
@@ -23,11 +23,11 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
                     )
             },
             Settings.Pane(
-                identifier: .relayProfiles,
-                title: SettingsPaneID.profiles.title,
-                toolbarIcon: Self.toolbarIcon(SettingsPaneID.profiles.symbol, description: SettingsPaneID.profiles.title)
+                identifier: .relaySettings,
+                title: SettingsPaneID.settings.title,
+                toolbarIcon: Self.toolbarIcon(SettingsPaneID.settings.symbol, description: SettingsPaneID.settings.title)
             ) {
-                ProfilesSettingsPaneView(model: self.profilesPaneModel)
+                SettingsPaneView(model: self.settingsPaneModel)
                     .frame(
                         width: NativePreferencesTheme.Metrics.windowWidth,
                         height: NativePreferencesTheme.Metrics.windowHeight,
@@ -58,9 +58,9 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
 
     private func openSettingsWindow() {
         NSApp.activate(ignoringOtherApps: true)
-        settingsWindowController.show(pane: .relaySettings)
+        settingsWindowController.show(pane: .relayProfiles)
         Task { [weak self] in
-            await self?.settingsPaneModel.refreshIfStale()
+            await self?.profilesPaneModel.refreshIfStale()
         }
     }
 
