@@ -23,14 +23,10 @@ public final class RelayAppModel: ObservableObject {
     private let notificationService = RelayNotificationService()
     private var pollTask: Task<Void, Never>?
     private var lastAutoSwitchConflictSignature: String?
+    private var hasStarted = false
 
     public init() {
         selectedProfileId = Defaults[.selectedProfileId]
-        Task {
-            await notificationService.requestAuthorizationIfNeeded()
-            await refresh()
-            startPolling()
-        }
     }
 
     deinit {
@@ -88,6 +84,18 @@ public final class RelayAppModel: ObservableObject {
     func selectProfile(_ profileId: String?) {
         selectedProfileId = profileId
         Defaults[.selectedProfileId] = profileId
+    }
+
+    public func start() {
+        guard !hasStarted else {
+            return
+        }
+
+        hasStarted = true
+        Task {
+            await refresh()
+            startPolling()
+        }
     }
 
     func refresh(notifyOnFailure: Bool = false) async {

@@ -5,6 +5,10 @@ actor RelayNotificationService {
     private var requestedAuthorization = false
 
     func requestAuthorizationIfNeeded() async {
+        guard notificationsAvailable else {
+            return
+        }
+
         guard !requestedAuthorization else {
             return
         }
@@ -16,6 +20,10 @@ actor RelayNotificationService {
     }
 
     func post(title: String, body: String) async {
+        guard notificationsAvailable else {
+            return
+        }
+
         await requestAuthorizationIfNeeded()
 
         let content = UNMutableNotificationContent()
@@ -29,5 +37,9 @@ actor RelayNotificationService {
         )
 
         try? await UNUserNotificationCenter.current().add(request)
+    }
+
+    private var notificationsAvailable: Bool {
+        Bundle.main.bundleURL.pathExtension == "app"
     }
 }

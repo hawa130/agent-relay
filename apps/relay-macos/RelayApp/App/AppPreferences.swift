@@ -1,18 +1,19 @@
 import Defaults
 
 extension Defaults.Keys {
-    static let selectedSettingsSection = Key<String>("selectedSettingsSection", default: SettingsSection.general.rawValue)
+    static let selectedSettingsSection = Key<String>("selectedSettingsSection", default: SettingsPaneID.general.rawValue)
     static let selectedProfileId = Key<String?>("selectedProfileId", default: nil)
 }
 
-enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
+public enum SettingsPaneID: String, CaseIterable, Identifiable, Sendable {
     case general
     case profiles
     case activity
+    case about
 
-    var id: String { rawValue }
+    public var id: String { rawValue }
 
-    var title: String {
+    public var title: String {
         switch self {
         case .general:
             return "General"
@@ -20,17 +21,30 @@ enum SettingsSection: String, CaseIterable, Identifiable, Sendable {
             return "Profiles"
         case .activity:
             return "Activity"
+        case .about:
+            return "About"
         }
     }
 
-    var symbol: String {
+    public var symbol: String {
         switch self {
         case .general:
-            return "slider.horizontal.3"
+            return "gearshape"
         case .profiles:
-            return "person.3"
+            return "square.grid.2x2"
         case .activity:
-            return "waveform.path.ecg"
+            return "eye"
+        case .about:
+            return "info.circle"
+        }
+    }
+
+    public static var persistedSelection: SettingsPaneID {
+        get {
+            SettingsPaneID(rawValue: Defaults[.selectedSettingsSection]) ?? .general
+        }
+        set {
+            Defaults[.selectedSettingsSection] = newValue.rawValue
         }
     }
 }
