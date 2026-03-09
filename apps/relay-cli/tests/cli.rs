@@ -118,10 +118,20 @@ fn run_json_with_env(
 }
 
 fn run_text(relay_home: &Path, codex_home: &Path, args: &[&str]) -> String {
+    run_text_with_env(relay_home, codex_home, args, &[])
+}
+
+fn run_text_with_env(
+    relay_home: &Path,
+    codex_home: &Path,
+    args: &[&str],
+    envs: &[(&str, &str)],
+) -> String {
     let output = Command::new(relay_bin())
         .args(args)
         .env("RELAY_HOME", relay_home)
         .env("CODEX_HOME", codex_home)
+        .envs(envs.iter().copied())
         .output()
         .expect("command output");
     assert!(
@@ -970,16 +980,105 @@ fn usage_text_output_renders_table_and_detail_views() {
     );
 
     let list = run_text(&relay_home, &live_codex_home, &["usage"]);
-    assert!(list.contains("usage loaded"));
     assert!(list.contains("Profile"));
     assert!(list.contains("Session"));
     assert!(list.contains(&active_id));
     assert!(list.contains(&alternate_id));
 
     let detail = run_text(&relay_home, &live_codex_home, &["usage", "current"]);
-    assert!(detail.contains("current usage loaded"));
-    assert!(detail.contains("Session:"));
-    assert!(detail.contains("Weekly:"));
+    assert!(detail.contains("Session"));
+    assert!(detail.contains("Weekly"));
+}
+
+#[test]
+fn human_readable_outputs_cover_core_command_families() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let alternate_home = temp.path().join("alternate");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&alternate_home, "alternate");
+
+    let doctor = run_text_with_env(
+        &relay_home,
+        &live_codex_home,
+        &["doctor"],
+        &[("NO_COLOR", "1")],
+    );
+    assert!(doctor.contains("Environment"));
+    assert!(!doctor.contains("\u{1b}["));
+
+    let imported = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "profiles",
+            "import",
+            "codex",
+            "--nickname",
+            "live",
+        ],
+    );
+    let imported_id = imported["data"]["id"]
+        .as_str()
+        .expect("imported id")
+        .to_string();
+    let added = run_text(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "profiles",
+            "add",
+            "codex",
+            "--nickname",
+            "alternate",
+            "--agent-home",
+            alternate_home.to_string_lossy().as_ref(),
+        ],
+    );
+    assert!(added.contains("Profile"));
+    assert!(added.contains("Nickname"));
+
+    let profiles = run_text(&relay_home, &live_codex_home, &["profiles", "list"]);
+    assert!(profiles.contains("Nickname"));
+    assert!(profiles.contains("Profile ID"));
+
+    let status = run_text(&relay_home, &live_codex_home, &["status"]);
+    assert!(status.contains("Active State"));
+    assert!(status.contains("Settings"));
+
+    let switched = run_text(&relay_home, &live_codex_home, &["switch", &imported_id]);
+    assert!(switched.contains("Checkpoint"));
+
+    let auto_switch = run_text(&relay_home, &live_codex_home, &["auto-switch", "enable"]);
+    assert!(auto_switch.contains("Background Refresh"));
+
+    let active_home = Path::new(imported["data"]["agent_home"].as_str().expect("agent home"));
+    fs::remove_file(active_home.join("config.toml")).expect("remove config");
+    let _ = run_failure(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "switch", &imported_id],
+    );
+
+    let events = run_text(
+        &relay_home,
+        &live_codex_home,
+        &["events", "list", "--limit", "10"],
+    );
+    assert!(events.contains("Reason"));
+    assert!(events.contains("ValidationFailed"));
+
+    let logs = run_text(
+        &relay_home,
+        &live_codex_home,
+        &["logs", "tail", "--lines", "10"],
+    );
+    assert!(logs.contains("Path:"));
+
+    let diagnostics = run_text(&relay_home, &live_codex_home, &["diagnostics", "export"]);
+    assert!(diagnostics.contains("Archive Path"));
 }
 
 #[test]
