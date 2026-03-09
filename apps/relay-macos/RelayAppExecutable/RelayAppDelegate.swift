@@ -5,10 +5,8 @@ import RelayMacOSUI
 @MainActor
 final class RelayAppDelegate: NSObject, NSApplicationDelegate {
     private let model = RelayAppModel()
-    private lazy var settingsSessionModel = SettingsSessionModel(session: model)
     private lazy var settingsPaneModel = SettingsPaneModel(session: model)
     private lazy var profilesPaneModel = ProfilesPaneModel(session: model)
-    private lazy var activityPaneModel = ActivityPaneModel(session: model)
     private var statusItemController: RelayStatusItemController?
     private lazy var settingsWindowController = SettingsWindowController(
         panes: [
@@ -30,30 +28,6 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
                 toolbarIcon: Self.toolbarIcon(SettingsPaneID.profiles.symbol, description: SettingsPaneID.profiles.title)
             ) {
                 ProfilesSettingsPaneView(model: self.profilesPaneModel)
-                    .frame(
-                        width: NativePreferencesTheme.Metrics.windowWidth,
-                        height: NativePreferencesTheme.Metrics.windowHeight,
-                        alignment: .topLeading
-                    )
-            },
-            Settings.Pane(
-                identifier: .relayActivity,
-                title: SettingsPaneID.activity.title,
-                toolbarIcon: Self.toolbarIcon(SettingsPaneID.activity.symbol, description: SettingsPaneID.activity.title)
-            ) {
-                ActivitySettingsPaneView(model: self.activityPaneModel)
-                    .frame(
-                        width: NativePreferencesTheme.Metrics.windowWidth,
-                        height: NativePreferencesTheme.Metrics.windowHeight,
-                        alignment: .topLeading
-                    )
-            },
-            Settings.Pane(
-                identifier: .relayAbout,
-                title: SettingsPaneID.about.title,
-                toolbarIcon: Self.toolbarIcon(SettingsPaneID.about.symbol, description: SettingsPaneID.about.title)
-            ) {
-                AboutSettingsPaneView(model: self.settingsSessionModel)
                     .frame(
                         width: NativePreferencesTheme.Metrics.windowWidth,
                         height: NativePreferencesTheme.Metrics.windowHeight,
@@ -84,7 +58,7 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
 
     private func openSettingsWindow() {
         NSApp.activate(ignoringOtherApps: true)
-        settingsWindowController.show(pane: SettingsPaneID.persistedSelection.settingsIdentifier)
+        settingsWindowController.show(pane: .relaySettings)
         Task { [weak self] in
             await self?.settingsPaneModel.refreshIfStale()
         }
@@ -101,22 +75,4 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
 private extension Settings.PaneIdentifier {
     static let relaySettings = Self("settings")
     static let relayProfiles = Self("profiles")
-    static let relayActivity = Self("activity")
-    static let relayAbout = Self("about")
-}
-
-@MainActor
-private extension SettingsPaneID {
-    var settingsIdentifier: Settings.PaneIdentifier {
-        switch self {
-        case .settings:
-            return .relaySettings
-        case .profiles:
-            return .relayProfiles
-        case .activity:
-            return .relayActivity
-        case .about:
-            return .relayAbout
-        }
-    }
 }

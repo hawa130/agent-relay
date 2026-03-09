@@ -17,9 +17,6 @@ public struct ProfilesSettingsPaneView: View {
             detail
         }
         .background(NativePreferencesTheme.Colors.paneBackground)
-        .onAppear {
-            SettingsPaneID.persistedSelection = .profiles
-        }
         .sheet(isPresented: $showingLoginSheet) {
             AddAccountSheet(
                 isBusy: model.isMutatingProfiles,
