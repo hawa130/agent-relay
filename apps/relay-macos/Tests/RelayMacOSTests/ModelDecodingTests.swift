@@ -130,7 +130,7 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(settings.usageBackgroundRefreshIntervalSeconds, 120)
     }
 
-    func testCodexLinkResultDecodesProbeIdentity() throws {
+    func testAgentLinkResultDecodesProbeIdentity() throws {
         let json = """
         {
           "profile": {
@@ -163,7 +163,7 @@ final class ModelDecodingTests: XCTestCase {
         }
         """.data(using: .utf8)!
 
-        let result = try JSONDecoder.relayDecoder.decode(CodexLinkResult.self, from: json)
+        let result = try JSONDecoder.relayDecoder.decode(AgentLinkResult.self, from: json)
 
         XCTAssertEqual(result.profile.id, "p_browser")
         XCTAssertEqual(result.probeIdentity.accountId, "acct-123")

@@ -37,7 +37,7 @@ final class RelayCLIClientTests: XCTestCase {
         XCTAssertFalse(settings.usageBackgroundRefreshEnabled)
     }
 
-    func testImportCodexCommandUsesJSONWithoutInlineAgentArgument() async throws {
+    func testImportCodexCommandUsesAgentAwareJSONWithoutInlineArgs() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
 

@@ -241,7 +241,7 @@ struct ProfileProbeIdentity: Decodable, Sendable {
     }
 }
 
-struct CodexLinkResult: Decodable, Sendable {
+struct AgentLinkResult: Decodable, Sendable {
     let profile: Profile
     let probeIdentity: ProfileProbeIdentity
     let activated: Bool
