@@ -10,7 +10,9 @@ name = "relay"
 path = "src/main.rs"
 
 [dependencies]
+chrono.workspace = true
 clap.workspace = true
+comfy-table.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true

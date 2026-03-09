@@ -20,8 +20,8 @@ struct RelayCLIClient {
         try await run(["status"], as: StatusReport.self)
     }
 
-    func fetchUsage() async throws -> UsageSnapshot {
-        try await run(["usage"], as: UsageSnapshot.self)
+    func fetchCurrentUsage() async throws -> UsageSnapshot {
+        try await run(["usage", "current"], as: UsageSnapshot.self)
     }
 
     func fetchUsage(profileId: String) async throws -> UsageSnapshot {

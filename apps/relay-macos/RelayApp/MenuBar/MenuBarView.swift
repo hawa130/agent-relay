@@ -14,8 +14,7 @@ public struct MenuBarView: View {
             header
             controls
             Divider()
-            profileList
-            Divider()
+            profilePickerSection
             usagePanel
             footer
             Divider()
@@ -79,7 +78,7 @@ public struct MenuBarView: View {
         }
     }
 
-    private var profileList: some View {
+    private var profilePickerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Profiles")
                 .font(.headline)
@@ -88,44 +87,58 @@ public struct MenuBarView: View {
                 Text("No profiles configured.")
                     .foregroundStyle(.secondary)
             } else {
-                VStack(alignment: .leading, spacing: 6) {
+                Menu {
                     ForEach(model.profiles) { profile in
                         Button {
                             model.selectProfile(profile.id)
                         } label: {
-                            HStack(alignment: .top, spacing: 10) {
-                                Circle()
-                                    .fill(profile.enabled ? Color.green : Color.gray.opacity(0.6))
-                                    .frame(width: 8, height: 8)
-                                    .padding(.top, 5)
-
-                                VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 3) {
                                     Text(profile.nickname)
-                                        .font(.subheadline.weight(model.selectedProfileId == profile.id ? .semibold : .regular))
-                                        .foregroundStyle(.primary)
                                     Text(profileSubtitle(profile))
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
-                                        .lineLimit(1)
                                 }
-
-                                Spacer(minLength: 8)
-
+                                Spacer(minLength: 12)
+                                if let usage = model.usageSnapshot(for: profile.id) {
+                                    UsageBadgeRow(usage: usage)
+                                }
                                 if model.activeProfileId == profile.id {
                                     Image(systemName: "checkmark.square.fill")
                                         .foregroundStyle(.tint)
                                 }
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(model.selectedProfileId == profile.id ? Color.accentColor.opacity(0.14) : Color.gray.opacity(0.08))
-                            )
                         }
-                        .buttonStyle(.plain)
                     }
+                } label: {
+                    HStack(alignment: .center, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(model.selectedProfile?.nickname ?? "Select a profile")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            if let profile = model.selectedProfile {
+                                Text(profileSubtitle(profile))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        Spacer(minLength: 8)
+                        if let usage = model.selectedUsage {
+                            UsageBadgeRow(usage: usage)
+                        }
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.gray.opacity(0.08))
+                    )
                 }
+                .menuStyle(.borderlessButton)
             }
         }
     }
@@ -133,7 +146,7 @@ public struct MenuBarView: View {
     private var usagePanel: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(model.selectedProfile?.nickname ?? "Usage")
+                Text("Usage")
                     .font(.headline)
                 Spacer()
                 if let profile = model.selectedProfile, profile.enabled {
@@ -147,6 +160,7 @@ public struct MenuBarView: View {
             }
 
             if let usage = model.selectedUsage {
+                UsageBadgeRow(usage: usage)
                 UsageRow(title: "Session", window: usage.session)
                 UsageRow(title: "Weekly", window: usage.weekly)
 
@@ -215,7 +229,7 @@ public struct MenuBarView: View {
                 return profile.enabled ? "usage not fetched yet" : "Disabled"
             }
             let freshness = usage.stale ? "stale" : "fresh"
-            return "\(usage.source.rawValue) • \(freshness)"
+            return "\(profile.enabled ? "Enabled" : "Disabled") • \(usage.source.rawValue) • \(freshness)"
         }
         return profile.enabled ? "usage not fetched yet" : "Disabled"
     }

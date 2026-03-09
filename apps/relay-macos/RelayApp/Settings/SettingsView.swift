@@ -213,9 +213,13 @@ public struct SettingsView: View {
                     HStack(alignment: .top, spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(profile.nickname)
-                            Text(profile.id)
+                            Text(profileSidebarSubtitle(profile))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+                            if let usage = model.usageSnapshot(for: profile.id) {
+                                UsageBadgeRow(usage: usage)
+                                    .padding(.top, 2)
+                            }
                         }
 
                         Spacer(minLength: 8)
@@ -263,6 +267,11 @@ public struct SettingsView: View {
 
                     Section("Usage") {
                         if let usage = model.usageSnapshot(for: profile.id) {
+                            UsageBadgeRow(usage: usage)
+                            LabeledContent(
+                                "State",
+                                value: usage.stale ? "Stale" : "Fresh"
+                            )
                             LabeledContent("Source", value: usage.source.rawValue)
                             LabeledContent("Confidence", value: usage.confidence.rawValue)
                             LabeledContent(
@@ -274,6 +283,9 @@ public struct SettingsView: View {
                                 value: usage.weekly.usedPercent.map { String(format: "%.0f%%", $0) } ?? usage.weekly.status.rawValue
                             )
                             LabeledContent("Updated", value: usage.lastRefreshedAt.formatted())
+                            if let resetAt = usage.nextResetAt {
+                                LabeledContent("Next Reset", value: resetAt.formatted())
+                            }
                             if let message = usage.message {
                                 Text(message)
                                     .foregroundStyle(usage.stale ? .orange : .secondary)
@@ -343,6 +355,14 @@ public struct SettingsView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private func profileSidebarSubtitle(_ profile: Profile) -> String {
+        if let usage = model.usageSnapshot(for: profile.id) {
+            let freshness = usage.stale ? "stale" : "fresh"
+            return "\(profile.id) • \(usage.source.rawValue) • \(freshness)"
+        }
+        return profile.id
     }
 
     private var activityView: some View {

@@ -1,8 +1,14 @@
+use chrono::{DateTime, Local, Utc};
 use clap::{Args, Parser, Subcommand};
+use comfy_table::{
+    Attribute, Cell, CellAlignment, ContentArrangement, Row, Table, modifiers::UTF8_ROUND_CORNERS,
+    presets::UTF8_FULL,
+};
 use relay_core::models::JsonResponse;
 use relay_core::{
     AddProfileRequest, AgentKind, AgentLoginRequest, AuthMode, BootstrapMode, EditProfileRequest,
-    ImportProfileRequest, RelayApp, RelayError, UsageSettingsUpdateRequest, UsageSourceMode,
+    ImportProfileRequest, Profile, RelayApp, RelayError, UsageConfidence,
+    UsageSettingsUpdateRequest, UsageSnapshot, UsageSourceMode, UsageStatus, UsageWindow,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -141,6 +147,7 @@ struct UsageCommand {
 
 #[derive(Debug, Subcommand)]
 enum UsageSubcommand {
+    Current,
     Profile(ProfileIdArgs),
     List,
     Refresh(UsageRefreshArgs),
@@ -302,6 +309,7 @@ fn execute(cli: Cli) -> Result<Output, RelayError> {
         Commands::Doctor | Commands::Status => BootstrapMode::ReadOnly,
         Commands::Usage(command) => match command.command {
             None
+            | Some(UsageSubcommand::Current)
             | Some(UsageSubcommand::Profile(_))
             | Some(UsageSubcommand::List)
             | Some(UsageSubcommand::Config(UsageConfigCommand { command: None })) => {
@@ -343,39 +351,58 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
             cli.json,
         )),
         Commands::Usage(command) => match command.command {
-            None => Ok(Output::success(
-                "usage loaded",
-                app.usage_report()?,
-                cli.json,
-            )),
-            Some(UsageSubcommand::Profile(args)) => Ok(Output::success(
-                "profile usage loaded",
-                app.profile_usage_report(&profile_id_from_args(args)?)?,
-                cli.json,
-            )),
-            Some(UsageSubcommand::List) => Ok(Output::success(
-                "usage list loaded",
-                app.list_usage_reports()?,
-                cli.json,
-            )),
+            None => usage_list_output(&app, "usage loaded", cli.json),
+            Some(UsageSubcommand::Current) => {
+                let snapshot = app.usage_report()?;
+                Ok(Output::success_rendered(
+                    "current usage loaded",
+                    snapshot.clone(),
+                    render_usage_detail(&snapshot),
+                    cli.json,
+                ))
+            }
+            Some(UsageSubcommand::Profile(args)) => {
+                let snapshot = app.profile_usage_report(&profile_id_from_args(args)?)?;
+                Ok(Output::success_rendered(
+                    "profile usage loaded",
+                    snapshot.clone(),
+                    render_usage_detail(&snapshot),
+                    cli.json,
+                ))
+            }
+            Some(UsageSubcommand::List) => usage_list_output(&app, "usage list loaded", cli.json),
             Some(UsageSubcommand::Refresh(args)) => {
                 let target = usage_refresh_target_from_args(args)?;
                 match target {
-                    UsageRefreshTarget::Profile(id) => Ok(Output::success(
-                        "usage refreshed",
-                        app.refresh_usage_profile(&id)?,
-                        cli.json,
-                    )),
-                    UsageRefreshTarget::Enabled => Ok(Output::success(
-                        "enabled profile usage refreshed",
-                        app.refresh_enabled_usage_reports()?,
-                        cli.json,
-                    )),
-                    UsageRefreshTarget::All => Ok(Output::success(
-                        "all profile usage refreshed",
-                        app.refresh_all_usage_reports()?,
-                        cli.json,
-                    )),
+                    UsageRefreshTarget::Profile(id) => {
+                        let snapshot = app.refresh_usage_profile(&id)?;
+                        Ok(Output::success_rendered(
+                            "usage refreshed",
+                            snapshot.clone(),
+                            render_usage_detail(&snapshot),
+                            cli.json,
+                        ))
+                    }
+                    UsageRefreshTarget::Enabled => {
+                        let snapshots = app.refresh_enabled_usage_reports()?;
+                        let profiles = app.list_profiles()?;
+                        Ok(Output::success_rendered(
+                            "enabled profile usage refreshed",
+                            snapshots.clone(),
+                            render_usage_list(&snapshots, &profiles),
+                            cli.json,
+                        ))
+                    }
+                    UsageRefreshTarget::All => {
+                        let snapshots = app.refresh_all_usage_reports()?;
+                        let profiles = app.list_profiles()?;
+                        Ok(Output::success_rendered(
+                            "all profile usage refreshed",
+                            snapshots.clone(),
+                            render_usage_list(&snapshots, &profiles),
+                            cli.json,
+                        ))
+                    }
                 }
             }
             Some(UsageSubcommand::Config(command)) => match command.command {
@@ -521,6 +548,246 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
             )),
         },
     }
+}
+
+fn usage_list_output(app: &RelayApp, message: &str, json: bool) -> Result<Output, RelayError> {
+    let snapshots = app.list_usage_reports()?;
+    let profiles = app.list_profiles()?;
+    Ok(Output::success_rendered(
+        message,
+        snapshots.clone(),
+        render_usage_list(&snapshots, &profiles),
+        json,
+    ))
+}
+
+fn render_usage_list(snapshots: &[UsageSnapshot], profiles: &[Profile]) -> String {
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS)
+        .set_content_arrangement(ContentArrangement::Dynamic);
+    table.set_header(vec![
+        "Profile",
+        "State",
+        "Source",
+        "Confidence",
+        "Session",
+        "Weekly",
+        "Next Reset",
+        "Notes",
+    ]);
+
+    for snapshot in snapshots {
+        let enabled = snapshot
+            .profile_id
+            .as_deref()
+            .and_then(|id| profiles.iter().find(|profile| profile.id == id))
+            .map(|profile| profile.enabled)
+            .unwrap_or(true);
+        table.add_row(Row::from(vec![
+            Cell::new(display_profile(snapshot)).set_alignment(CellAlignment::Left),
+            styled_cell(
+                profile_state_label(enabled, snapshot.stale),
+                usage_tone(snapshot),
+            ),
+            Cell::new(usage_source_label(&snapshot.source)),
+            styled_cell(
+                usage_confidence_label(&snapshot.confidence),
+                confidence_tone(snapshot.confidence.clone()),
+            ),
+            styled_cell(
+                window_label(&snapshot.session),
+                status_tone(snapshot.session.status.clone()),
+            ),
+            styled_cell(
+                window_label(&snapshot.weekly),
+                status_tone(snapshot.weekly.status.clone()),
+            ),
+            Cell::new(format_optional_datetime(snapshot.next_reset_at)),
+            Cell::new(snapshot.message.clone().unwrap_or_else(|| "-".into())),
+        ]));
+    }
+
+    table.to_string()
+}
+
+fn render_usage_detail(snapshot: &UsageSnapshot) -> String {
+    let mut lines = Vec::new();
+    lines.push(format!("Profile: {}", display_profile(snapshot)));
+    lines.push(format!(
+        "Source: {} | Confidence: {} | {}",
+        usage_source_label(&snapshot.source),
+        usage_confidence_label(&snapshot.confidence),
+        if snapshot.stale { "stale" } else { "fresh" }
+    ));
+    lines.push(format!(
+        "Updated: {}",
+        format_datetime(snapshot.last_refreshed_at)
+    ));
+    lines.push(format!(
+        "Session: {}",
+        detail_window_line(&snapshot.session)
+    ));
+    lines.push(format!("Weekly: {}", detail_window_line(&snapshot.weekly)));
+    lines.push(format!(
+        "Next reset: {}",
+        format_optional_datetime(snapshot.next_reset_at)
+    ));
+    lines.push(format!(
+        "Auto-switch: {}",
+        if snapshot.can_auto_switch {
+            snapshot
+                .auto_switch_reason
+                .as_ref()
+                .map(|reason| format!("eligible ({reason:?})"))
+                .unwrap_or_else(|| "eligible".into())
+        } else {
+            "not eligible".into()
+        }
+    ));
+    if let Some(message) = &snapshot.message {
+        lines.push(format!("Notes: {message}"));
+    }
+    lines.join("\n")
+}
+
+fn display_profile(snapshot: &UsageSnapshot) -> String {
+    match (&snapshot.profile_name, &snapshot.profile_id) {
+        (Some(name), Some(id)) => format!("{name} ({id})"),
+        (Some(name), None) => name.clone(),
+        (None, Some(id)) => id.clone(),
+        (None, None) => "current".into(),
+    }
+}
+
+fn profile_state_label(enabled: bool, stale: bool) -> &'static str {
+    match (enabled, stale) {
+        (true, false) => "enabled",
+        (true, true) => "enabled/stale",
+        (false, false) => "disabled",
+        (false, true) => "disabled/stale",
+    }
+}
+
+fn window_label(window: &UsageWindow) -> String {
+    match window.used_percent {
+        Some(percent) => format!("{} ({percent:.0}%)", usage_status_label(&window.status)),
+        None => usage_status_label(&window.status).into(),
+    }
+}
+
+fn detail_window_line(window: &UsageWindow) -> String {
+    let mut parts = vec![window_label(window)];
+    if let Some(minutes) = window.window_minutes {
+        parts.push(format!("{minutes}m"));
+    }
+    if let Some(reset_at) = window.reset_at {
+        parts.push(format!("resets {}", format_datetime(reset_at)));
+    }
+    if !window.exact {
+        parts.push("estimated".into());
+    }
+    parts.join(" | ")
+}
+
+fn format_optional_datetime(value: Option<DateTime<Utc>>) -> String {
+    value.map(format_datetime).unwrap_or_else(|| "-".into())
+}
+
+fn format_datetime(value: DateTime<Utc>) -> String {
+    value
+        .with_timezone(&Local)
+        .format("%Y-%m-%d %H:%M")
+        .to_string()
+}
+
+fn styled_cell(value: impl Into<String>, tone: CellTone) -> Cell {
+    let mut cell = Cell::new(value.into()).set_alignment(CellAlignment::Left);
+    match tone {
+        CellTone::Info => {
+            cell = cell.fg(comfy_table::Color::Cyan);
+        }
+        CellTone::Good => {
+            cell = cell.fg(comfy_table::Color::Green);
+        }
+        CellTone::Warn => {
+            cell = cell.fg(comfy_table::Color::Yellow);
+        }
+        CellTone::Bad => {
+            cell = cell
+                .fg(comfy_table::Color::Red)
+                .add_attribute(Attribute::Bold);
+        }
+        CellTone::Muted => {
+            cell = cell.fg(comfy_table::Color::DarkGrey);
+        }
+    }
+    cell
+}
+
+fn usage_tone(snapshot: &UsageSnapshot) -> CellTone {
+    if !snapshot.can_auto_switch && snapshot.stale {
+        CellTone::Warn
+    } else if snapshot.auto_switch_reason.is_some()
+        || snapshot.session.status == UsageStatus::Exhausted
+        || snapshot.weekly.status == UsageStatus::Exhausted
+    {
+        CellTone::Bad
+    } else {
+        CellTone::Info
+    }
+}
+
+fn confidence_tone(confidence: UsageConfidence) -> CellTone {
+    match confidence {
+        UsageConfidence::High => CellTone::Good,
+        UsageConfidence::Medium => CellTone::Warn,
+        UsageConfidence::Low => CellTone::Muted,
+    }
+}
+
+fn status_tone(status: UsageStatus) -> CellTone {
+    match status {
+        UsageStatus::Healthy => CellTone::Good,
+        UsageStatus::Warning => CellTone::Warn,
+        UsageStatus::Exhausted => CellTone::Bad,
+        UsageStatus::Unknown => CellTone::Muted,
+    }
+}
+
+fn usage_source_label(source: &relay_core::UsageSource) -> &'static str {
+    match source {
+        relay_core::UsageSource::Local => "Local",
+        relay_core::UsageSource::Fallback => "Fallback",
+        relay_core::UsageSource::WebEnhanced => "WebEnhanced",
+    }
+}
+
+fn usage_confidence_label(confidence: &UsageConfidence) -> &'static str {
+    match confidence {
+        UsageConfidence::High => "High",
+        UsageConfidence::Medium => "Medium",
+        UsageConfidence::Low => "Low",
+    }
+}
+
+fn usage_status_label(status: &UsageStatus) -> &'static str {
+    match status {
+        UsageStatus::Healthy => "Healthy",
+        UsageStatus::Warning => "Warning",
+        UsageStatus::Exhausted => "Exhausted",
+        UsageStatus::Unknown => "Unknown",
+    }
+}
+
+#[derive(Clone, Copy)]
+enum CellTone {
+    Info,
+    Good,
+    Warn,
+    Bad,
+    Muted,
 }
 
 fn parse_auth_mode(value: &str) -> Result<AuthMode, RelayError> {
@@ -1006,15 +1273,26 @@ struct Output {
     json: bool,
     text: String,
     body: String,
+    rendered_body: Option<String>,
 }
 
 impl Output {
     fn success<T: Serialize>(message: &str, data: T, json: bool) -> Self {
+        Self::success_rendered(message, data, String::new(), json)
+    }
+
+    fn success_rendered<T: Serialize>(
+        message: &str,
+        data: T,
+        rendered_body: String,
+        json: bool,
+    ) -> Self {
         let body = serde_json::to_string_pretty(&data).unwrap_or_else(|_| "{}".to_string());
         Self {
             json,
             text: message.to_string(),
             body,
+            rendered_body: (!rendered_body.is_empty()).then_some(rendered_body),
         }
     }
 
@@ -1026,7 +1304,10 @@ impl Output {
             Ok(())
         } else {
             println!("{}", self.text);
-            println!("{}", self.body);
+            println!(
+                "{}",
+                self.rendered_body.as_deref().unwrap_or(self.body.as_str())
+            );
             Ok(())
         }
     }
