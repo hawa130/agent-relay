@@ -340,6 +340,20 @@ enum UsageStatus: String, Decodable, Sendable {
     case unknown = "Unknown"
 }
 
+extension UsageSnapshot {
+    var userFacingNote: String? {
+        message?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
+    }
+}
+
 extension AuthMode {
     var cliArgument: String {
         switch self {

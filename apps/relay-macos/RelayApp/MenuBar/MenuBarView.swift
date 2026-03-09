@@ -262,17 +262,7 @@ public struct MenuBarView: View {
     }
 
     private func currentCardNotes(usage: UsageSnapshot?) -> [String] {
-        var notes: [String] = []
-
-        if let usage {
-            if usage.stale {
-                notes.append(usage.message ?? "Usage data is stale.")
-            } else if let message = usage.message, message != "usage not fetched yet" {
-                notes.append(message)
-            }
-        }
-
-        return notes
+        usage?.userFacingNote.map { [$0] } ?? []
     }
 
     private func detailLeftText(for window: UsageWindow) -> String? {

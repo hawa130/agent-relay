@@ -508,7 +508,7 @@ public final class RelayAppModel: ObservableObject {
                 guard let snapshot = usageSnapshot(for: profile.id) else {
                     return true
                 }
-                if snapshot.message == "usage not fetched yet" {
+                if snapshot.message == "Usage has not been fetched yet." {
                     return true
                 }
                 return now.timeIntervalSince(snapshot.lastRefreshedAt) >= threshold

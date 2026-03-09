@@ -273,7 +273,6 @@ public struct SettingsView: View {
                                 value: usage.stale ? "Stale" : "Fresh"
                             )
                             LabeledContent("Source", value: usage.source.rawValue)
-                            LabeledContent("Confidence", value: usage.confidence.rawValue)
                             LabeledContent(
                                 "Session",
                                 value: usage.session.usedPercent.map { String(format: "%.0f%%", $0) } ?? usage.session.status.rawValue
@@ -286,7 +285,7 @@ public struct SettingsView: View {
                             if let resetAt = usage.nextResetAt {
                                 LabeledContent("Next Reset", value: resetAt.formatted())
                             }
-                            if let message = usage.message {
+                            if let message = usage.userFacingNote {
                                 Text(message)
                                     .foregroundStyle(usage.stale ? .orange : .secondary)
                             }

@@ -46,6 +46,9 @@ pub fn refresh_profile(
         };
 
         if let Some(mut snapshot) = snapshot {
+            if should_continue_to_next_provider(current, source_mode.clone(), &snapshot) {
+                continue;
+            }
             maybe_note_fallback(&mut snapshot, source_mode.clone());
             if allow_cache_writes && snapshot.profile_id.is_some() {
                 usage_store.save_profile(&snapshot)?;
@@ -59,7 +62,7 @@ pub fn refresh_profile(
             refresh_cache_metadata(&mut snapshot);
             snapshot.can_auto_switch = false;
             snapshot.auto_switch_reason = None;
-            snapshot.message = Some("using cached usage snapshot".into());
+            snapshot.message = Some("Usage may be outdated.".into());
             return Ok(snapshot);
         }
     }
@@ -68,7 +71,7 @@ pub fn refresh_profile(
         target_profile,
         UsageSource::Fallback,
         true,
-        Some("usage unavailable from configured sources".into()),
+        Some("Usage is currently unavailable.".into()),
     );
     if allow_cache_writes && snapshot.profile_id.is_some() {
         usage_store.save_profile(&snapshot)?;
@@ -90,7 +93,7 @@ pub fn load_profile_snapshot(
         Some(profile),
         UsageSource::Fallback,
         true,
-        Some("usage not fetched yet".into()),
+        Some("Usage has not been fetched yet.".into()),
     ))
 }
 
@@ -117,7 +120,7 @@ pub fn list_profile_snapshots(
                 Some(profile),
                 UsageSource::Fallback,
                 true,
-                Some("usage not fetched yet".into()),
+                Some("Usage has not been fetched yet.".into()),
             ));
         }
     }
@@ -134,7 +137,7 @@ enum Provider {
 
 fn provider_order(mode: UsageSourceMode) -> [Provider; 3] {
     match mode {
-        UsageSourceMode::Auto => [Provider::Local, Provider::WebEnhanced, Provider::Fallback],
+        UsageSourceMode::Auto => [Provider::WebEnhanced, Provider::Local, Provider::Fallback],
         UsageSourceMode::Local => [Provider::Local, Provider::WebEnhanced, Provider::Fallback],
         UsageSourceMode::WebEnhanced => {
             [Provider::WebEnhanced, Provider::Local, Provider::Fallback]
@@ -143,11 +146,12 @@ fn provider_order(mode: UsageSourceMode) -> [Provider; 3] {
 }
 
 fn maybe_note_fallback(snapshot: &mut UsageSnapshot, source_mode: UsageSourceMode) {
-    if source_mode == UsageSourceMode::WebEnhanced && snapshot.source != UsageSource::WebEnhanced {
-        snapshot.message = Some(match snapshot.message.take() {
-            Some(existing) => format!("web-enhanced provider unavailable; {existing}"),
-            None => "web-enhanced provider unavailable; fell back to local usage".into(),
-        });
+    if matches!(
+        source_mode,
+        UsageSourceMode::Auto | UsageSourceMode::WebEnhanced
+    ) && snapshot.source == UsageSource::Local
+    {
+        snapshot.message = Some("Using local usage because enhanced usage is unavailable.".into());
     }
 }
 
@@ -168,7 +172,7 @@ fn collect_fallback_snapshot(
         Some(profile),
         UsageSource::Fallback,
         is_usage_stale(event.created_at),
-        Some(event.message.clone()),
+        Some("Usage may be unavailable due to a recent failure.".into()),
     );
     snapshot.last_refreshed_at = event.created_at;
     snapshot.confidence = UsageConfidence::Medium;
@@ -196,8 +200,19 @@ fn collect_fallback_snapshot(
 fn refresh_cache_metadata(snapshot: &mut UsageSnapshot) {
     snapshot.stale = is_usage_stale(snapshot.last_refreshed_at);
     if snapshot.stale && snapshot.message.is_none() {
-        snapshot.message = Some("cached usage data is stale".into());
+        snapshot.message = Some("Usage may be outdated.".into());
     }
+}
+
+fn should_continue_to_next_provider(
+    provider: Provider,
+    mode: UsageSourceMode,
+    snapshot: &UsageSnapshot,
+) -> bool {
+    matches!(mode, UsageSourceMode::Auto)
+        && matches!(provider, Provider::WebEnhanced)
+        && snapshot.source == UsageSource::WebEnhanced
+        && (snapshot.stale || snapshot.confidence != UsageConfidence::High)
 }
 
 fn apply_auto_switch_policy(snapshot: &mut UsageSnapshot) {
@@ -263,8 +278,12 @@ fn is_usage_stale(timestamp: DateTime<Utc>) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{build_active, list_profile_snapshots, load_profile_snapshot, refresh_profile};
+    use crate::adapters::UsageProvider;
     use crate::adapters::codex::CodexAdapter;
-    use crate::models::{AuthMode, FailureReason, UsageSource, UsageSourceMode, UsageStatus};
+    use crate::models::{
+        AuthMode, FailureReason, UsageConfidence, UsageSnapshot, UsageSource, UsageSourceMode,
+        UsageStatus, UsageWindow,
+    };
     use crate::store::{FileUsageStore, SqliteStore};
     use chrono::{Duration, Utc};
     use std::fs;
@@ -300,6 +319,58 @@ mod tests {
         .expect("usage session");
     }
 
+    struct FakeUsageProvider {
+        local: Option<UsageSnapshot>,
+        remote: Option<UsageSnapshot>,
+    }
+
+    impl UsageProvider for FakeUsageProvider {
+        fn collect_local_usage(
+            &self,
+            _target_profile: Option<&crate::models::Profile>,
+            _active_profile: Option<&crate::models::Profile>,
+        ) -> Result<Option<UsageSnapshot>, RelayError> {
+            Ok(self.local.clone())
+        }
+
+        fn collect_remote_usage(
+            &self,
+            _store: &SqliteStore,
+            _target_profile: Option<&crate::models::Profile>,
+        ) -> Result<Option<UsageSnapshot>, RelayError> {
+            Ok(self.remote.clone())
+        }
+    }
+
+    fn synthetic_snapshot(source: UsageSource, message: Option<&str>) -> UsageSnapshot {
+        UsageSnapshot {
+            profile_id: Some("p_test".into()),
+            profile_name: Some("test".into()),
+            source,
+            confidence: UsageConfidence::High,
+            stale: false,
+            last_refreshed_at: Utc::now(),
+            next_reset_at: None,
+            session: UsageWindow {
+                used_percent: Some(20.0),
+                window_minutes: Some(300),
+                reset_at: None,
+                status: UsageStatus::Healthy,
+                exact: true,
+            },
+            weekly: UsageWindow {
+                used_percent: Some(30.0),
+                window_minutes: Some(10080),
+                reset_at: None,
+                status: UsageStatus::Healthy,
+                exact: true,
+            },
+            auto_switch_reason: None,
+            can_auto_switch: false,
+            message: message.map(str::to_string),
+        }
+    }
+
     #[test]
     fn builds_local_usage_snapshot_from_profile_home() {
         let temp = tempdir().expect("tempdir");
@@ -329,6 +400,105 @@ mod tests {
     }
 
     #[test]
+    fn auto_mode_prefers_web_enhanced_usage_when_available() {
+        let temp = tempdir().expect("tempdir");
+        let relay_db = temp.path().join("relay.db");
+        let store = SqliteStore::new(&relay_db).expect("store");
+        let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
+        let home = temp.path().join("home");
+        make_home(&home, "home", 0);
+        let profile = profile("p_web", "web", &home);
+        let provider = FakeUsageProvider {
+            local: Some(synthetic_snapshot(UsageSource::Local, Some("local usage"))),
+            remote: Some(synthetic_snapshot(UsageSource::WebEnhanced, None)),
+        };
+
+        let snapshot = refresh_profile(
+            &store,
+            &usage_store,
+            &provider,
+            Some(&profile),
+            None,
+            UsageSourceMode::Auto,
+            true,
+        )
+        .expect("snapshot");
+
+        assert_eq!(snapshot.source, UsageSource::WebEnhanced);
+        assert_eq!(snapshot.message, None);
+    }
+
+    #[test]
+    fn auto_mode_notes_when_web_enhanced_falls_back_to_local() {
+        let temp = tempdir().expect("tempdir");
+        let relay_db = temp.path().join("relay.db");
+        let store = SqliteStore::new(&relay_db).expect("store");
+        let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
+        let home = temp.path().join("home");
+        make_home(&home, "home", 0);
+        let profile = profile("p_local", "local", &home);
+        let provider = FakeUsageProvider {
+            local: Some(synthetic_snapshot(UsageSource::Local, None)),
+            remote: None,
+        };
+
+        let snapshot = refresh_profile(
+            &store,
+            &usage_store,
+            &provider,
+            Some(&profile),
+            None,
+            UsageSourceMode::Auto,
+            true,
+        )
+        .expect("snapshot");
+
+        assert_eq!(snapshot.source, UsageSource::Local);
+        assert_eq!(
+            snapshot.message.as_deref(),
+            Some("Using local usage because enhanced usage is unavailable.")
+        );
+    }
+
+    #[test]
+    fn auto_mode_skips_stale_web_snapshot_and_uses_local() {
+        let temp = tempdir().expect("tempdir");
+        let relay_db = temp.path().join("relay.db");
+        let store = SqliteStore::new(&relay_db).expect("store");
+        let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
+        let home = temp.path().join("home");
+        make_home(&home, "home", 0);
+        let profile = profile("p_local", "local", &home);
+        let mut stale_remote = synthetic_snapshot(
+            UsageSource::WebEnhanced,
+            Some("Enhanced usage is currently unavailable."),
+        );
+        stale_remote.stale = true;
+        stale_remote.confidence = UsageConfidence::Medium;
+        let provider = FakeUsageProvider {
+            local: Some(synthetic_snapshot(UsageSource::Local, None)),
+            remote: Some(stale_remote),
+        };
+
+        let snapshot = refresh_profile(
+            &store,
+            &usage_store,
+            &provider,
+            Some(&profile),
+            None,
+            UsageSourceMode::Auto,
+            true,
+        )
+        .expect("snapshot");
+
+        assert_eq!(snapshot.source, UsageSource::Local);
+        assert_eq!(
+            snapshot.message.as_deref(),
+            Some("Using local usage because enhanced usage is unavailable.")
+        );
+    }
+
+    #[test]
     fn loads_cached_placeholder_for_unknown_profile_usage() {
         let temp = tempdir().expect("tempdir");
         let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
@@ -340,7 +510,10 @@ mod tests {
 
         assert_eq!(snapshot.profile_id.as_deref(), Some("p_unknown"));
         assert!(snapshot.stale);
-        assert_eq!(snapshot.message.as_deref(), Some("usage not fetched yet"));
+        assert_eq!(
+            snapshot.message.as_deref(),
+            Some("Usage has not been fetched yet.")
+        );
     }
 
     #[test]
@@ -458,7 +631,7 @@ mod tests {
         assert_eq!(refreshed.profile_id.as_deref(), Some("p_missing"));
         assert_eq!(
             refreshed.message.as_deref(),
-            Some("usage unavailable from configured sources")
+            Some("Usage is currently unavailable.")
         );
         assert_eq!(cached.message, refreshed.message);
     }
@@ -508,7 +681,7 @@ mod tests {
         assert_eq!(snapshot.session.used_percent, None);
         assert_eq!(
             snapshot.message.as_deref(),
-            Some("usage unavailable from configured sources")
+            Some("Usage is currently unavailable.")
         );
     }
 }
