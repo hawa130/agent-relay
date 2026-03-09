@@ -10,290 +10,314 @@ public struct MenuBarView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            header
-            controls
+        VStack(alignment: .leading, spacing: 8) {
+            currentProfileSection
+
             Divider()
-            profilePickerSection
-            usagePanel
-            footer
+
+            profilesPickerSection
+
             Divider()
-            appActions
+
+            actionsSection
         }
-        .padding(16)
-        .frame(width: 420)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .frame(width: 330, alignment: .leading)
         .task {
             await model.refreshForMenuOpen()
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Current Profile")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text(model.activeProfile?.nickname ?? "No Active Profile")
-                .font(.headline)
-
-            if let status = model.status {
-                Text("Auto-switch: \(status.settings.autoSwitchEnabled ? "On" : "Off")")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                Text("Relay home: \(status.relayHome)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+    private var currentProfileSection: some View {
+        Group {
+            if let profile = model.activeProfile {
+                let usage = model.usageSnapshot(for: profile.id)
+                MenuBarCurrentProfileCard(model: currentCardModel(profile: profile, usage: usage))
             } else {
-                Text("Waiting for relay status")
+                Text("No active profile")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color(nsColor: .secondaryLabelColor))
             }
         }
     }
 
-    private var controls: some View {
-        HStack(spacing: 10) {
-            Button("Refresh") {
+    private var profilesPickerSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if model.profiles.isEmpty {
+                MenuBarActionRow(
+                    title: "Profiles",
+                    systemImage: "person.2",
+                    showsChevron: true
+                )
+                .foregroundStyle(.secondary)
+            } else {
+                Picker(
+                    selection: profilePickerSelection,
+                    label: MenuBarActionRow(
+                        title: "Profiles",
+                        systemImage: "person.2",
+                        showsChevron: true
+                    )
+                ) {
+                    ForEach(model.profiles) { profile in
+                        let usage = model.usageSnapshot(for: profile.id)
+                        MenuBarProfilePickerItem(
+                            profileName: profile.nickname,
+                            statusText: profileStatusText(profile, usage: usage, isActive: model.activeProfileId == profile.id),
+                            sessionText: usageText(title: "Session", window: usage?.session),
+                            sessionResetText: usage?.session.resetAt.map { "Resets \(relativeResetDescription(for: $0))" },
+                            weeklyText: usageText(title: "Weekly", window: usage?.weekly),
+                            weeklyResetText: usage?.weekly.resetAt.map { "Resets \(relativeResetDescription(for: $0))" },
+                            footerText: profileSubtitle(profile, usage: usage, isActive: model.activeProfileId == profile.id),
+                            symbolName: profileSymbolName(profile, usage: usage, isActive: model.activeProfileId == profile.id),
+                            isDimmed: !profile.enabled
+                        )
+                        .tag(profile.id)
+                    }
+                }
+                .pickerStyle(.menu)
+                .disabled(model.isSwitching)
+            }
+        }
+    }
+
+    private var actionsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
                 Task {
                     await model.refreshEnabledUsage()
                 }
+            } label: {
+                MenuBarActionRow(title: "Refresh", systemImage: "arrow.clockwise")
             }
+            .buttonStyle(.plain)
             .disabled(model.isRefreshing)
 
-            Button("Refresh Selected") {
-                guard let profileId = model.selectedProfile?.id else {
-                    return
-                }
-                Task {
-                    await model.refreshUsage(profileId: profileId)
-                }
-            }
-            .disabled(model.selectedProfile == nil)
+            Divider()
+                .padding(.leading, 22)
 
-            Button("Settings") {
+            Button {
                 NSApplication.shared.activate(ignoringOtherApps: true)
                 openWindow(id: "settings")
+            } label: {
+                MenuBarActionRow(title: "Settings...", systemImage: "gearshape")
             }
+            .buttonStyle(.plain)
+
+            Divider()
+                .padding(.leading, 22)
+
+            Button {
+                NSApplication.shared.terminate(nil)
+            } label: {
+                MenuBarActionRow(title: "Quit Relay", systemImage: "power")
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut("q")
         }
     }
 
-    private var profilePickerSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Profiles")
-                .font(.headline)
-
-            if model.profiles.isEmpty {
-                Text("No profiles configured.")
-                    .foregroundStyle(.secondary)
-            } else {
-                Menu {
-                    ForEach(model.profiles) { profile in
-                        Button {
-                            model.selectProfile(profile.id)
-                        } label: {
-                            HStack(spacing: 10) {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(profile.nickname)
-                                    Text(profileSubtitle(profile))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer(minLength: 12)
-                                if let usage = model.usageSnapshot(for: profile.id) {
-                                    UsageBadgeRow(usage: usage)
-                                }
-                                if model.activeProfileId == profile.id {
-                                    Image(systemName: "checkmark.square.fill")
-                                        .foregroundStyle(.tint)
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(alignment: .center, spacing: 10) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(model.selectedProfile?.nickname ?? "Select a profile")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.primary)
-                            if let profile = model.selectedProfile {
-                                Text(profileSubtitle(profile))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        Spacer(minLength: 8)
-                        if let usage = model.selectedUsage {
-                            UsageBadgeRow(usage: usage)
-                        }
-                        Image(systemName: "chevron.down")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.gray.opacity(0.08))
-                    )
-                }
-                .menuStyle(.borderlessButton)
-            }
+    private func activate(_ profile: Profile) async {
+        guard profile.enabled, model.activeProfileId != profile.id else {
+            return
         }
+
+        await model.switchToProfile(profile.id)
     }
 
-    private var usagePanel: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Usage")
-                    .font(.headline)
-                Spacer()
-                if let profile = model.selectedProfile, profile.enabled {
-                    Button("Switch") {
-                        Task {
-                            await model.switchToProfile(profile.id)
-                        }
-                    }
-                    .disabled(model.activeProfileId == profile.id || model.isSwitching)
-                }
-            }
+    private var profilePickerSelection: Binding<String> {
+        Binding(
+            get: { model.selectedProfileId ?? model.activeProfileId ?? model.profiles.first?.id ?? "" },
+            set: { newValue in
+                model.selectProfile(newValue)
 
-            if let usage = model.selectedUsage {
-                UsageBadgeRow(usage: usage)
-                UsageRow(title: "Session", window: usage.session)
-                UsageRow(title: "Weekly", window: usage.weekly)
-
-                Text(sourceLine(for: usage))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if let resetAt = usage.nextResetAt {
-                    Text("Next reset: \(resetAt.formatted(date: .abbreviated, time: .shortened))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                if usage.stale || usage.message != nil {
-                    Text(usage.message ?? "Usage data is stale.")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-            } else if let profile = model.selectedProfile, !profile.enabled {
-                Text("Disabled profile. Refresh manually to inspect usage.")
-                    .foregroundStyle(.secondary)
-            } else {
-                Text("Usage data unavailable.")
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
-    private var appActions: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Button("Open Relay Home") {
-                guard let relayHome = model.status?.relayHome else {
+                guard let profile = model.profiles.first(where: { $0.id == newValue }) else {
                     return
                 }
-                NSWorkspace.shared.open(URL(fileURLWithPath: relayHome))
-            }
-            .disabled(model.status?.relayHome == nil)
-            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Button("Quit Relay") {
-                NSApplication.shared.terminate(nil)
+                Task {
+                    await activate(profile)
+                }
             }
-            .keyboardShortcut("q")
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        )
     }
 
-    private var footer: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if let settings = model.status?.settings {
-                Text("Source mode: \(settings.usageSourceMode.displayName)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+    private func profileSubtitle(_ profile: Profile, usage: UsageSnapshot?, isActive: Bool) -> String {
+        var parts: [String] = []
+
+        parts.append(profile.agent.rawValue)
+
+        if let usage {
+            parts.append(usage.source.rawValue)
+            if usage.stale {
+                parts.append("Stale")
             }
-            if let lastRefresh = model.lastRefresh {
-                Text("Last refresh: \(lastRefresh.formatted(date: .omitted, time: .standard))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        } else {
+            parts.append("No usage yet")
         }
+
+        parts.append("P\(profile.priority)")
+
+        return parts.joined(separator: " • ")
     }
 
-    private func profileSubtitle(_ profile: Profile) -> String {
-        if let usage = model.usageSnapshot(for: profile.id) {
-            if usage.message == "usage not fetched yet" {
-                return profile.enabled ? "usage not fetched yet" : "Disabled"
-            }
-            let freshness = usage.stale ? "stale" : "fresh"
-            return "\(profile.enabled ? "Enabled" : "Disabled") • \(usage.source.rawValue) • \(freshness)"
+    private func profileStatusText(_ profile: Profile, usage: UsageSnapshot?, isActive: Bool) -> String {
+        if isActive {
+            return "Active"
         }
-        return profile.enabled ? "usage not fetched yet" : "Disabled"
+
+        if !profile.enabled {
+            return "Disabled"
+        }
+
+        if usage?.stale == true {
+            return "Stale"
+        }
+
+        return "Ready"
     }
 
-    private func sourceLine(for usage: UsageSnapshot) -> String {
-        var line = "Source: \(usage.source.rawValue) • \(usage.confidence.rawValue)"
-        if usage.stale {
-            line += " • stale"
+    private func usageText(title: String, window: UsageWindow?) -> String? {
+        guard let window else {
+            return nil
         }
-        return line
-    }
-}
 
-private struct UsageRow: View {
-    let title: String
-    let window: UsageWindow
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(title)
-                    .font(.subheadline.weight(.medium))
-                Spacer()
-                Text(valueLabel)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            ProgressView(value: progressValue)
-                .progressViewStyle(.linear)
-                .tint(tint)
-
-            if let resetAt = window.resetAt {
-                Text("Resets \(resetAt.formatted(date: .omitted, time: .shortened))")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-        }
+        return "\(title) \(window.menuBarDisplayValue)"
     }
 
-    private var progressValue: Double {
-        guard let usedPercent = window.usedPercent else {
-            return window.status == .exhausted ? 1 : 0
+    private func profileSymbolName(_ profile: Profile, usage: UsageSnapshot?, isActive: Bool) -> String {
+        if isActive {
+            return "checkmark.circle.fill"
         }
-        return min(max(usedPercent / 100, 0), 1)
-    }
 
-    private var tint: Color {
-        switch window.status {
-        case .healthy:
-            return .green
+        if !profile.enabled {
+            return "slash.circle"
+        }
+
+        switch (usage?.weekly.status ?? usage?.session.status) ?? .unknown {
         case .warning:
-            return .orange
+            return "exclamationmark.circle"
         case .exhausted:
-            return .red
-        case .unknown:
-            return .gray
+            return "xmark.circle"
+        default:
+            return "circle"
         }
     }
 
-    private var valueLabel: String {
-        if let usedPercent = window.usedPercent {
-            return String(format: "%.0f%%", usedPercent)
+    private func currentCardModel(profile: Profile, usage: UsageSnapshot?) -> MenuBarCurrentCardModel {
+        MenuBarCurrentCardModel(
+            providerName: profile.agent.rawValue,
+            email: profile.nickname,
+            subtitleText: currentCardSubtitle(usage: usage),
+            planText: currentCardPlanText(usage: usage),
+            metrics: currentMetricRows(usage: usage),
+            placeholder: currentCardPlaceholder(usage: usage),
+            usageNotes: currentCardNotes(usage: usage)
+        )
+    }
+
+    private func currentMetricRows(usage: UsageSnapshot?) -> [MenuBarMetricRowModel] {
+        guard let usage else {
+            return []
         }
-        return window.status.rawValue
+
+        return [
+            metricRowModel(id: "session", title: "Session", window: usage.session),
+            metricRowModel(id: "weekly", title: "Weekly", window: usage.weekly)
+        ]
+    }
+
+    private func metricRowModel(id: String, title: String, window: UsageWindow) -> MenuBarMetricRowModel {
+        MenuBarMetricRowModel(
+            id: id,
+            title: title,
+            percent: window.menuBarProgressPercent,
+            percentLabel: "\(window.menuBarDisplayValue) used",
+            resetText: window.resetAt.map { "Resets \(relativeResetDescription(for: $0))" },
+            detailLeftText: detailLeftText(for: window),
+            detailRightText: detailRightText(for: window),
+            tint: window.status.menuBarTint
+        )
+    }
+
+    private func currentCardSubtitle(usage: UsageSnapshot?) -> String {
+        if model.isRefreshing {
+            return "Refreshing…"
+        }
+
+        if let lastRefresh = model.lastRefresh {
+            return "Updated \(relativeTimestamp(for: lastRefresh))"
+        }
+
+        return "Waiting for refresh"
+    }
+
+    private func currentCardPlanText(usage: UsageSnapshot?) -> String? {
+        usage?.source.rawValue
+    }
+
+    private func currentCardPlaceholder(usage: UsageSnapshot?) -> String? {
+        usage == nil ? "No usage yet" : nil
+    }
+
+    private func currentCardNotes(usage: UsageSnapshot?) -> [String] {
+        var notes: [String] = []
+
+        if let usage {
+            if usage.stale {
+                notes.append(usage.message ?? "Usage data is stale.")
+            } else if let message = usage.message, message != "usage not fetched yet" {
+                notes.append(message)
+            }
+        }
+
+        return notes
+    }
+
+    private func detailLeftText(for window: UsageWindow) -> String? {
+        guard window.status == .exhausted else {
+            return nil
+        }
+
+        return "Unavailable"
+    }
+
+    private func detailRightText(for window: UsageWindow) -> String? {
+        guard window.status == .exhausted, let resetAt = window.resetAt else {
+            return nil
+        }
+
+        return "Back \(relativeResetDescription(for: resetAt))"
+    }
+
+    private func relativeTimestamp(for date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    private func relativeResetDescription(for date: Date) -> String {
+        let interval = date.timeIntervalSinceNow
+
+        if interval <= 0 {
+            return "now"
+        }
+
+        let totalMinutes = max(1, Int(ceil(interval / 60)))
+        let days = totalMinutes / (24 * 60)
+        let hours = (totalMinutes % (24 * 60)) / 60
+        let minutes = totalMinutes % 60
+
+        var parts: [String] = []
+        if days > 0 {
+            parts.append("\(days)d")
+        }
+        if hours > 0 || !parts.isEmpty {
+            parts.append("\(hours)h")
+        }
+        parts.append("\(minutes)m")
+
+        return "in \(parts.joined(separator: " "))"
     }
 }

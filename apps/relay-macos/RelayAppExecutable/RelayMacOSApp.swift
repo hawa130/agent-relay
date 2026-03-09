@@ -3,17 +3,11 @@ import SwiftUI
 
 @main
 struct RelayMacOSApp: App {
-    @StateObject private var model = RelayAppModel()
+    @NSApplicationDelegateAdaptor(RelayAppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra {
-            MenuBarView(model: model)
-        } label: {
-            Label(model.menuBarTitle, systemImage: model.menuBarSymbol)
-        }
-
         Window("Settings", id: "settings") {
-            SettingsView(model: model)
+            SettingsView(model: appDelegate.model)
                 .frame(minWidth: 920, minHeight: 640)
         }
         .defaultSize(width: 920, height: 640)
