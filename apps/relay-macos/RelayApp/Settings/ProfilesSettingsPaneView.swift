@@ -54,14 +54,6 @@ public struct ProfilesSettingsPaneView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Profiles")
-                    .font(NativePreferencesTheme.Typography.paneTitle)
-                Text("Manage connected agent accounts and inspect live usage in one place.")
-                    .font(NativePreferencesTheme.Typography.paneSubtitle)
-                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-            }
-
             HStack(spacing: 10) {
                 Button("Add Account") {
                     showingLoginSheet = true
@@ -114,7 +106,6 @@ public struct ProfilesSettingsPaneView: View {
                 if let profile = selectedProfile {
                     profileHero(profile)
                     usageCard(profile)
-                    settingsCard(profile)
                     if let error = model.lastErrorMessage {
                         SettingsSurfaceCard("Last Error") {
                             Text(error)
@@ -150,20 +141,21 @@ public struct ProfilesSettingsPaneView: View {
 
                     Spacer(minLength: 20)
 
-                    HStack(spacing: 8) {
-                        Button("Refresh Usage") {
-                            Task {
-                                await model.refreshUsage(profileId: profile.id)
-                            }
-                        }
-
-                        Button("Activate") {
-                            Task {
-                                await model.switchToProfile(profile.id)
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!profile.enabled || model.isSwitching)
+                    VStack(alignment: .trailing, spacing: 8) {
+                        Toggle(
+                            "Enabled",
+                            isOn: Binding(
+                                get: { profile.enabled },
+                                set: { enabled in
+                                    Task {
+                                        await model.setProfileEnabled(profile.id, enabled: enabled)
+                                    }
+                                }
+                            )
+                        )
+                        .toggleStyle(.switch)
+                        .labelsHidden()
+                        .disabled(model.isMutatingProfiles)
                     }
                 }
 
@@ -175,7 +167,7 @@ public struct ProfilesSettingsPaneView: View {
 
                     GridRow {
                         NativeDetailRow(
-                            title: "Current",
+                            title: "Active",
                             value: model.activeProfileId == profile.id ? "Active" : "Inactive"
                         )
                         NativeDetailRow(title: "Auth Mode", value: profile.authMode.displayName)
@@ -183,19 +175,13 @@ public struct ProfilesSettingsPaneView: View {
                 }
 
                 HStack(alignment: .center, spacing: 12) {
-                    Toggle(
-                        "Enabled",
-                        isOn: Binding(
-                            get: { profile.enabled },
-                            set: { enabled in
-                                Task {
-                                    await model.setProfileEnabled(profile.id, enabled: enabled)
-                                }
-                            }
-                        )
-                    )
-                    .toggleStyle(.switch)
-                    .disabled(model.isMutatingProfiles)
+                    Button(model.activeProfileId == profile.id ? "Activated" : "Activate") {
+                        Task {
+                            await model.switchToProfile(profile.id)
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.activeProfileId == profile.id || !profile.enabled || model.isSwitching)
 
                     Button("Edit") {
                         editingProfile = profile
@@ -223,9 +209,19 @@ public struct ProfilesSettingsPaneView: View {
         SettingsSurfaceCard("Usage") {
             if let usage = model.usageSnapshot(for: profile.id) {
                 VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .center) {
+                        Spacer()
+
+                        Button("Refresh Usage") {
+                            Task {
+                                await model.refreshUsage(profileId: profile.id)
+                            }
+                        }
+                    }
+
                     UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
                     UsageMetricRow(title: "Weekly", window: usage.weekly, stale: usage.stale)
-                    NativeDetailRow(title: "Source", value: usage.source.rawValue)
+                    NativeDetailRow(title: "Source", value: usage.source.displayName)
                     NativeDetailRow(title: "Updated", value: usage.lastRefreshedAt.formatted())
                     if let resetAt = usage.nextResetAt {
                         NativeDetailRow(title: "Next Reset", value: resetAt.formatted())
@@ -241,15 +237,6 @@ public struct ProfilesSettingsPaneView: View {
                 Text("Usage data unavailable.")
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-    }
-
-    private func settingsCard(_ profile: Profile) -> some View {
-        SettingsSurfaceCard("Paths") {
-            VStack(alignment: .leading, spacing: 10) {
-                NativePathRow(title: "Agent Home", value: profile.agentHome ?? "-")
-                NativePathRow(title: "Config Path", value: profile.configPath ?? "-")
             }
         }
     }
@@ -310,9 +297,19 @@ private struct ProfileListRow: View {
 
     private var subtitle: String {
         if let usage {
-            return "\(profile.agent.rawValue) • \(usage.source.rawValue) • \(usage.stale ? "stale" : "fresh")"
+            var parts: [String] = []
+
+            let relativeFormatter = RelativeDateTimeFormatter()
+            relativeFormatter.unitsStyle = .short
+            parts.append("Updated \(relativeFormatter.localizedString(for: usage.lastRefreshedAt, relativeTo: Date()))")
+
+            if let resetAt = usage.nextResetAt {
+                parts.append("Resets \(relativeFormatter.localizedString(for: resetAt, relativeTo: Date()))")
+            }
+
+            return parts.joined(separator: " • ")
         }
-        return "\(profile.agent.rawValue) • usage unavailable"
+        return "Waiting for refresh"
     }
 
     private var rowBackground: Color {
@@ -416,6 +413,8 @@ private struct ProfileEditorSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             Text(title)
                 .font(.title3.weight(.semibold))
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
 
             Form {
                 Section("Identity") {
@@ -427,15 +426,9 @@ private struct ProfileEditorSheet: View {
                         }
                     }
                 }
-
-                Section("Paths") {
-                    TextField("Agent Home", text: $draft.agentHome)
-                    Toggle("Clear Agent Home", isOn: $draft.clearAgentHome)
-                    TextField("Config Path", text: $draft.configPath)
-                    Toggle("Clear Config Path", isOn: $draft.clearConfigPath)
-                }
             }
             .formStyle(.grouped)
+            .frame(maxWidth: .infinity)
 
             HStack {
                 Spacer()
@@ -453,8 +446,9 @@ private struct ProfileEditorSheet: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(draft.nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
+            .padding(.horizontal, 18)
+            .padding(.bottom, 16)
         }
-        .padding(24)
         .frame(width: 560)
     }
 
@@ -489,6 +483,8 @@ private struct AddAccountSheet: View {
         VStack(alignment: .leading, spacing: 18) {
             Text("Add Account")
                 .font(.title3.weight(.semibold))
+                .padding(.horizontal, 18)
+                .padding(.top, 18)
 
             Form {
                 Section("Profile") {
@@ -496,13 +492,14 @@ private struct AddAccountSheet: View {
                 }
 
                 Section("Flow") {
-                    Text("Relay will start `codex login`, let Codex open the browser sign-in flow, then import the signed-in account automatically.")
+                    Text("Continue to open the Codex sign-in flow in your browser, then import the signed-in account automatically.")
                         .foregroundStyle(.secondary)
                     Text("The default nickname will be the account email. You can rename it later.")
                         .foregroundStyle(.secondary)
                 }
             }
             .formStyle(.grouped)
+            .frame(maxWidth: .infinity)
 
             HStack {
                 Spacer()
@@ -520,8 +517,9 @@ private struct AddAccountSheet: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(isBusy)
             }
+            .padding(.horizontal, 18)
+            .padding(.bottom, 16)
         }
-        .padding(24)
         .frame(width: 560)
     }
 }

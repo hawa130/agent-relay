@@ -215,7 +215,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
             providerName: profile.agent.rawValue,
             email: profile.nickname,
             subtitleText: presenter.currentCardSubtitle,
-            planText: usage?.source.rawValue,
+            planText: usage?.source.displayName,
             metrics: currentMetricRows(usage: usage),
             placeholder: usage == nil ? "No usage yet" : nil,
             usageNotes: presenter.currentCardNotes(usage: usage)

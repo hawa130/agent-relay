@@ -23,7 +23,7 @@ extension UsageStatus {
     var menuBarTint: Color {
         switch self {
         case .healthy:
-            return .green
+            return .teal
         case .warning:
             return .orange
         case .exhausted:

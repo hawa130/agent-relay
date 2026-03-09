@@ -297,6 +297,17 @@ enum UsageSource: String, Decodable, Sendable {
     case local = "Local"
     case fallback = "Fallback"
     case webEnhanced = "WebEnhanced"
+
+    var displayName: String {
+        switch self {
+        case .local:
+            return "On-device"
+        case .fallback:
+            return "Fallback"
+        case .webEnhanced:
+            return "Web"
+        }
+    }
 }
 
 enum UsageSourceMode: String, CaseIterable, Decodable, Encodable, Sendable {

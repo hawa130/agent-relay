@@ -210,7 +210,7 @@ struct MenuBarPresenter {
         var parts = [profile.agent.rawValue]
 
         if let usage {
-            parts.append(usage.source.rawValue)
+            parts.append(usage.source.displayName)
             if usage.stale {
                 parts.append("Stale")
             }
