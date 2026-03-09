@@ -9,92 +9,93 @@ public struct GeneralSettingsPaneView: View {
     }
 
     public var body: some View {
-        NativePaneScrollView {
-            VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
-                SettingsSurfaceCard("Behavior") {
-                    Toggle(
-                        "Enable automatic failover",
-                        isOn: Binding(
-                            get: { model.autoSwitchEnabled },
-                            set: { enabled in
-                                Task {
-                                    await model.setAutoSwitch(enabled: enabled)
-                                }
+        Form {
+            Section("Behavior") {
+                Toggle(
+                    "Enable automatic failover",
+                    isOn: Binding(
+                        get: { model.autoSwitchEnabled },
+                        set: { enabled in
+                            Task {
+                                await model.setAutoSwitch(enabled: enabled)
                             }
-                        )
-                    )
-
-                    LaunchAtLogin.Toggle("Launch at login")
-                }
-
-                SettingsSurfaceCard("Usage") {
-                    Picker(
-                        "Usage source",
-                        selection: Binding(
-                            get: { model.status?.settings.usageSourceMode ?? .auto },
-                            set: { mode in
-                                Task {
-                                    await model.setUsageSourceMode(mode)
-                                }
-                            }
-                        )
-                    ) {
-                        ForEach(UsageSourceMode.allCases, id: \.self) { mode in
-                            Text(mode.displayName).tag(mode)
                         }
-                    }
-
-                    Stepper(
-                        value: Binding(
-                            get: { model.status?.settings.menuOpenRefreshStaleAfterSeconds ?? 10 },
-                            set: { value in
-                                Task {
-                                    await model.setMenuOpenRefreshStaleAfterSeconds(value)
-                                }
-                            }
-                        ),
-                        in: 1...60
-                    ) {
-                        Text("Menu-open debounce: \(model.status?.settings.menuOpenRefreshStaleAfterSeconds ?? 10)s")
-                    }
-
-                    Toggle(
-                        "Background usage refresh",
-                        isOn: Binding(
-                            get: { model.status?.settings.usageBackgroundRefreshEnabled ?? true },
-                            set: { enabled in
-                                Task {
-                                    await model.setBackgroundRefreshEnabled(enabled)
-                                }
-                            }
-                        )
                     )
+                )
 
-                    Stepper(
-                        value: Binding(
-                            get: { model.status?.settings.usageBackgroundRefreshIntervalSeconds ?? 120 },
-                            set: { value in
-                                Task {
-                                    await model.setBackgroundRefreshIntervalSeconds(value)
-                                }
+                LaunchAtLogin.Toggle("Launch at login")
+            }
+
+            Section("Usage") {
+                Picker(
+                    "Usage source",
+                    selection: Binding(
+                        get: { model.status?.settings.usageSourceMode ?? .auto },
+                        set: { mode in
+                            Task {
+                                await model.setUsageSourceMode(mode)
                             }
-                        ),
-                        in: 30...3600,
-                        step: 30
-                    ) {
-                        Text("Background interval: \(model.status?.settings.usageBackgroundRefreshIntervalSeconds ?? 120)s")
+                        }
+                    )
+                ) {
+                    ForEach(UsageSourceMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
                     }
                 }
 
-                if let error = model.lastErrorMessage {
-                    SettingsSurfaceCard("Last Error") {
-                        Text(error)
-                            .foregroundStyle(.red)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                NativeStepperRow(
+                    title: "Menu-open debounce",
+                    valueText: "\((model.status?.settings.menuOpenRefreshStaleAfterSeconds ?? 10))s",
+                    value: Binding(
+                        get: { model.status?.settings.menuOpenRefreshStaleAfterSeconds ?? 10 },
+                        set: { value in
+                            Task {
+                                await model.setMenuOpenRefreshStaleAfterSeconds(value)
+                            }
+                        }
+                    ),
+                    range: 1...60
+                )
+
+                Toggle(
+                    "Background usage refresh",
+                    isOn: Binding(
+                        get: { model.status?.settings.usageBackgroundRefreshEnabled ?? true },
+                        set: { enabled in
+                            Task {
+                                await model.setBackgroundRefreshEnabled(enabled)
+                            }
+                        }
+                    )
+                )
+
+                NativeStepperRow(
+                    title: "Background interval",
+                    valueText: "\((model.status?.settings.usageBackgroundRefreshIntervalSeconds ?? 120))s",
+                    value: Binding(
+                        get: { model.status?.settings.usageBackgroundRefreshIntervalSeconds ?? 120 },
+                        set: { value in
+                            Task {
+                                await model.setBackgroundRefreshIntervalSeconds(value)
+                            }
+                        }
+                    ),
+                    range: 30...3600,
+                    step: 30
+                )
+            }
+
+            if let error = model.lastErrorMessage {
+                Section("Last Error") {
+                    Text(error)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(NativePreferencesTheme.Colors.paneBackground)
         .onAppear {
             SettingsPaneID.persistedSelection = .general
         }
@@ -125,15 +126,15 @@ public struct AboutSettingsPaneView: View {
     }
 
     public var body: some View {
-        NativePaneScrollView {
-            VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
-                SettingsSurfaceCard("Application") {
-                    NativeDetailRow(title: "Version", value: appVersion)
-                    NativeDetailRow(title: "Profiles", value: "\(model.profilesCount)")
-                    NativeDetailRow(title: "Platform", value: model.doctor?.platform ?? "-")
-                }
+        Form {
+            Section("Application") {
+                NativeDetailRow(title: "Version", value: appVersion)
+                NativeDetailRow(title: "Profiles", value: "\(model.profilesCount)")
             }
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .background(NativePreferencesTheme.Colors.paneBackground)
         .onAppear {
             SettingsPaneID.persistedSelection = .about
         }
@@ -217,6 +218,26 @@ struct NativeDetailRow: View {
             Text(value)
                 .font(NativePreferencesTheme.Typography.body)
                 .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+struct NativeStepperRow: View {
+    let title: String
+    let valueText: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    var step: Int = 1
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(title)
+            Spacer()
+            Text(valueText)
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+            Stepper("", value: $value, in: range, step: step)
+                .labelsHidden()
         }
     }
 }

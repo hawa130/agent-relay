@@ -419,7 +419,12 @@ private struct ProfileEditorSheet: View {
             Form {
                 Section("Identity") {
                     TextField("Nickname", text: $draft.nickname)
-                    Stepper("Priority: \(draft.priority)", value: $draft.priority, in: 0...10_000)
+                    NativeStepperRow(
+                        title: "Priority",
+                        valueText: "\(draft.priority)",
+                        value: $draft.priority,
+                        range: 0...10_000
+                    )
                     Picker("Auth Mode", selection: $draft.authMode) {
                         ForEach(AuthMode.allCases, id: \.self) { mode in
                             Text(mode.displayName).tag(mode)
@@ -488,7 +493,12 @@ private struct AddAccountSheet: View {
 
             Form {
                 Section("Profile") {
-                    Stepper("Priority: \(priority)", value: $priority, in: 0...10_000)
+                    NativeStepperRow(
+                        title: "Priority",
+                        valueText: "\(priority)",
+                        value: $priority,
+                        range: 0...10_000
+                    )
                 }
 
                 Section("Flow") {
