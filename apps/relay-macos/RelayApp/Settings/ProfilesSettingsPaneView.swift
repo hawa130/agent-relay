@@ -127,7 +127,7 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private func profileHero(_ profile: Profile) -> some View {
-        SettingsSurfaceCard("Profile") {
+        SettingsSurfaceCard(nil) {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 18) {
                     VStack(alignment: .leading, spacing: 4) {
