@@ -9,7 +9,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     }
 
     private let model: RelayAppModel
-    private let openSettings: () -> Void
+    private let openPreferencesPane: (SettingsPaneID) -> Void
     private let statusItem: NSStatusItem
     private let menu: NSMenu
     private var menuIsOpen = false
@@ -20,11 +20,11 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
 
     public init(
         model: RelayAppModel,
-        openSettings: @escaping () -> Void,
+        openPreferencesPane: @escaping (SettingsPaneID) -> Void,
         statusBar: NSStatusBar = .system
     ) {
         self.model = model
-        self.openSettings = openSettings
+        self.openPreferencesPane = openPreferencesPane
         self.statusItem = statusBar.statusItem(withLength: NSStatusItem.squareLength)
         self.menu = NSMenu()
         super.init()
@@ -119,7 +119,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
 
         addCurrentCard(to: menu)
         menu.addItem(.separator())
-        addProfilesMenu(to: menu)
+        addProfilesSection(to: menu)
         menu.addItem(.separator())
         addActionItems(to: menu)
     }
@@ -137,11 +137,18 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(item)
     }
 
-    private func addProfilesMenu(to menu: NSMenu) {
-        let item = NSMenuItem(title: "Profiles", action: nil, keyEquivalent: "")
-        item.image = menuSymbol("person.2")
-        item.submenu = profilesSubmenu()
-        menu.addItem(item)
+    private func addProfilesSection(to menu: NSMenu) {
+        menu.addItem(makeSectionHeader(title: "Profiles"))
+        menu.addItem(makeActionItem(
+            title: "Manage...",
+            systemImage: SettingsPaneID.profiles.symbol,
+            action: #selector(showProfiles)
+        ))
+
+        let switchItem = NSMenuItem(title: "Switch", action: nil, keyEquivalent: "")
+        switchItem.image = menuSymbol("arrow.left.arrow.right")
+        switchItem.submenu = profilesSubmenu()
+        menu.addItem(switchItem)
     }
 
     private func profilesSubmenu() -> NSMenu {
@@ -166,7 +173,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     private func addActionItems(to menu: NSMenu) {
         menu.addItem(makeActionItem(
             title: "Settings...",
-            systemImage: "gearshape",
+            systemImage: SettingsPaneID.settings.symbol,
             action: #selector(showSettings)
         ))
 
@@ -183,6 +190,19 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = self
         item.image = menuSymbol(systemImage)
+        return item
+    }
+
+    private func makeSectionHeader(title: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.attributedTitle = NSAttributedString(
+            string: title,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize - 1, weight: .semibold),
+                .foregroundColor: NSColor.secondaryLabelColor
+            ]
+        )
+        item.isEnabled = false
         return item
     }
 
@@ -329,7 +349,11 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func showSettings() {
-        openSettings()
+        openPreferencesPane(.settings)
+    }
+
+    @objc private func showProfiles() {
+        openPreferencesPane(.profiles)
     }
 
     @objc private func quitApp() {
