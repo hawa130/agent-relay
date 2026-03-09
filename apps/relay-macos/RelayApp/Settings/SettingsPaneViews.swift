@@ -11,18 +11,6 @@ public struct GeneralSettingsPaneView: View {
     public var body: some View {
         NativePaneScrollView {
             VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
-                paneHeader(
-                    title: "General",
-                    subtitle: "Relay environment, startup behavior, and usage refresh controls."
-                )
-
-                SettingsSurfaceCard("Relay") {
-                    NativeDetailRow(title: "CLI", value: ProcessInfo.processInfo.environment["RELAY_CLI_PATH"] ?? "Bundled relay")
-                    NativePathRow(title: "Relay Home", value: model.status?.relayHome ?? "-")
-                    NativePathRow(title: "Live Agent Home", value: model.status?.liveAgentHome ?? "-")
-                    NativeDetailRow(title: "Platform", value: model.doctor?.platform ?? "-")
-                }
-
                 SettingsSurfaceCard("Behavior") {
                     Toggle(
                         "Enable automatic failover",
@@ -139,28 +127,10 @@ public struct AboutSettingsPaneView: View {
     public var body: some View {
         NativePaneScrollView {
             VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
-                paneHeader(
-                    title: "About Relay",
-                    subtitle: "CLI-first local profile orchestration for coding agents."
-                )
-
                 SettingsSurfaceCard("Application") {
                     NativeDetailRow(title: "Version", value: appVersion)
-                    NativeDetailRow(title: "CLI Path", value: ProcessInfo.processInfo.environment["RELAY_CLI_PATH"] ?? "Bundled relay")
                     NativeDetailRow(title: "Profiles", value: "\(model.profilesCount)")
-                }
-
-                SettingsSurfaceCard("Runtime") {
-                    NativePathRow(title: "Relay Home", value: model.status?.relayHome ?? "-")
-                    NativePathRow(title: "Live Agent Home", value: model.status?.liveAgentHome ?? "-")
                     NativeDetailRow(title: "Platform", value: model.doctor?.platform ?? "-")
-                    NativeDetailRow(title: "Agent Binary", value: model.doctor?.agentBinary ?? "-")
-                }
-
-                SettingsSurfaceCard("Project") {
-                    Text("Relay keeps the CLI as the single execution layer. The macOS app is a control plane over stable JSON commands.")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -215,16 +185,6 @@ struct SettingsSurfaceCard<Content: View>: View {
     }
 }
 
-func paneHeader(title: String, subtitle: String) -> some View {
-    VStack(alignment: .leading, spacing: 6) {
-        Text(title)
-            .font(NativePreferencesTheme.Typography.paneTitle)
-        Text(subtitle)
-            .font(NativePreferencesTheme.Typography.paneSubtitle)
-            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-    }
-}
-
 struct NativePaneScrollView<Content: View>: View {
     let content: Content
 
@@ -256,24 +216,6 @@ struct NativeDetailRow: View {
 
             Text(value)
                 .font(NativePreferencesTheme.Typography.body)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-}
-
-struct NativePathRow: View {
-    let title: String
-    let value: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(NativePreferencesTheme.Typography.detail.weight(.medium))
-                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-
-            Text(value)
-                .font(NativePreferencesTheme.Typography.body)
-                .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }

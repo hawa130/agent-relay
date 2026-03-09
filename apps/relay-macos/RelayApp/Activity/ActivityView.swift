@@ -6,11 +6,6 @@ struct ActivityView: View {
     var body: some View {
         NativePaneScrollView {
             VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
-                paneHeader(
-                    title: "Activity",
-                    subtitle: "Inspect recent events, logs, and diagnostics exports."
-                )
-
                 SettingsSurfaceCard("Controls") {
                     HStack {
                         Button("Refresh") {
