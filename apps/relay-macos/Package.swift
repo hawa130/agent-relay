@@ -19,6 +19,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/sindresorhus/Defaults", from: "9.0.0"),
         .package(url: "https://github.com/sindresorhus/LaunchAtLogin-Modern", from: "1.1.0"),
+        .package(url: "https://github.com/sindresorhus/Settings", from: "3.1.2"),
     ],
     targets: [
         .target(
@@ -34,6 +35,8 @@ let package = Package(
             name: "RelayMacOS",
             dependencies: [
                 "RelayMacOSUI",
+                "Defaults",
+                "Settings",
             ],
             path: "RelayAppExecutable"
         ),
