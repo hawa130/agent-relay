@@ -169,9 +169,10 @@ fn profile_crud_and_auto_switch_commands_work() {
             "--json",
             "profiles",
             "add",
+            "codex",
             "--nickname",
             "alternate",
-            "--codex-home",
+            "--agent-home",
             alternate_home.to_string_lossy().as_ref(),
         ],
     );
@@ -236,7 +237,8 @@ fn import_switch_events_logs_and_diagnostics_work() {
         &[
             "--json",
             "profiles",
-            "import-codex",
+            "import",
+            "codex",
             "--nickname",
             "imported-live",
         ],
@@ -253,9 +255,10 @@ fn import_switch_events_logs_and_diagnostics_work() {
             "--json",
             "profiles",
             "add",
+            "codex",
             "--nickname",
             "alternate",
-            "--codex-home",
+            "--agent-home",
             alternate_home.to_string_lossy().as_ref(),
         ],
     );
@@ -340,7 +343,7 @@ fn import_codex_defaults_nickname_to_live_email() {
     let imported = run_json(
         &relay_home,
         &live_codex_home,
-        &["--json", "profiles", "import-codex"],
+        &["--json", "profiles", "import", "codex"],
     );
 
     assert_eq!(imported["data"]["nickname"], "imported@example.com");
@@ -358,7 +361,14 @@ fn usage_profile_list_refresh_and_config_work() {
     let imported = run_json(
         &relay_home,
         &live_codex_home,
-        &["--json", "profiles", "import-codex", "--nickname", "live"],
+        &[
+            "--json",
+            "profiles",
+            "import",
+            "codex",
+            "--nickname",
+            "live",
+        ],
     );
     let active_id = imported["data"]["id"]
         .as_str()
@@ -371,9 +381,10 @@ fn usage_profile_list_refresh_and_config_work() {
             "--json",
             "profiles",
             "add",
+            "codex",
             "--nickname",
             "alternate",
-            "--codex-home",
+            "--agent-home",
             alternate_home.to_string_lossy().as_ref(),
         ],
     );
@@ -464,7 +475,14 @@ fn codex_login_and_remote_usage_probe_work() {
     let logged_in = run_json_with_env(
         &relay_home,
         &live_codex_home,
-        &["--json", "profiles", "login-codex", "--nickname", "browser"],
+        &[
+            "--json",
+            "profiles",
+            "login",
+            "codex",
+            "--nickname",
+            "browser",
+        ],
         &envs,
     );
     let profile_id = logged_in["data"]["profile"]["id"]
@@ -494,7 +512,7 @@ fn codex_login_and_remote_usage_probe_work() {
     let relinked = run_json_with_env(
         &relay_home,
         &live_codex_home,
-        &["--json", "profiles", "relink-codex", &profile_id],
+        &["--json", "profiles", "relink", "codex", &profile_id],
         &envs,
     );
     assert_eq!(relinked["data"]["principal_id"], "acct-live");
@@ -514,7 +532,7 @@ fn json_input_mutations_and_stdin_work() {
     fs::write(
         &add_payload_path,
         format!(
-            "{{\"nickname\":\"json-added\",\"priority\":5,\"agent_home\":\"{}\",\"auth_mode\":\"ConfigFilesystem\"}}",
+            "{{\"agent\":\"codex\",\"nickname\":\"json-added\",\"priority\":5,\"agent_home\":\"{}\",\"auth_mode\":\"ConfigFilesystem\"}}",
             alternate_home.to_string_lossy()
         ),
     )
@@ -663,9 +681,10 @@ fn failed_add_does_not_persist_invalid_profile() {
             "--json",
             "profiles",
             "add",
+            "codex",
             "--nickname",
             "broken",
-            "--codex-home",
+            "--agent-home",
             invalid_home.to_string_lossy().as_ref(),
         ],
     );

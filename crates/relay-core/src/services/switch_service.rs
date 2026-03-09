@@ -1,4 +1,4 @@
-use crate::adapters::{AgentAdapter, CodexAdapter};
+use crate::adapters::AgentAdapter;
 use crate::models::{ActiveState, FailureReason, Profile, RelayError, SwitchOutcome, SwitchReport};
 use crate::platform::RelayPaths;
 use crate::store::{FileLogStore, FileStateStore, SqliteStore, SwitchHistoryRecord};
@@ -8,7 +8,7 @@ pub fn switch_to_profile(
     store: &SqliteStore,
     state_store: &FileStateStore,
     log_store: &FileLogStore,
-    adapter: &CodexAdapter,
+    adapter: &dyn AgentAdapter,
     paths: &RelayPaths,
     profile: &Profile,
 ) -> Result<SwitchReport, RelayError> {
@@ -104,7 +104,7 @@ pub fn switch_to_profile(
 }
 
 fn rollback_success_persistence(
-    adapter: &CodexAdapter,
+    adapter: &dyn AgentAdapter,
     paths: &RelayPaths,
     checkpoint_id: &str,
     previous_state: &ActiveState,
@@ -161,7 +161,7 @@ mod tests {
         let store = SqliteStore::new(&paths.db_path).expect("store");
         let state_store = FileStateStore::new(&paths.state_path);
         let log_store = FileLogStore::new(&paths.log_file);
-        let adapter = CodexAdapter::with_live_home(&live_home);
+        let adapter = crate::adapters::CodexAdapter::with_live_home(&live_home);
 
         let previous_state = ActiveState::default();
         state_store.save(&previous_state).expect("save state");

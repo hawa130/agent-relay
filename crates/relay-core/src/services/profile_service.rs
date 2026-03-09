@@ -1,5 +1,5 @@
-use crate::adapters::{AgentAdapter, CodexAdapter};
-use crate::models::{Profile, RelayError};
+use crate::adapters::AgentAdapter;
+use crate::models::{AgentKind, Profile, RelayError};
 use crate::platform::RelayPaths;
 use crate::services::codex_link_service;
 use crate::store::{AddProfileRecord, ProfileUpdateRecord, SqliteStore};
@@ -7,12 +7,12 @@ use chrono::Utc;
 
 pub fn add_profile(
     store: &SqliteStore,
-    adapter: &CodexAdapter,
+    adapter: &dyn AgentAdapter,
     record: AddProfileRecord,
 ) -> Result<Profile, RelayError> {
     validate_nickname(&record.nickname)?;
-    validate_source_inputs(record.config_path.as_ref(), record.codex_home.as_ref())?;
-    validate_source_paths(record.config_path.as_ref(), record.codex_home.as_ref())?;
+    validate_source_inputs(record.config_path.as_ref(), record.agent_home.as_ref())?;
+    validate_source_paths(record.config_path.as_ref(), record.agent_home.as_ref())?;
 
     let candidate = candidate_profile_from_add_record(&record);
     adapter.validate_profile(&candidate)?;
@@ -24,7 +24,7 @@ pub fn add_profile(
 
 pub fn edit_profile(
     store: &SqliteStore,
-    adapter: &CodexAdapter,
+    adapter: &dyn AgentAdapter,
     id: &str,
     update: ProfileUpdateRecord,
 ) -> Result<Profile, RelayError> {
@@ -45,7 +45,7 @@ pub fn edit_profile(
         priority: update.priority.unwrap_or(current.priority),
         enabled: current.enabled,
         agent_home: update
-            .codex_home
+            .agent_home
             .clone()
             .unwrap_or_else(|| current.agent_home.clone().map(Into::into))
             .map(|path| path.to_string_lossy().into_owned()),
@@ -117,7 +117,7 @@ pub fn set_profile_enabled(
 
 pub fn import_codex_profile(
     store: &SqliteStore,
-    adapter: &CodexAdapter,
+    adapter: &dyn AgentAdapter,
     paths: &RelayPaths,
     nickname: Option<String>,
     priority: i32,
@@ -130,6 +130,7 @@ pub fn import_codex_profile(
         codex_link_service::load_probe_identity_from_home("pending", adapter.live_home()).ok();
 
     let record = AddProfileRecord {
+        agent: AgentKind::Codex,
         nickname: nickname.unwrap_or_else(|| {
             live_identity
                 .as_ref()
@@ -138,7 +139,7 @@ pub fn import_codex_profile(
         }),
         priority,
         config_path: Some(snapshot_dir.join("config.toml")),
-        codex_home: Some(snapshot_dir),
+        agent_home: Some(snapshot_dir),
         auth_mode: crate::models::AuthMode::ConfigFilesystem,
     };
     let profile = add_profile(store, adapter, record)?;
@@ -164,9 +165,9 @@ fn validate_nickname(nickname: &str) -> Result<(), RelayError> {
 
 fn validate_source_inputs(
     config_path: Option<&std::path::PathBuf>,
-    codex_home: Option<&std::path::PathBuf>,
+    agent_home: Option<&std::path::PathBuf>,
 ) -> Result<(), RelayError> {
-    if config_path.is_none() && codex_home.is_none() {
+    if config_path.is_none() && agent_home.is_none() {
         return Err(RelayError::Validation(
             "profile must provide either config_path or agent_home".into(),
         ));
@@ -176,7 +177,7 @@ fn validate_source_inputs(
 
 fn validate_source_paths(
     config_path: Option<&std::path::PathBuf>,
-    codex_home: Option<&std::path::PathBuf>,
+    agent_home: Option<&std::path::PathBuf>,
 ) -> Result<(), RelayError> {
     if let Some(path) = config_path {
         if !path.exists() {
@@ -187,7 +188,7 @@ fn validate_source_paths(
         }
     }
 
-    if let Some(path) = codex_home {
+    if let Some(path) = agent_home {
         if !path.exists() {
             return Err(RelayError::Validation(format!(
                 "agent home does not exist: {}",
@@ -210,11 +211,11 @@ fn candidate_profile_from_add_record(record: &AddProfileRecord) -> Profile {
     Profile {
         id: "candidate".into(),
         nickname: record.nickname.clone(),
-        agent: crate::models::AgentKind::Codex,
+        agent: record.agent.clone(),
         priority: record.priority,
         enabled: true,
         agent_home: record
-            .codex_home
+            .agent_home
             .as_ref()
             .map(|path| path.to_string_lossy().into_owned()),
         config_path: record

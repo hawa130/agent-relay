@@ -1,13 +1,13 @@
 use crate::models::{
-    AppSettings, FailureEvent, FailureReason, ProbeProvider, Profile, ProfileProbeIdentity,
-    RelayError, SwitchHistoryEntry, SwitchOutcome, UsageSourceMode,
+    AgentKind, AppSettings, FailureEvent, FailureReason, ProbeProvider, Profile,
+    ProfileProbeIdentity, RelayError, SwitchHistoryEntry, SwitchOutcome, UsageSourceMode,
 };
 use chrono::{DateTime, Utc};
 use rusqlite::{Connection, OpenFlags, OptionalExtension, params};
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
-const CURRENT_SCHEMA_VERSION: i32 = 3;
+const CURRENT_SCHEMA_VERSION: i32 = 4;
 const SCHEMA_V1_SQL: &str = "
 CREATE TABLE IF NOT EXISTS profiles (
     id TEXT PRIMARY KEY,
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS profiles (
     agent TEXT NOT NULL,
     priority INTEGER NOT NULL,
     enabled INTEGER NOT NULL,
-    codex_home TEXT,
+    agent_home TEXT,
     config_path TEXT,
     auth_mode TEXT NOT NULL,
     metadata TEXT NOT NULL,
@@ -70,13 +70,66 @@ CREATE TABLE profile_probe_identities (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
 );";
+const SCHEMA_V4_SQL: &str = "
+DROP TABLE IF EXISTS switch_history;
+DROP TABLE IF EXISTS failure_events;
+DROP TABLE IF EXISTS app_settings;
+DROP TABLE IF EXISTS profile_probe_identities;
+DROP TABLE IF EXISTS profiles;
+CREATE TABLE profiles (
+    id TEXT PRIMARY KEY,
+    nickname TEXT NOT NULL,
+    agent TEXT NOT NULL,
+    priority INTEGER NOT NULL,
+    enabled INTEGER NOT NULL,
+    agent_home TEXT,
+    config_path TEXT,
+    auth_mode TEXT NOT NULL,
+    metadata TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE TABLE app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+CREATE TABLE switch_history (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT,
+    previous_profile_id TEXT,
+    outcome TEXT NOT NULL,
+    reason TEXT,
+    checkpoint_id TEXT,
+    rollback_performed INTEGER NOT NULL,
+    created_at TEXT NOT NULL,
+    details TEXT NOT NULL
+);
+CREATE TABLE failure_events (
+    id TEXT PRIMARY KEY,
+    profile_id TEXT,
+    reason TEXT NOT NULL,
+    message TEXT NOT NULL,
+    cooldown_until TEXT,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE profile_probe_identities (
+    profile_id TEXT PRIMARY KEY,
+    provider TEXT NOT NULL,
+    principal_id TEXT,
+    display_name TEXT,
+    credentials_json TEXT NOT NULL,
+    metadata_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);";
 
 #[derive(Debug, Clone)]
 pub struct AddProfileRecord {
+    pub agent: AgentKind,
     pub nickname: String,
     pub priority: i32,
     pub config_path: Option<PathBuf>,
-    pub codex_home: Option<PathBuf>,
+    pub agent_home: Option<PathBuf>,
     pub auth_mode: crate::models::AuthMode,
 }
 
@@ -85,7 +138,7 @@ pub struct ProfileUpdateRecord {
     pub nickname: Option<String>,
     pub priority: Option<i32>,
     pub config_path: Option<Option<PathBuf>>,
-    pub codex_home: Option<Option<PathBuf>>,
+    pub agent_home: Option<Option<PathBuf>>,
     pub auth_mode: Option<crate::models::AuthMode>,
 }
 
@@ -177,6 +230,15 @@ impl SqliteStore {
                 .execute_batch(SCHEMA_V3_SQL)
                 .map_err(|error| RelayError::Store(error.to_string()))?;
             transaction
+                .pragma_update(None, "user_version", 3)
+                .map_err(|error| RelayError::Store(error.to_string()))?;
+        }
+
+        if current_version < 4 {
+            transaction
+                .execute_batch(SCHEMA_V4_SQL)
+                .map_err(|error| RelayError::Store(error.to_string()))?;
+            transaction
                 .pragma_update(None, "user_version", CURRENT_SCHEMA_VERSION)
                 .map_err(|error| RelayError::Store(error.to_string()))?;
         }
@@ -240,6 +302,13 @@ impl SqliteStore {
     }
 
     fn row_to_profile(row: &rusqlite::Row<'_>) -> Result<Profile, rusqlite::Error> {
+        let agent = parse_agent_kind(row.get::<_, String>(2)?.as_str()).map_err(|error| {
+            rusqlite::Error::FromSqlConversionFailure(
+                2,
+                rusqlite::types::Type::Text,
+                Box::new(std::io::Error::other(error.to_string())),
+            )
+        })?;
         let auth_mode = parse_auth_mode(row.get::<_, String>(7)?.as_str());
         let metadata_text: String = row.get(8)?;
         let metadata: Value = serde_json::from_str(&metadata_text).unwrap_or(Value::Null);
@@ -247,7 +316,7 @@ impl SqliteStore {
         Ok(Profile {
             id: row.get(0)?,
             nickname: row.get(1)?,
-            agent: crate::models::AgentKind::Codex,
+            agent,
             priority: row.get(3)?,
             enabled: row.get::<_, i64>(4)? != 0,
             agent_home: row.get(5)?,
@@ -292,7 +361,7 @@ impl SqliteStore {
         let connection = self.open()?;
         let mut statement = connection
             .prepare(
-                "SELECT id, nickname, agent, priority, enabled, codex_home, config_path, auth_mode, metadata, created_at, updated_at
+                "SELECT id, nickname, agent, priority, enabled, agent_home, config_path, auth_mode, metadata, created_at, updated_at
                  FROM profiles
                  ORDER BY priority ASC, nickname ASC",
             )
@@ -321,7 +390,7 @@ impl SqliteStore {
         let connection = self.open()?;
         let mut statement = connection
             .prepare(
-                "SELECT id, nickname, agent, priority, enabled, codex_home, config_path, auth_mode, metadata, created_at, updated_at
+                "SELECT id, nickname, agent, priority, enabled, agent_home, config_path, auth_mode, metadata, created_at, updated_at
                  FROM profiles
                  WHERE id = ?1",
             )
@@ -350,13 +419,14 @@ impl SqliteStore {
         let connection = self.open()?;
         connection
             .execute(
-                "INSERT INTO profiles (id, nickname, agent, priority, enabled, codex_home, config_path, auth_mode, metadata, created_at, updated_at)
-                 VALUES (?1, ?2, 'codex', ?3, 1, ?4, ?5, ?6, ?7, ?8, ?9)",
+                "INSERT INTO profiles (id, nickname, agent, priority, enabled, agent_home, config_path, auth_mode, metadata, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, 1, ?5, ?6, ?7, ?8, ?9, ?10)",
                 params![
                     id,
                     record.nickname,
+                    stringify_agent_kind(&record.agent),
                     record.priority,
-                    record.codex_home.as_ref().map(|path| path_to_string(path)),
+                    record.agent_home.as_ref().map(|path| path_to_string(path)),
                     record.config_path.as_ref().map(|path| path_to_string(path)),
                     auth_mode,
                     metadata_text,
@@ -382,21 +452,21 @@ impl SqliteStore {
         let config_path = update
             .config_path
             .unwrap_or_else(|| current.config_path.map(PathBuf::from));
-        let codex_home = update
-            .codex_home
+        let agent_home = update
+            .agent_home
             .unwrap_or_else(|| current.agent_home.map(PathBuf::from));
         let auth_mode = update.auth_mode.unwrap_or(current.auth_mode);
 
         let affected = connection
             .execute(
                 "UPDATE profiles
-                 SET nickname = ?2, priority = ?3, codex_home = ?4, config_path = ?5, auth_mode = ?6, updated_at = ?7
+                 SET nickname = ?2, priority = ?3, agent_home = ?4, config_path = ?5, auth_mode = ?6, updated_at = ?7
                  WHERE id = ?1",
                 params![
                     id,
                     nickname,
                     priority,
-                    codex_home.as_ref().map(|path| path_to_string(path)),
+                    agent_home.as_ref().map(|path| path_to_string(path)),
                     config_path.as_ref().map(|path| path_to_string(path)),
                     stringify_auth_mode(&auth_mode),
                     updated_at,
@@ -917,6 +987,21 @@ fn parse_probe_provider(value: &str) -> Result<ProbeProvider, RelayError> {
     }
 }
 
+fn stringify_agent_kind(kind: &AgentKind) -> &'static str {
+    match kind {
+        AgentKind::Codex => "codex",
+    }
+}
+
+fn parse_agent_kind(value: &str) -> Result<AgentKind, RelayError> {
+    match value {
+        "codex" => Ok(AgentKind::Codex),
+        other => Err(RelayError::Validation(format!(
+            "unknown agent kind: {other}"
+        ))),
+    }
+}
+
 fn stringify_reason(reason: &FailureReason) -> &'static str {
     match reason {
         FailureReason::SessionExhausted => "session-exhausted",
@@ -992,10 +1077,11 @@ mod tests {
 
         let created = store
             .add_profile(AddProfileRecord {
+                agent: AgentKind::Codex,
                 nickname: "Work".into(),
                 priority: 10,
                 config_path: Some(temp.path().join("config.toml")),
-                codex_home: Some(temp.path().join(".codex-work")),
+                agent_home: Some(temp.path().join(".codex-work")),
                 auth_mode: crate::models::AuthMode::ConfigFilesystem,
             })
             .expect("profile");

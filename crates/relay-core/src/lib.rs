@@ -7,7 +7,8 @@ pub mod store;
 
 pub use app::BootstrapMode;
 pub use app::{
-    AddProfileRequest, CodexLoginRequest, EditProfileRequest, RelayApp, UsageSettingsUpdateRequest,
+    AddProfileRequest, AgentLoginRequest, EditProfileRequest, ImportProfileRequest, RelayApp,
+    UsageSettingsUpdateRequest,
 };
 pub use models::{
     ActiveState, AgentKind, AppSettings, AuthMode, CodexLinkResult, DiagnosticsExport,

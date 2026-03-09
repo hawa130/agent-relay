@@ -1,7 +1,8 @@
-use crate::adapters::CodexAdapter;
+use crate::adapters::AdapterRegistry;
 use crate::models::{
-    AppSettings, CodexLinkResult, DiagnosticsExport, DoctorReport, FailureEvent, LogTail, Profile,
-    ProfileProbeIdentity, RelayError, StatusReport, SwitchReport, UsageSnapshot, UsageSourceMode,
+    AgentKind, AppSettings, CodexLinkResult, DiagnosticsExport, DoctorReport, FailureEvent,
+    LogTail, Profile, ProfileProbeIdentity, RelayError, StatusReport, SwitchReport, UsageSnapshot,
+    UsageSourceMode,
 };
 use crate::platform::RelayPaths;
 use crate::services::{
@@ -23,6 +24,7 @@ pub enum BootstrapMode {
 
 #[derive(Debug, Clone)]
 pub struct AddProfileRequest {
+    pub agent: AgentKind,
     pub nickname: String,
     pub priority: i32,
     pub config_path: Option<PathBuf>,
@@ -45,12 +47,20 @@ pub struct RelayApp {
     state_store: FileStateStore,
     usage_store: FileUsageStore,
     log_store: FileLogStore,
-    codex_adapter: CodexAdapter,
+    adapters: AdapterRegistry,
     bootstrap_mode: BootstrapMode,
 }
 
 #[derive(Debug, Clone)]
-pub struct CodexLoginRequest {
+pub struct AgentLoginRequest {
+    pub agent: AgentKind,
+    pub nickname: Option<String>,
+    pub priority: i32,
+}
+
+#[derive(Debug, Clone)]
+pub struct ImportProfileRequest {
+    pub agent: AgentKind,
     pub nickname: Option<String>,
     pub priority: i32,
 }
@@ -85,7 +95,7 @@ impl RelayApp {
         let state_store = FileStateStore::new(&paths.state_path);
         let usage_store = FileUsageStore::new(&paths.usage_path);
         let log_store = FileLogStore::new(&paths.log_file);
-        let codex_adapter = CodexAdapter::new()?;
+        let adapters = AdapterRegistry::new()?;
 
         Ok(Self {
             paths,
@@ -93,7 +103,7 @@ impl RelayApp {
             state_store,
             usage_store,
             log_store,
-            codex_adapter,
+            adapters,
             bootstrap_mode,
         })
     }
@@ -110,7 +120,7 @@ impl RelayApp {
             &self.store,
             active_state,
             settings,
-            &self.codex_adapter,
+            self.adapters.primary(),
         )
     }
 
@@ -123,14 +133,16 @@ impl RelayApp {
     }
 
     pub fn add_profile(&self, request: AddProfileRequest) -> Result<Profile, RelayError> {
+        let adapter = self.adapters.adapter(&request.agent);
         let profile = profile_service::add_profile(
             &self.store,
-            &self.codex_adapter,
+            adapter,
             AddProfileRecord {
+                agent: request.agent,
                 nickname: request.nickname,
                 priority: request.priority,
                 config_path: request.config_path,
-                codex_home: request.agent_home,
+                agent_home: request.agent_home,
                 auth_mode: request.auth_mode,
             },
         )?;
@@ -144,15 +156,17 @@ impl RelayApp {
         id: &str,
         request: EditProfileRequest,
     ) -> Result<Profile, RelayError> {
+        let current = self.store.get_profile(id)?;
+        let adapter = self.adapters.adapter(&current.agent);
         let profile = profile_service::edit_profile(
             &self.store,
-            &self.codex_adapter,
+            adapter,
             id,
             ProfileUpdateRecord {
                 nickname: request.nickname,
                 priority: request.priority,
                 config_path: request.config_path,
-                codex_home: request.agent_home,
+                agent_home: request.agent_home,
                 auth_mode: request.auth_mode,
             },
         )?;
@@ -161,50 +175,62 @@ impl RelayApp {
         Ok(profile)
     }
 
-    pub fn import_codex_profile(
-        &self,
-        nickname: Option<String>,
-        priority: i32,
-    ) -> Result<Profile, RelayError> {
-        let profile = profile_service::import_codex_profile(
-            &self.store,
-            &self.codex_adapter,
-            &self.paths,
-            nickname,
-            priority,
-        )?;
+    pub fn import_profile(&self, request: ImportProfileRequest) -> Result<Profile, RelayError> {
+        let profile = match request.agent {
+            AgentKind::Codex => profile_service::import_codex_profile(
+                &self.store,
+                self.adapters.adapter(&AgentKind::Codex),
+                &self.paths,
+                request.nickname,
+                request.priority,
+            )?,
+        };
         self.log_store
             .append("info", "profile.imported", format!("id={}", profile.id))?;
         Ok(profile)
     }
 
-    pub fn login_codex_profile(
-        &self,
-        request: CodexLoginRequest,
-    ) -> Result<CodexLinkResult, RelayError> {
-        let result = codex_link_service::login_new_profile(
-            &self.store,
-            &self.codex_adapter,
-            &self.paths.profiles_dir,
-            request.nickname,
-            request.priority,
-        )?;
+    pub fn login_profile(&self, request: AgentLoginRequest) -> Result<CodexLinkResult, RelayError> {
+        let result = match request.agent {
+            AgentKind::Codex => codex_link_service::login_new_profile(
+                &self.store,
+                self.adapters.adapter(&AgentKind::Codex),
+                &self.paths.profiles_dir,
+                request.nickname,
+                request.priority,
+            )?,
+        };
         let _ = self.refresh_usage_profile(&result.profile.id);
         self.log_store.append(
             "info",
-            "profile.codex_logged_in",
+            "profile.logged_in",
             format!("id={}", result.profile.id),
         )?;
         Ok(result)
     }
 
-    pub fn relink_codex_profile(&self, id: &str) -> Result<ProfileProbeIdentity, RelayError> {
+    pub fn relink_profile(
+        &self,
+        agent: AgentKind,
+        id: &str,
+    ) -> Result<ProfileProbeIdentity, RelayError> {
         let profile = self.store.get_profile(id)?;
-        let identity =
-            codex_link_service::relink_profile(&self.store, &self.codex_adapter, &profile)?;
+        if profile.agent != agent {
+            return Err(RelayError::Conflict(format!(
+                "profile {} belongs to {:?}, not {:?}",
+                profile.id, profile.agent, agent
+            )));
+        }
+        let identity = match agent {
+            AgentKind::Codex => codex_link_service::relink_profile(
+                &self.store,
+                self.adapters.adapter(&agent),
+                &profile,
+            )?,
+        };
         let _ = self.refresh_usage_profile(id);
         self.log_store
-            .append("info", "profile.codex_relinked", format!("id={id}"))?;
+            .append("info", "profile.relinked", format!("id={id}"))?;
         Ok(identity)
     }
 
@@ -240,11 +266,12 @@ impl RelayApp {
 
     pub fn switch_to_profile(&self, id: &str) -> Result<SwitchReport, RelayError> {
         let profile = self.store.get_profile(id)?;
+        let adapter = self.adapters.adapter(&profile.agent);
         switch_service::switch_to_profile(
             &self.store,
             &self.state_store,
             &self.log_store,
-            &self.codex_adapter,
+            adapter,
             &self.paths,
             &profile,
         )
@@ -259,11 +286,12 @@ impl RelayApp {
             active_state.active_profile_id.as_deref(),
             &events,
         )?;
+        let adapter = self.adapters.adapter(&next.agent);
         switch_service::switch_to_profile(
             &self.store,
             &self.state_store,
             &self.log_store,
-            &self.codex_adapter,
+            adapter,
             &self.paths,
             &next,
         )
@@ -291,11 +319,15 @@ impl RelayApp {
             .as_deref()
             .map(|profile_id| self.store.get_profile(profile_id))
             .transpose()?;
+        let live_home = active_profile
+            .as_ref()
+            .map(|profile| self.adapters.adapter(&profile.agent).live_home())
+            .unwrap_or_else(|| self.adapters.primary().live_home());
         usage_service::build_active(
             &self.store,
             &self.usage_store,
             active_profile.as_ref(),
-            self.codex_adapter.live_home(),
+            live_home,
             settings.usage_source_mode,
             self.bootstrap_mode == BootstrapMode::ReadWrite,
         )
@@ -320,12 +352,13 @@ impl RelayApp {
             .map(|profile_id| self.store.get_profile(profile_id))
             .transpose()?;
         let profile = self.store.get_profile(id)?;
+        let adapter = self.adapters.adapter(&profile.agent);
         usage_service::refresh_profile(
             &self.store,
             &self.usage_store,
             Some(&profile),
             active_profile.as_ref(),
-            self.codex_adapter.live_home(),
+            adapter.live_home(),
             settings.usage_source_mode,
             self.bootstrap_mode == BootstrapMode::ReadWrite,
         )
@@ -375,12 +408,13 @@ impl RelayApp {
             .transpose()?;
         let mut snapshots = Vec::with_capacity(profiles.len());
         for profile in profiles {
+            let adapter = self.adapters.adapter(&profile.agent);
             snapshots.push(usage_service::refresh_profile(
                 &self.store,
                 &self.usage_store,
                 Some(profile),
                 active_profile.as_ref(),
-                self.codex_adapter.live_home(),
+                adapter.live_home(),
                 settings.usage_source_mode.clone(),
                 self.bootstrap_mode == BootstrapMode::ReadWrite,
             )?);

@@ -10,7 +10,49 @@ const OPTIONAL_MANAGED_FILES: [&str; 2] = ["auth.json", "version.json"];
 
 pub trait AgentAdapter {
     fn kind(&self) -> AgentKind;
+    fn binary_name(&self) -> &'static str;
+    fn default_home(&self) -> Option<PathBuf>;
+    fn live_home(&self) -> &Path;
+    fn managed_files(&self) -> Vec<String>;
     fn validate_profile(&self, profile: &Profile) -> Result<(), RelayError>;
+    fn import_live_profile(&self, destination: &Path) -> Result<Vec<String>, RelayError>;
+    fn activate(
+        &self,
+        profile: &Profile,
+        snapshot_root: &Path,
+    ) -> Result<SwitchCheckpoint, RelayError>;
+    fn rollback_checkpoint(
+        &self,
+        snapshot_root: &Path,
+        checkpoint_id: &str,
+    ) -> Result<(), RelayError>;
+}
+
+#[derive(Debug, Clone)]
+pub struct AdapterRegistry {
+    codex: CodexAdapter,
+}
+
+impl AdapterRegistry {
+    pub fn new() -> Result<Self, RelayError> {
+        Ok(Self {
+            codex: CodexAdapter::new()?,
+        })
+    }
+
+    pub fn primary_kind(&self) -> AgentKind {
+        AgentKind::Codex
+    }
+
+    pub fn primary(&self) -> &dyn AgentAdapter {
+        &self.codex
+    }
+
+    pub fn adapter(&self, kind: &AgentKind) -> &dyn AgentAdapter {
+        match kind {
+            AgentKind::Codex => &self.codex,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -248,6 +290,22 @@ impl AgentAdapter for CodexAdapter {
         AgentKind::Codex
     }
 
+    fn binary_name(&self) -> &'static str {
+        "codex"
+    }
+
+    fn default_home(&self) -> Option<PathBuf> {
+        crate::platform::default_codex_home()
+    }
+
+    fn live_home(&self) -> &Path {
+        &self.live_home
+    }
+
+    fn managed_files(&self) -> Vec<String> {
+        Self::managed_files()
+    }
+
     fn validate_profile(&self, profile: &Profile) -> Result<(), RelayError> {
         let sources = self.resolve_sources(profile)?;
         if !sources.config.exists() {
@@ -266,6 +324,26 @@ impl AgentAdapter for CodexAdapter {
             }
         }
         Ok(())
+    }
+
+    fn import_live_profile(&self, destination: &Path) -> Result<Vec<String>, RelayError> {
+        CodexAdapter::import_live_profile(self, destination)
+    }
+
+    fn activate(
+        &self,
+        profile: &Profile,
+        snapshot_root: &Path,
+    ) -> Result<SwitchCheckpoint, RelayError> {
+        CodexAdapter::activate(self, profile, snapshot_root)
+    }
+
+    fn rollback_checkpoint(
+        &self,
+        snapshot_root: &Path,
+        checkpoint_id: &str,
+    ) -> Result<(), RelayError> {
+        CodexAdapter::rollback_checkpoint(self, snapshot_root, checkpoint_id)
     }
 }
 

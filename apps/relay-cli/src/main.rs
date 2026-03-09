@@ -1,8 +1,8 @@
 use clap::{Args, Parser, Subcommand};
 use relay_core::models::JsonResponse;
 use relay_core::{
-    AddProfileRequest, AuthMode, BootstrapMode, CodexLoginRequest, EditProfileRequest, RelayApp,
-    RelayError, UsageSettingsUpdateRequest, UsageSourceMode,
+    AddProfileRequest, AgentKind, AgentLoginRequest, AuthMode, BootstrapMode, EditProfileRequest,
+    ImportProfileRequest, RelayApp, RelayError, UsageSettingsUpdateRequest, UsageSourceMode,
 };
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -51,13 +51,14 @@ enum ProfilesSubcommand {
     Remove(ProfileIdArgs),
     Enable(ProfileIdArgs),
     Disable(ProfileIdArgs),
-    ImportCodex(ImportCodexArgs),
-    LoginCodex(LoginCodexArgs),
-    RelinkCodex(ProfileIdArgs),
+    Import(ImportProfileArgs),
+    Login(LoginProfileArgs),
+    Relink(AgentProfileIdArgs),
 }
 
 #[derive(Debug, Args)]
 struct AddProfileArgs {
+    agent: Option<String>,
     #[arg(long)]
     nickname: Option<String>,
     #[arg(long)]
@@ -65,7 +66,7 @@ struct AddProfileArgs {
     #[arg(long)]
     config_path: Option<PathBuf>,
     #[arg(long)]
-    codex_home: Option<PathBuf>,
+    agent_home: Option<PathBuf>,
     #[arg(long)]
     auth_mode: Option<String>,
     #[arg(long)]
@@ -74,6 +75,14 @@ struct AddProfileArgs {
 
 #[derive(Debug, Args)]
 struct ProfileIdArgs {
+    id: Option<String>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct AgentProfileIdArgs {
+    agent: Option<String>,
     id: Option<String>,
     #[arg(long)]
     input_json: Option<PathBuf>,
@@ -191,7 +200,8 @@ enum DiagnosticsSubcommand {
 }
 
 #[derive(Debug, Args)]
-struct ImportCodexArgs {
+struct ImportProfileArgs {
+    agent: Option<String>,
     #[arg(long)]
     nickname: Option<String>,
     #[arg(long)]
@@ -201,7 +211,8 @@ struct ImportCodexArgs {
 }
 
 #[derive(Debug, Args)]
-struct LoginCodexArgs {
+struct LoginProfileArgs {
+    agent: Option<String>,
     #[arg(long)]
     nickname: Option<String>,
     #[arg(long)]
@@ -222,9 +233,9 @@ struct EditProfileArgs {
     #[arg(long)]
     clear_config_path: bool,
     #[arg(long)]
-    codex_home: Option<PathBuf>,
+    agent_home: Option<PathBuf>,
     #[arg(long)]
-    clear_codex_home: bool,
+    clear_agent_home: bool,
     #[arg(long)]
     auth_mode: Option<String>,
     #[arg(long)]
@@ -417,30 +428,30 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 app.set_profile_enabled(&profile_id_from_args(args)?, false)?,
                 cli.json,
             )),
-            ProfilesSubcommand::ImportCodex(args) => {
-                let payload = import_codex_input_from_args(args)?;
+            ProfilesSubcommand::Import(args) => {
+                let payload = import_profile_request_from_args(args)?;
                 Ok(Output::success(
-                    "codex profile imported",
-                    app.import_codex_profile(payload.nickname, payload.priority)?,
+                    "profile imported",
+                    app.import_profile(payload)?,
                     cli.json,
                 ))
             }
-            ProfilesSubcommand::LoginCodex(args) => {
-                let payload = login_codex_input_from_args(args)?;
+            ProfilesSubcommand::Login(args) => {
+                let payload = login_profile_request_from_args(args)?;
                 Ok(Output::success(
-                    "codex login profile created",
-                    app.login_codex_profile(CodexLoginRequest {
-                        nickname: payload.nickname,
-                        priority: payload.priority,
-                    })?,
+                    "profile login created",
+                    app.login_profile(payload)?,
                     cli.json,
                 ))
             }
-            ProfilesSubcommand::RelinkCodex(args) => Ok(Output::success(
-                "codex profile relinked",
-                app.relink_codex_profile(&profile_id_from_args(args)?)?,
-                cli.json,
-            )),
+            ProfilesSubcommand::Relink(args) => {
+                let (agent, id) = agent_profile_id_from_args(args)?;
+                Ok(Output::success(
+                    "profile relinked",
+                    app.relink_profile(agent, &id)?,
+                    cli.json,
+                ))
+            }
         },
         Commands::Switch(command) => {
             let target = switch_target_from_args(command)?;
@@ -523,20 +534,31 @@ fn parse_auth_mode(value: &str) -> Result<AuthMode, RelayError> {
     }
 }
 
+fn parse_agent_kind(value: &str) -> Result<AgentKind, RelayError> {
+    match value {
+        "codex" | "Codex" => Ok(AgentKind::Codex),
+        other => Err(RelayError::InvalidInput(format!(
+            "unsupported agent: {other}"
+        ))),
+    }
+}
+
 fn add_profile_request_from_args(args: AddProfileArgs) -> Result<AddProfileRequest, RelayError> {
     if let Some(input_json) = args.input_json.as_ref() {
         ensure_json_input_is_exclusive(
             input_json,
             &[
+                args.agent.is_some(),
                 args.nickname.is_some(),
                 args.priority.is_some(),
                 args.config_path.is_some(),
-                args.codex_home.is_some(),
+                args.agent_home.is_some(),
                 args.auth_mode.is_some(),
             ],
         )?;
         let payload: AddProfileInput = read_json_input(input_json)?;
         return Ok(AddProfileRequest {
+            agent: payload.agent,
             nickname: payload.nickname,
             priority: payload.priority,
             config_path: payload.config_path,
@@ -546,10 +568,11 @@ fn add_profile_request_from_args(args: AddProfileArgs) -> Result<AddProfileReque
     }
 
     Ok(AddProfileRequest {
+        agent: parse_agent_kind(&require_field(args.agent, "agent is required")?)?,
         nickname: require_field(args.nickname, "profile nickname is required")?,
         priority: args.priority.unwrap_or(100),
         config_path: args.config_path,
-        agent_home: args.codex_home,
+        agent_home: args.agent_home,
         auth_mode: args
             .auth_mode
             .as_deref()
@@ -571,8 +594,8 @@ fn edit_profile_request_from_args(
                 args.priority.is_some(),
                 args.config_path.is_some(),
                 args.clear_config_path,
-                args.codex_home.is_some(),
-                args.clear_codex_home,
+                args.agent_home.is_some(),
+                args.clear_agent_home,
                 args.auth_mode.is_some(),
             ],
         )?;
@@ -600,44 +623,81 @@ fn edit_profile_request_from_args(
             } else {
                 args.config_path.map(Some)
             },
-            agent_home: if args.clear_codex_home {
+            agent_home: if args.clear_agent_home {
                 Some(None)
             } else {
-                args.codex_home.map(Some)
+                args.agent_home.map(Some)
             },
             auth_mode,
         },
     ))
 }
 
-fn import_codex_input_from_args(args: ImportCodexArgs) -> Result<ImportCodexInput, RelayError> {
+fn import_profile_request_from_args(
+    args: ImportProfileArgs,
+) -> Result<ImportProfileRequest, RelayError> {
     if let Some(input_json) = args.input_json.as_ref() {
         ensure_json_input_is_exclusive(
             input_json,
-            &[args.nickname.is_some(), args.priority.is_some()],
+            &[
+                args.agent.is_some(),
+                args.nickname.is_some(),
+                args.priority.is_some(),
+            ],
         )?;
-        return read_json_input(input_json);
+        let payload: ImportProfileInput = read_json_input(input_json)?;
+        return Ok(ImportProfileRequest {
+            agent: payload.agent,
+            nickname: payload.nickname,
+            priority: payload.priority,
+        });
     }
 
-    Ok(ImportCodexInput {
+    Ok(ImportProfileRequest {
+        agent: parse_agent_kind(&require_field(args.agent, "agent is required")?)?,
         nickname: args.nickname,
         priority: args.priority.unwrap_or(100),
     })
 }
 
-fn login_codex_input_from_args(args: LoginCodexArgs) -> Result<LoginCodexInput, RelayError> {
+fn login_profile_request_from_args(
+    args: LoginProfileArgs,
+) -> Result<AgentLoginRequest, RelayError> {
     if let Some(input_json) = args.input_json.as_ref() {
         ensure_json_input_is_exclusive(
             input_json,
-            &[args.nickname.is_some(), args.priority.is_some()],
+            &[
+                args.agent.is_some(),
+                args.nickname.is_some(),
+                args.priority.is_some(),
+            ],
         )?;
-        return read_json_input(input_json);
+        let payload: LoginProfileInput = read_json_input(input_json)?;
+        return Ok(AgentLoginRequest {
+            agent: payload.agent,
+            nickname: payload.nickname,
+            priority: payload.priority,
+        });
     }
 
-    Ok(LoginCodexInput {
+    Ok(AgentLoginRequest {
+        agent: parse_agent_kind(&require_field(args.agent, "agent is required")?)?,
         nickname: args.nickname,
         priority: args.priority.unwrap_or(100),
     })
+}
+
+fn agent_profile_id_from_args(args: AgentProfileIdArgs) -> Result<(AgentKind, String), RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(input_json, &[args.agent.is_some(), args.id.is_some()])?;
+        let payload: AgentProfileIdInput = read_json_input(input_json)?;
+        return Ok((payload.agent, payload.id));
+    }
+
+    Ok((
+        parse_agent_kind(&require_field(args.agent, "agent is required")?)?,
+        require_field(args.id, "profile id is required")?,
+    ))
 }
 
 fn profile_id_from_args(args: ProfileIdArgs) -> Result<String, RelayError> {
@@ -821,11 +881,12 @@ fn default_auth_mode() -> AuthMode {
 
 #[derive(Debug, Deserialize)]
 struct AddProfileInput {
+    #[serde(deserialize_with = "deserialize_agent_kind")]
+    agent: AgentKind,
     nickname: String,
     #[serde(default = "default_priority")]
     priority: i32,
     config_path: Option<PathBuf>,
-    #[serde(alias = "codex_home")]
     agent_home: Option<PathBuf>,
     #[serde(default = "default_auth_mode")]
     auth_mode: AuthMode,
@@ -837,7 +898,6 @@ struct EditProfileInput {
     nickname: Option<String>,
     priority: Option<i32>,
     config_path: Option<Option<PathBuf>>,
-    #[serde(alias = "codex_home")]
     agent_home: Option<Option<PathBuf>>,
     auth_mode: Option<AuthMode>,
 }
@@ -876,7 +936,16 @@ struct UsageConfigSetInput {
 }
 
 #[derive(Debug, Deserialize)]
-struct LoginCodexInput {
+struct AgentProfileIdInput {
+    #[serde(deserialize_with = "deserialize_agent_kind")]
+    agent: AgentKind,
+    id: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct LoginProfileInput {
+    #[serde(deserialize_with = "deserialize_agent_kind")]
+    agent: AgentKind,
     nickname: Option<String>,
     #[serde(default = "default_priority")]
     priority: i32,
@@ -896,8 +965,18 @@ where
         .map_err(serde::de::Error::custom)
 }
 
+fn deserialize_agent_kind<'de, D>(deserializer: D) -> Result<AgentKind, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    parse_agent_kind(&value).map_err(serde::de::Error::custom)
+}
+
 #[derive(Debug, Deserialize)]
-struct ImportCodexInput {
+struct ImportProfileInput {
+    #[serde(deserialize_with = "deserialize_agent_kind")]
+    agent: AgentKind,
     nickname: Option<String>,
     #[serde(default = "default_priority")]
     priority: i32,
