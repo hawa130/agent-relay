@@ -260,16 +260,16 @@ public final class RelayAppModel: ObservableObject {
         }
     }
 
-    func importCodexProfile(nickname: String?, priority: Int) async {
+    func importProfile(agent: AgentKind, nickname: String?, priority: Int) async {
         await performProfileMutation { [self] in
-            let profile = try await self.client.importCodexProfile(nickname: nickname, priority: priority)
+            let profile = try await self.client.importProfile(agent: agent, nickname: nickname, priority: priority)
             await MainActor.run {
                 self.selectProfile(profile.id)
             }
         }
     }
 
-    func loginCodexProfile(nickname: String?, priority: Int) async {
+    func loginProfile(agent: AgentKind, nickname: String?, priority: Int) async {
         guard !isMutatingProfiles else {
             return
         }
@@ -280,7 +280,7 @@ public final class RelayAppModel: ObservableObject {
         }
 
         do {
-            let result = try await client.loginCodexProfile(nickname: nickname, priority: priority)
+            let result = try await client.loginProfile(agent: agent, nickname: nickname, priority: priority)
             selectProfile(result.profile.id)
             await refresh()
             lastErrorMessage = nil
@@ -293,8 +293,8 @@ public final class RelayAppModel: ObservableObject {
         }
     }
 
-    func addCodexAccount(priority: Int) async {
-        await loginCodexProfile(nickname: nil, priority: priority)
+    func addAccount(agent: AgentKind, priority: Int) async {
+        await loginProfile(agent: agent, nickname: nil, priority: priority)
     }
 
     func exportDiagnostics() async {

@@ -27,7 +27,7 @@ public struct SettingsView: View {
             AddAccountSheet(
                 isBusy: model.isMutatingProfiles,
                 onContinue: { priority in
-                    await model.addCodexAccount(priority: priority)
+                    await model.addAccount(agent: .codex, priority: priority)
                 }
             )
         }
@@ -195,7 +195,7 @@ public struct SettingsView: View {
 
                 Button("Import Current Live") {
                     Task {
-                        await model.importCodexProfile(nickname: nil, priority: 100)
+                        await model.importProfile(agent: .codex, nickname: nil, priority: 100)
                     }
                 }
                 .disabled(model.isMutatingProfiles)
