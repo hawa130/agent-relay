@@ -46,6 +46,61 @@ struct UsageBadge: View {
     }
 }
 
+extension UsageSnapshot {
+    var ringProgressItems: [RingProgressItem] {
+        [
+            RingProgressItem(
+                id: "weekly",
+                label: "Weekly",
+                shortLabel: "W",
+                progress: weekly.ringProgress,
+                tone: weekly.status.ringTone,
+                isDimmed: stale,
+                valueText: weekly.ringValueText,
+                detailText: weekly.resetBadgeText
+            ),
+            RingProgressItem(
+                id: "session",
+                label: "Session",
+                shortLabel: "S",
+                progress: session.ringProgress,
+                tone: session.status.ringTone,
+                isDimmed: stale,
+                valueText: session.ringValueText,
+                detailText: session.resetBadgeText
+            ),
+        ]
+    }
+}
+
+extension UsageWindow {
+    var ringProgress: Double {
+        if let usedPercent {
+            return min(max(usedPercent, 0), 100) / 100
+        }
+
+        return status == .exhausted ? 1 : 0
+    }
+
+    var ringValueText: String {
+        if let usedPercent {
+            return String(format: "%.0f%%", usedPercent)
+        }
+
+        return status.shortLabel
+    }
+
+    var resetBadgeText: String? {
+        guard let resetAt else {
+            return nil
+        }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return "Resets \(formatter.localizedString(for: resetAt, relativeTo: Date()))"
+    }
+}
+
 extension UsageStatus {
     var shortLabel: String {
         switch self {
@@ -57,6 +112,19 @@ extension UsageStatus {
             return "Full"
         case .unknown:
             return "?"
+        }
+    }
+
+    var ringTone: RingProgressTone {
+        switch self {
+        case .healthy:
+            return .positive
+        case .warning:
+            return .warning
+        case .exhausted:
+            return .critical
+        case .unknown:
+            return .neutral
         }
     }
 }
