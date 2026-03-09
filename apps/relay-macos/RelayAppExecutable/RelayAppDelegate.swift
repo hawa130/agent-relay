@@ -45,8 +45,8 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
         model.start()
         statusItemController = RelayStatusItemController(
             model: model,
-            openSettings: { [weak self] in
-                self?.openSettingsWindow()
+            openPreferencesPane: { [weak self] pane in
+                self?.openSettingsWindow(pane: pane)
             }
         )
     }
@@ -56,11 +56,22 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
-    private func openSettingsWindow() {
+    private func openSettingsWindow(pane: SettingsPaneID) {
         NSApp.activate(ignoringOtherApps: true)
-        settingsWindowController.show(pane: .relayProfiles)
+        switch pane {
+        case .profiles:
+            settingsWindowController.show(pane: .relayProfiles)
+        case .settings:
+            settingsWindowController.show(pane: .relaySettings)
+        }
+
         Task { [weak self] in
-            await self?.profilesPaneModel.refreshIfStale()
+            switch pane {
+            case .profiles:
+                await self?.profilesPaneModel.refreshIfStale()
+            case .settings:
+                await self?.settingsPaneModel.refreshIfStale()
+            }
         }
     }
 
