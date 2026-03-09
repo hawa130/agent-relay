@@ -91,7 +91,7 @@ struct RelayCLIClient {
 
     func importProfile(agent: AgentKind, nickname: String?, priority: Int) async throws -> Profile {
         try await run(
-            ["profiles", "import", agent.cliArgument, "--input-json", "-"],
+            ["profiles", "import", "--input-json", "-"],
             input: ImportProfilePayload(agent: agent.cliArgument, nickname: nickname, priority: priority),
             as: Profile.self
         )
@@ -99,7 +99,7 @@ struct RelayCLIClient {
 
     func loginProfile(agent: AgentKind, nickname: String?, priority: Int) async throws -> AgentLinkResult {
         try await run(
-            ["profiles", "login", agent.cliArgument, "--input-json", "-"],
+            ["profiles", "login", "--input-json", "-"],
             input: LoginProfilePayload(agent: agent.cliArgument, nickname: nickname, priority: priority),
             as: AgentLinkResult.self
         )
@@ -111,6 +111,10 @@ struct RelayCLIClient {
             input: SwitchPayload(target: profileId),
             as: SwitchReport.self
         )
+    }
+
+    func switchToNextProfile() async throws -> SwitchReport {
+        try await run(["switch", "next"], as: SwitchReport.self)
     }
 
     func setAutoSwitch(enabled: Bool) async throws -> AppSettings {
