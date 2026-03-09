@@ -97,11 +97,11 @@ struct RelayCLIClient {
         )
     }
 
-    func loginCodexProfile(nickname: String?, priority: Int) async throws -> CodexLinkResult {
+    func loginCodexProfile(nickname: String?, priority: Int) async throws -> AgentLinkResult {
         try await run(
             ["profiles", "login", "--input-json", "-"],
             input: LoginProfilePayload(nickname: nickname, priority: priority),
-            as: CodexLinkResult.self
+            as: AgentLinkResult.self
         )
     }
 

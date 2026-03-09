@@ -11,7 +11,7 @@ pub use app::{
     UsageSettingsUpdateRequest,
 };
 pub use models::{
-    ActiveState, AgentKind, AppSettings, AuthMode, CodexLinkResult, DiagnosticsExport,
+    ActiveState, AgentKind, AgentLinkResult, AppSettings, AuthMode, DiagnosticsExport,
     DoctorReport, ErrorCode, FailureEvent, FailureReason, JsonResponse, LogTail, ProbeProvider,
     Profile, ProfileProbeIdentity, RelayError, StatusReport, SwitchCheckpoint, SwitchHistoryEntry,
     SwitchOutcome, SwitchReport, UsageCache, UsageConfidence, UsageSnapshot, UsageSource,

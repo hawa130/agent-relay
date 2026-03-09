@@ -1,4 +1,4 @@
-mod codex_link;
+mod agent_link;
 mod diagnostics;
 mod doctor;
 mod errors;
@@ -11,7 +11,7 @@ mod state;
 mod switch;
 mod usage;
 
-pub use codex_link::CodexLinkResult;
+pub use agent_link::AgentLinkResult;
 pub use diagnostics::{DiagnosticsExport, LogTail};
 pub use doctor::DoctorReport;
 pub use errors::{ErrorCode, RelayError};

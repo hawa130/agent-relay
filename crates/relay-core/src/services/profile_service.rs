@@ -1,7 +1,6 @@
 use crate::adapters::AgentAdapter;
-use crate::models::{AgentKind, Profile, RelayError};
-use crate::platform::RelayPaths;
-use crate::services::codex_link_service;
+use crate::models::Profile;
+use crate::models::RelayError;
 use crate::store::{AddProfileRecord, ProfileUpdateRecord, SqliteStore};
 use chrono::Utc;
 
@@ -113,45 +112,6 @@ pub fn set_profile_enabled(
         ));
     }
     store.set_enabled(id, enabled)
-}
-
-pub fn import_codex_profile(
-    store: &SqliteStore,
-    adapter: &dyn AgentAdapter,
-    paths: &RelayPaths,
-    nickname: Option<String>,
-    priority: i32,
-) -> Result<Profile, RelayError> {
-    let snapshot_dir = paths
-        .profiles_dir
-        .join(format!("imported_{}", Utc::now().timestamp_millis()));
-    adapter.import_live_profile(&snapshot_dir)?;
-    let live_identity =
-        codex_link_service::load_probe_identity_from_home("pending", adapter.live_home()).ok();
-
-    let record = AddProfileRecord {
-        agent: AgentKind::Codex,
-        nickname: nickname.unwrap_or_else(|| {
-            live_identity
-                .as_ref()
-                .and_then(|identity| identity.email().map(ToOwned::to_owned))
-                .unwrap_or_else(|| format!("Imported Codex {}", Utc::now().format("%Y%m%d-%H%M%S")))
-        }),
-        priority,
-        config_path: Some(snapshot_dir.join("config.toml")),
-        agent_home: Some(snapshot_dir),
-        auth_mode: crate::models::AuthMode::ConfigFilesystem,
-    };
-    let profile = add_profile(store, adapter, record)?;
-
-    if let Some(identity) = live_identity {
-        let _ = store.upsert_probe_identity(&crate::models::ProfileProbeIdentity {
-            profile_id: profile.id.clone(),
-            ..identity
-        });
-    }
-
-    Ok(profile)
 }
 
 fn validate_nickname(nickname: &str) -> Result<(), RelayError> {
