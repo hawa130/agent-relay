@@ -61,7 +61,7 @@ These items capture the current gaps against the latest Relay product/function g
 - [x] Implement `relay profiles remove`.
 - [x] Implement `relay profiles enable`.
 - [x] Implement `relay profiles disable`.
-- [x] Implement `relay profiles import-codex`.
+- [x] Implement `relay profiles import`.
 - [x] Add profile edit/update command.
 - [x] Add richer profile validation rules for Codex config directories.
 - [x] Add integration tests that exercise the CLI end to end.
