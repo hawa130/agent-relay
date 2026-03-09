@@ -267,9 +267,11 @@ impl RelayApp {
     pub fn switch_next_profile(&self) -> Result<SwitchReport, RelayError> {
         let active_state = self.state_store.load()?;
         let profiles = self.store.list_enabled_profiles()?;
+        let usage_snapshots = self.usage_store.load_all()?;
         let events = self.store.list_failure_events(100)?;
         let next = policy_service::select_next_profile(
             &profiles,
+            &usage_snapshots,
             active_state.active_profile_id.as_deref(),
             &events,
         )?;

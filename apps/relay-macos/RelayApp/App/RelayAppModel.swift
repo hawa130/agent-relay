@@ -15,12 +15,14 @@ public final class RelayAppModel: ObservableObject {
     @Published private(set) var lastRefresh: Date?
     @Published private(set) var isRefreshing = false
     @Published private(set) var isSwitching = false
+    @Published private(set) var isAutoSwitching = false
     @Published private(set) var isMutatingProfiles = false
     @Published var selectedProfileId: String?
     @Published var lastErrorMessage: String?
     private let client = RelayCLIClient()
     private let notificationService = RelayNotificationService()
     private var pollTask: Task<Void, Never>?
+    private var lastAutoSwitchConflictSignature: String?
 
     public init() {
         selectedProfileId = Defaults[.selectedProfileId]
@@ -115,6 +117,7 @@ public final class RelayAppModel: ObservableObject {
             events = try await eventsTask
             logTail = try await logsTask
             normalizeSelection()
+            resetAutoSwitchConflictSuppressionIfNeeded()
             lastRefresh = Date()
             lastErrorMessage = nil
         } catch {
@@ -229,6 +232,7 @@ public final class RelayAppModel: ObservableObject {
                 mergeUsageSnapshot(snapshot)
             }
             await refresh()
+            await attemptAutoSwitchIfNeeded()
         } catch {
             lastErrorMessage = error.localizedDescription
         }
@@ -390,6 +394,99 @@ public final class RelayAppModel: ObservableObject {
         if snapshot.profileId == activeProfileId {
             usage = snapshot
         }
+    }
+
+    private func attemptAutoSwitchIfNeeded() async {
+        guard autoSwitchEnabled else {
+            lastAutoSwitchConflictSignature = nil
+            return
+        }
+        guard !isSwitching, !isAutoSwitching else {
+            return
+        }
+        guard let activeProfileId else {
+            lastAutoSwitchConflictSignature = nil
+            return
+        }
+        guard let activeSnapshot = usageSnapshot(for: activeProfileId), activeSnapshot.canAutoSwitch else {
+            lastAutoSwitchConflictSignature = nil
+            return
+        }
+
+        let conflictSignature = autoSwitchConflictSignature(activeProfileId: activeProfileId)
+        if lastAutoSwitchConflictSignature == conflictSignature {
+            return
+        }
+
+        isAutoSwitching = true
+        defer {
+            isAutoSwitching = false
+        }
+
+        do {
+            let report = try await client.switchToNextProfile()
+            lastAutoSwitchConflictSignature = nil
+            selectProfile(report.profileId)
+            await refresh()
+            await notificationService.post(
+                title: "Relay auto-switched profile",
+                body: report.message
+            )
+        } catch {
+            lastErrorMessage = error.localizedDescription
+            if isAutoSwitchExhaustedConflict(error) {
+                lastAutoSwitchConflictSignature = conflictSignature
+                await notificationService.post(
+                    title: "Relay auto-switch paused",
+                    body: "All enabled profiles are exhausted or unavailable for auto-switch. Staying on current profile."
+                )
+                return
+            }
+
+            lastAutoSwitchConflictSignature = nil
+            await notificationService.post(
+                title: "Relay auto-switch failed",
+                body: error.localizedDescription
+            )
+        }
+    }
+
+    private func resetAutoSwitchConflictSuppressionIfNeeded() {
+        guard autoSwitchEnabled, let activeProfileId else {
+            lastAutoSwitchConflictSignature = nil
+            return
+        }
+        guard let activeSnapshot = usageSnapshot(for: activeProfileId), activeSnapshot.canAutoSwitch else {
+            lastAutoSwitchConflictSignature = nil
+            return
+        }
+
+        let currentSignature = autoSwitchConflictSignature(activeProfileId: activeProfileId)
+        if lastAutoSwitchConflictSignature != currentSignature {
+            lastAutoSwitchConflictSignature = nil
+        }
+    }
+
+    private func autoSwitchConflictSignature(activeProfileId: String) -> String {
+        let enabledState = profiles
+            .filter(\.enabled)
+            .map { profile -> String in
+                let snapshot = usageSnapshot(for: profile.id)
+                let confidence = snapshot?.confidence.rawValue ?? "missing"
+                let stale = snapshot.map { String($0.stale) } ?? "missing"
+                let session = snapshot?.session.status.rawValue ?? "missing"
+                let weekly = snapshot?.weekly.status.rawValue ?? "missing"
+                return "\(profile.id):\(confidence):\(stale):\(session):\(weekly)"
+            }
+            .joined(separator: "|")
+        return "\(activeProfileId)|\(enabledState)"
+    }
+
+    private func isAutoSwitchExhaustedConflict(_ error: Error) -> Bool {
+        guard case let RelayCLIClientError.commandFailed(code, _) = error else {
+            return false
+        }
+        return code == "RELAY_CONFLICT"
     }
 
     private var shouldRefreshUsageOnMenuOpen: Bool {

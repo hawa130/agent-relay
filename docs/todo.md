@@ -23,6 +23,8 @@ These items capture the current gaps against the latest Relay product/function g
 - [x] Implement Codex usage collection with local-first behavior, local fallback behavior, and an explicit source label for degraded data.
 - [x] Keep auto-switch decisions gated on high-confidence signals only, including session exhausted, weekly exhausted, auth invalid, rate limit, and quota exhausted.
 - [x] Do not auto-switch on stale data or low-confidence usage estimates.
+- [x] Exclude usage-exhausted or otherwise unhealthy profiles from `switch next` and auto-switch candidate selection.
+- [x] Surface a stable exhausted-pool error when all enabled profiles are unavailable for auto-switch, and notify in the macOS control plane instead of retry-looping.
 - [x] Fix switch synchronization so optional managed files do not leak across profiles when a target profile omits them.
 - [x] Make rollback restore the exact pre-switch live file set, including cleanup of files introduced by a failed activation attempt.
 - [x] Add regression tests for optional-file removal and rollback cleanup semantics during profile switches.

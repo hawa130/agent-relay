@@ -23,6 +23,59 @@ fn make_codex_home(path: &Path, label: &str) {
     .expect("usage session");
 }
 
+fn write_usage_cache(relay_home: &Path, snapshots: Vec<Value>) {
+    fs::create_dir_all(relay_home).expect("relay home");
+    fs::write(
+        relay_home.join("usage.json"),
+        serde_json::json!({ "snapshots": snapshots }).to_string(),
+    )
+    .expect("usage cache");
+}
+
+fn usage_snapshot(
+    profile_id: &str,
+    profile_name: &str,
+    session_status: &str,
+    weekly_status: &str,
+    confidence: &str,
+    stale: bool,
+) -> Value {
+    let auto_switch_reason = if session_status == "Exhausted" {
+        Some("SessionExhausted")
+    } else if weekly_status == "Exhausted" {
+        Some("WeeklyExhausted")
+    } else {
+        None
+    };
+
+    serde_json::json!({
+        "profile_id": profile_id,
+        "profile_name": profile_name,
+        "source": "Local",
+        "confidence": confidence,
+        "stale": stale,
+        "last_refreshed_at": "2026-03-09T12:00:00Z",
+        "next_reset_at": "2026-03-09T17:00:00Z",
+        "session": {
+            "used_percent": 95.0,
+            "window_minutes": 300,
+            "reset_at": "2026-03-09T17:00:00Z",
+            "status": session_status,
+            "exact": true
+        },
+        "weekly": {
+            "used_percent": 25.0,
+            "window_minutes": 10080,
+            "reset_at": "2026-03-12T06:36:18Z",
+            "status": weekly_status,
+            "exact": true
+        },
+        "auto_switch_reason": auto_switch_reason,
+        "can_auto_switch": auto_switch_reason.is_some(),
+        "message": "fixture usage"
+    })
+}
+
 fn write_oauth_auth(path: &Path, account_id: &str, email: &str) {
     let payload = match email {
         "imported@example.com" => "eyJlbWFpbCI6ImltcG9ydGVkQGV4YW1wbGUuY29tIn0",
@@ -278,6 +331,28 @@ fn import_switch_events_logs_and_diagnostics_work() {
         "model = \"alternate\""
     );
 
+    write_usage_cache(
+        &relay_home,
+        vec![
+            usage_snapshot(
+                &alternate_id,
+                "alternate",
+                "Healthy",
+                "Healthy",
+                "High",
+                false,
+            ),
+            usage_snapshot(
+                &imported_id,
+                "imported-live",
+                "Healthy",
+                "Healthy",
+                "High",
+                false,
+            ),
+        ],
+    );
+
     let next = run_json(&relay_home, &live_codex_home, &["--json", "switch", "next"]);
     assert_eq!(next["data"]["profile_id"], imported_id);
 
@@ -330,6 +405,146 @@ fn import_switch_events_logs_and_diagnostics_work() {
         .as_str()
         .expect("archive path");
     assert!(Path::new(archive_path).exists());
+}
+
+#[test]
+fn switch_next_skips_profiles_with_exhausted_usage() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let first_home = temp.path().join("first");
+    let second_home = temp.path().join("second");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&first_home, "first");
+    make_codex_home(&second_home, "second");
+
+    let first = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "profiles",
+            "add",
+            "codex",
+            "--nickname",
+            "first",
+            "--priority",
+            "10",
+            "--agent-home",
+            first_home.to_string_lossy().as_ref(),
+        ],
+    );
+    let first_id = first["data"]["id"].as_str().expect("first id").to_string();
+
+    let second = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "profiles",
+            "add",
+            "codex",
+            "--nickname",
+            "second",
+            "--priority",
+            "20",
+            "--agent-home",
+            second_home.to_string_lossy().as_ref(),
+        ],
+    );
+    let second_id = second["data"]["id"]
+        .as_str()
+        .expect("second id")
+        .to_string();
+
+    run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "switch", &first_id],
+    );
+
+    write_usage_cache(
+        &relay_home,
+        vec![
+            usage_snapshot(&first_id, "first", "Exhausted", "Healthy", "High", false),
+            usage_snapshot(&second_id, "second", "Healthy", "Healthy", "High", false),
+        ],
+    );
+
+    let next = run_json(&relay_home, &live_codex_home, &["--json", "switch", "next"]);
+    assert_eq!(next["data"]["profile_id"], second_id);
+}
+
+#[test]
+fn switch_next_returns_conflict_when_all_enabled_profiles_are_exhausted() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let first_home = temp.path().join("first");
+    let second_home = temp.path().join("second");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&first_home, "first");
+    make_codex_home(&second_home, "second");
+
+    let first = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "profiles",
+            "add",
+            "codex",
+            "--nickname",
+            "first",
+            "--priority",
+            "10",
+            "--agent-home",
+            first_home.to_string_lossy().as_ref(),
+        ],
+    );
+    let first_id = first["data"]["id"].as_str().expect("first id").to_string();
+
+    let second = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "profiles",
+            "add",
+            "codex",
+            "--nickname",
+            "second",
+            "--priority",
+            "20",
+            "--agent-home",
+            second_home.to_string_lossy().as_ref(),
+        ],
+    );
+    let second_id = second["data"]["id"]
+        .as_str()
+        .expect("second id")
+        .to_string();
+
+    run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "switch", &first_id],
+    );
+
+    write_usage_cache(
+        &relay_home,
+        vec![
+            usage_snapshot(&first_id, "first", "Exhausted", "Healthy", "High", false),
+            usage_snapshot(&second_id, "second", "Healthy", "Exhausted", "High", false),
+        ],
+    );
+
+    let failure = run_failure(&relay_home, &live_codex_home, &["--json", "switch", "next"]);
+    assert_eq!(failure["error_code"], "RELAY_CONFLICT");
+    assert_eq!(
+        failure["message"],
+        "all enabled profiles are exhausted or unavailable for auto-switch"
+    );
 }
 
 #[test]

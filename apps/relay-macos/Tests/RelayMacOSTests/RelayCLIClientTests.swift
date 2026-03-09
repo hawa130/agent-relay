@@ -71,6 +71,17 @@ final class RelayCLIClientTests: XCTestCase {
         XCTAssertEqual(payload["nickname"] as? String, "browser")
         XCTAssertEqual(payload["priority"] as? Int, 90)
     }
+
+    func testSwitchToNextProfileUsesDedicatedCommand() async throws {
+        let fixture = try RelayCLIFixture.make()
+        defer { fixture.cleanup() }
+
+        let client = RelayCLIClient(relayCLIPathOverride: fixture.scriptPath, environment: [:])
+        let report = try await client.switchToNextProfile()
+
+        XCTAssertEqual(report.profileId, "p_next")
+        XCTAssertEqual(report.previousProfileId, "p_active")
+    }
 }
 
 private struct RelayCLIFixture {
@@ -126,18 +137,23 @@ EOF
 {"success":true,"error_code":null,"message":"usage settings updated","data":{"auto_switch_enabled":false,"cooldown_seconds":600,"usage_source_mode":"WebEnhanced","menu_open_refresh_stale_after_seconds":5,"usage_background_refresh_enabled":false,"usage_background_refresh_interval_seconds":300}}
 EOF
     ;;
-  "--json profiles import codex --input-json -")
+  "--json profiles import --input-json -")
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
     cat <<'EOF'
 {"success":true,"error_code":null,"message":"profile imported","data":{"id":"p_live","nickname":"live","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/live-home","config_path":"/tmp/live-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"}}
 EOF
     ;;
-  "--json profiles login codex --input-json -")
+  "--json profiles login --input-json -")
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
     cat <<'EOF'
 {"success":true,"error_code":null,"message":"codex login profile created","data":{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"probe_identity":{"profile_id":"p_browser","provider":"CodexOfficial","principal_id":"acct-123","display_name":"browser@example.com","credentials":{"account_id":"acct-123","access_token":"access-token"},"metadata":{"email":"browser@example.com","plan_hint":"team"}},"activated":false}}
+EOF
+    ;;
+  "--json switch next")
+    cat <<'EOF'
+{"success":true,"error_code":null,"message":"switched to next profile","data":{"profile_id":"p_next","previous_profile_id":"p_active","checkpoint_id":"cp-123","rollback_performed":false,"switched_at":"2026-03-08T12:27:12Z","message":"switched to next profile"}}
 EOF
     ;;
   *)
