@@ -1,13 +1,13 @@
 import Defaults
 
 extension Defaults.Keys {
-    static let selectedSettingsSection = Key<String>("selectedSettingsSection", default: SettingsPaneID.general.rawValue)
+    static let selectedSettingsSection = Key<String>("selectedSettingsSection", default: SettingsPaneID.settings.rawValue)
+    static let selectedSettingsItem = Key<String?>("selectedSettingsItem", default: nil)
     static let selectedProfileId = Key<String?>("selectedProfileId", default: nil)
 }
 
 public enum SettingsPaneID: String, CaseIterable, Identifiable, Sendable {
-    case general
-    case codex
+    case settings
     case profiles
     case activity
     case about
@@ -16,10 +16,8 @@ public enum SettingsPaneID: String, CaseIterable, Identifiable, Sendable {
 
     public var title: String {
         switch self {
-        case .general:
-            return "General"
-        case .codex:
-            return "Codex"
+        case .settings:
+            return "Settings"
         case .profiles:
             return "Profiles"
         case .activity:
@@ -31,10 +29,8 @@ public enum SettingsPaneID: String, CaseIterable, Identifiable, Sendable {
 
     public var symbol: String {
         switch self {
-        case .general:
+        case .settings:
             return "gearshape"
-        case .codex:
-            return "terminal"
         case .profiles:
             return "square.grid.2x2"
         case .activity:
@@ -46,10 +42,76 @@ public enum SettingsPaneID: String, CaseIterable, Identifiable, Sendable {
 
     public static var persistedSelection: SettingsPaneID {
         get {
-            SettingsPaneID(rawValue: Defaults[.selectedSettingsSection]) ?? .general
+            Self.storedValue(Defaults[.selectedSettingsSection])
         }
         set {
             Defaults[.selectedSettingsSection] = newValue.rawValue
+        }
+    }
+}
+
+enum SettingsSidebarSelection: Hashable, Identifiable, Sendable {
+    case general
+    case agent(AgentKind)
+
+    var id: String { storageValue }
+
+    var storageValue: String {
+        switch self {
+        case .general:
+            return "general"
+        case let .agent(agent):
+            return "agent:\(agent.cliArgument)"
+        }
+    }
+
+    static var persistedSelection: SettingsSidebarSelection {
+        get {
+            Self.storedValue(
+                Defaults[.selectedSettingsItem],
+                legacyPaneValue: Defaults[.selectedSettingsSection]
+            )
+        }
+        set {
+            Defaults[.selectedSettingsItem] = newValue.storageValue
+        }
+    }
+}
+
+extension SettingsPaneID {
+    static func storedValue(_ value: String?) -> SettingsPaneID {
+        switch value {
+        case SettingsPaneID.profiles.rawValue:
+            return .profiles
+        case SettingsPaneID.activity.rawValue:
+            return .activity
+        case SettingsPaneID.about.rawValue:
+            return .about
+        case "general", "codex", SettingsPaneID.settings.rawValue, .none:
+            return .settings
+        default:
+            return .settings
+        }
+    }
+}
+
+extension SettingsSidebarSelection {
+    static func storedValue(
+        _ value: String?,
+        legacyPaneValue: String?
+    ) -> SettingsSidebarSelection {
+        switch value {
+        case "general":
+            return .general
+        case "agent:codex":
+            return .agent(.codex)
+        case .none:
+            if legacyPaneValue == "codex" {
+                return .agent(.codex)
+            }
+            return .general
+        default:
+            return .general
         }
     }
 }

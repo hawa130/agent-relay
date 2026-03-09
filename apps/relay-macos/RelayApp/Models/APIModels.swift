@@ -260,6 +260,10 @@ enum AgentKind: String, Decodable, Sendable {
     var cliArgument: String {
         rawValue.lowercased()
     }
+
+    var displayName: String {
+        rawValue
+    }
 }
 
 enum AuthMode: String, Codable, Sendable, CaseIterable {
@@ -323,9 +327,20 @@ enum UsageSourceMode: String, CaseIterable, Decodable, Encodable, Sendable {
         case .auto:
             return "Auto"
         case .local:
-            return "CLI (RPC/PTy)"
+            return "On-device"
         case .webEnhanced:
-            return "OAuth API"
+            return "Web"
+        }
+    }
+
+    var helpText: String {
+        switch self {
+        case .auto:
+            return "Relay chooses the best available source for Codex usage."
+        case .local:
+            return "Read usage from the local Codex environment only."
+        case .webEnhanced:
+            return "Prefer the remote web-backed source when available."
         }
     }
 }
