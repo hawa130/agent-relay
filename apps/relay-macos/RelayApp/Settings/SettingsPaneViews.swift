@@ -158,11 +158,11 @@ public struct AboutSettingsPaneView: View {
 }
 
 struct SettingsSurfaceCard<Content: View>: View {
-    let title: String
+    let title: String?
     let headerAccessory: AnyView?
     let content: Content
 
-    init(_ title: String, headerAccessory: AnyView? = nil, @ViewBuilder content: () -> Content) {
+    init(_ title: String? = nil, headerAccessory: AnyView? = nil, @ViewBuilder content: () -> Content) {
         self.title = title
         self.headerAccessory = headerAccessory
         self.content = content()
@@ -171,16 +171,20 @@ struct SettingsSurfaceCard<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionContentSpacing) {
-                HStack(alignment: .center, spacing: 8) {
-                    Text(title)
-                        .font(NativePreferencesTheme.Typography.sectionLabel)
-                        .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-                        .textCase(.uppercase)
+                if title != nil || headerAccessory != nil {
+                    HStack(alignment: .center, spacing: 8) {
+                        if let title {
+                            Text(title)
+                                .font(NativePreferencesTheme.Typography.sectionLabel)
+                                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                                .textCase(.uppercase)
+                        }
 
-                    Spacer()
+                        Spacer()
 
-                    if let headerAccessory {
-                        headerAccessory
+                        if let headerAccessory {
+                            headerAccessory
+                        }
                     }
                 }
                 content
