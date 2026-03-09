@@ -20,27 +20,39 @@ The CLI remains the only execution layer. The macOS menu bar app is a native con
 
 The V1 CLI is implemented and tested.
 
-Implemented commands:
+Implemented command groups:
 
 ```bash
 relay doctor
 relay status
-relay profiles list
-relay profiles add
-relay profiles edit
-relay profiles remove
-relay profiles enable
-relay profiles disable
-relay profiles import-codex
+relay settings show
+relay settings set
+
+relay list
+relay show
+relay show <id>
+relay edit <id>
+relay remove <id>
+relay enable <id>
+relay disable <id>
+relay switch
 relay switch <id>
-relay switch next
-relay usage
-relay auto-switch enable
-relay auto-switch disable
-relay auto-switch set
-relay events list
-relay logs tail
-relay diagnostics export
+relay refresh
+relay refresh <id>
+relay refresh --all
+relay autoswitch show
+relay autoswitch enable
+relay autoswitch disable
+relay autoswitch set
+
+relay activity events list
+relay activity logs tail
+relay activity diagnostics export
+
+relay codex add
+relay codex import
+relay codex login
+relay codex relink <id>
 ```
 
 ## Install
@@ -80,33 +92,34 @@ relay status --json
 Add a profile from an existing Codex home:
 
 ```bash
-relay profiles add \
+relay codex add \
   --nickname work \
-  --codex-home /path/to/codex-home \
+  --agent-home /path/to/codex-home \
   --json
 ```
 
 Import the currently live Codex profile into Relay-managed storage:
 
 ```bash
-relay profiles import-codex --nickname imported-live --json
+relay codex import --nickname imported-live --json
 ```
 
-Switch profiles:
+Activate profiles:
 
 ```bash
-relay profiles list --json
+relay list --json
 relay switch <profile-id> --json
-relay switch next --json
+relay switch --json
 ```
 
 Inspect runtime state:
 
 ```bash
-relay usage --json
-relay events list --limit 20 --json
-relay logs tail --lines 50 --json
-relay diagnostics export --json
+relay show --json
+relay refresh --json
+relay activity events list --limit 20 --json
+relay activity logs tail --lines 50 --json
+relay activity diagnostics export --json
 ```
 
 ## How It Works

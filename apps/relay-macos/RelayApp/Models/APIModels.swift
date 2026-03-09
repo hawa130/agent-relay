@@ -110,6 +110,21 @@ struct Profile: Decodable, Identifiable, Sendable {
     let updatedAt: Date
 }
 
+struct ProfileDetail: Decodable, Sendable {
+    let profile: Profile
+    let isActive: Bool
+    let usage: UsageSnapshot?
+    let lastFailureEvent: FailureEvent?
+    let switchEligible: Bool
+    let switchIneligibilityReason: String?
+}
+
+struct ProfileListItem: Decodable, Sendable {
+    let profile: Profile
+    let isActive: Bool
+    let usageSummary: UsageSnapshot?
+}
+
 struct UsageSnapshot: Decodable, Sendable {
     let profileId: String?
     let profileName: String?
@@ -410,19 +425,13 @@ struct ProfileIdPayload: Encodable, Sendable {
 }
 
 struct ImportProfilePayload: Encodable, Sendable {
-    let agent: String
     let nickname: String?
     let priority: Int
 }
 
 struct LoginProfilePayload: Encodable, Sendable {
-    let agent: String
     let nickname: String?
     let priority: Int
-}
-
-struct SwitchPayload: Encodable, Sendable {
-    let target: String
 }
 
 struct AutoSwitchPayload: Encodable, Sendable {
@@ -435,12 +444,6 @@ struct EventsListPayload: Encodable, Sendable {
 
 struct LogsTailPayload: Encodable, Sendable {
     let lines: Int
-}
-
-struct UsageRefreshPayload: Encodable, Sendable {
-    let id: String?
-    let enabled: Bool
-    let all: Bool
 }
 
 extension JSONDecoder {

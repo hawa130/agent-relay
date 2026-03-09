@@ -111,6 +111,7 @@ docs/
 ## Engineering Conventions
 
 - Every external command supports `--json`.
+- The CLI surface stays shallow: top-level runtime commands (`doctor`, `status`, `list`, `show`, `switch`, `refresh`) plus grouped maintenance commands (`settings`, `autoswitch`, `activity`, `codex`).
 - Every user-visible failure maps to a stable `ErrorCode`.
 - No adapter is allowed to mutate project-local `.codex/`.
 - File writes that affect live agent config must be atomic and recoverable.

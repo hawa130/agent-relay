@@ -6,10 +6,11 @@ use comfy_table::{
 };
 use relay_core::models::JsonResponse;
 use relay_core::{
-    ActiveState, AddProfileRequest, AgentKind, AgentLinkResult, AgentLoginRequest, AppSettings,
-    AuthMode, BootstrapMode, DiagnosticsExport, DoctorReport, EditProfileRequest, FailureEvent,
-    FailureReason, ImportProfileRequest, LogTail, ProbeProvider, Profile, ProfileProbeIdentity,
-    RelayApp, RelayError, StatusReport, SwitchOutcome, SwitchReport, UsageConfidence,
+    ActiveState, ActivityEventsQuery, AddProfileRequest, AgentKind, AgentLinkResult,
+    AgentLoginRequest, AppSettings, AuthMode, BootstrapMode, DiagnosticsExport, DoctorReport,
+    EditProfileRequest, FailureEvent, FailureReason, ImportProfileRequest, LogTail, ProbeProvider,
+    Profile, ProfileDetail, ProfileProbeIdentity, RelayApp, RelayError, SwitchOutcome,
+    SwitchReport, SystemSettingsUpdateRequest, SystemStatusReport, UsageConfidence,
     UsageSettingsUpdateRequest, UsageSnapshot, UsageSourceMode, UsageStatus, UsageWindow,
 };
 use serde::{Deserialize, Serialize};
@@ -38,37 +39,142 @@ struct Cli {
 enum Commands {
     Doctor,
     Status,
-    Usage(UsageCommand),
-    Profiles(ProfilesCommand),
+    Settings(SettingsCommand),
+    List,
+    Show(ShowCommand),
+    Edit(EditProfileArgs),
+    Remove(ProfileIdArgs),
+    Enable(ProfileIdArgs),
+    Disable(ProfileIdArgs),
     Switch(SwitchCommand),
-    AutoSwitch(AutoSwitchCommand),
-    Events(EventsCommand),
+    Refresh(RefreshCommand),
+    Autoswitch(AutoswitchCommand),
+    Activity(ActivityCommand),
+    Codex(CodexCommand),
+}
+
+#[derive(Debug, Args)]
+struct ProfileIdArgs {
+    id: Option<String>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct SettingsCommand {
+    #[command(subcommand)]
+    command: Option<SettingsSubcommand>,
+}
+
+#[derive(Debug, Subcommand)]
+enum SettingsSubcommand {
+    Show,
+    Set(UsageConfigSetArgs),
+}
+
+#[derive(Debug, Args)]
+struct ShowCommand {
+    target: Option<String>,
+}
+
+#[derive(Debug, Args)]
+struct SwitchCommand {
+    target: Option<String>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct RefreshCommand {
+    target: Option<String>,
+    #[arg(long)]
+    all: bool,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct AutoswitchCommand {
+    #[command(subcommand)]
+    command: Option<AutoswitchSubcommand>,
+}
+
+#[derive(Debug, Subcommand)]
+enum AutoswitchSubcommand {
+    Show,
+    Enable,
+    Disable,
+    Set(AutoswitchSetArgs),
+}
+
+#[derive(Debug, Args)]
+struct AutoswitchSetArgs {
+    #[arg(long)]
+    enabled: Option<bool>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct ActivityCommand {
+    #[command(subcommand)]
+    command: ActivitySubcommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum ActivitySubcommand {
+    Events(ActivityEventsCommand),
     Logs(LogsCommand),
     Diagnostics(DiagnosticsCommand),
 }
 
 #[derive(Debug, Args)]
-struct ProfilesCommand {
+struct ActivityEventsCommand {
     #[command(subcommand)]
-    command: ProfilesSubcommand,
+    command: ActivityEventsSubcommand,
 }
 
 #[derive(Debug, Subcommand)]
-enum ProfilesSubcommand {
-    List,
-    Add(AddProfileArgs),
-    Edit(EditProfileArgs),
-    Remove(ProfileIdArgs),
-    Enable(ProfileIdArgs),
-    Disable(ProfileIdArgs),
-    Import(ImportProfileArgs),
-    Login(LoginProfileArgs),
-    Relink(AgentProfileIdArgs),
+enum ActivityEventsSubcommand {
+    List(ActivityEventsListArgs),
 }
 
 #[derive(Debug, Args)]
-struct AddProfileArgs {
-    agent: Option<String>,
+struct LogsCommand {
+    #[command(subcommand)]
+    command: LogsSubcommand,
+}
+
+#[derive(Debug, Args)]
+struct UsageConfigSetArgs {
+    #[arg(long)]
+    source_mode: Option<String>,
+    #[arg(long)]
+    menu_open_refresh_stale_after_seconds: Option<i64>,
+    #[arg(long)]
+    background_refresh_enabled: Option<bool>,
+    #[arg(long)]
+    background_refresh_interval_seconds: Option<i64>,
+    #[arg(long)]
+    input_json: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+struct CodexCommand {
+    #[command(subcommand)]
+    command: CodexSubcommand,
+}
+
+#[derive(Debug, Subcommand)]
+enum CodexSubcommand {
+    Add(CodexAddArgs),
+    Import(CodexImportArgs),
+    Login(CodexLoginArgs),
+    Relink(ProfileIdArgs),
+}
+
+#[derive(Debug, Args)]
+struct CodexAddArgs {
     #[arg(long)]
     nickname: Option<String>,
     #[arg(long)]
@@ -84,112 +190,21 @@ struct AddProfileArgs {
 }
 
 #[derive(Debug, Args)]
-struct ProfileIdArgs {
-    id: Option<String>,
+struct CodexImportArgs {
+    #[arg(long)]
+    nickname: Option<String>,
+    #[arg(long)]
+    priority: Option<i32>,
     #[arg(long)]
     input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
-struct AgentProfileIdArgs {
-    agent: Option<String>,
-    id: Option<String>,
+struct CodexLoginArgs {
     #[arg(long)]
-    input_json: Option<PathBuf>,
-}
-
-#[derive(Debug, Args)]
-struct SwitchCommand {
-    target: Option<String>,
+    nickname: Option<String>,
     #[arg(long)]
-    input_json: Option<PathBuf>,
-}
-
-#[derive(Debug, Args)]
-struct AutoSwitchCommand {
-    #[command(subcommand)]
-    command: AutoSwitchSubcommand,
-}
-
-#[derive(Debug, Subcommand)]
-enum AutoSwitchSubcommand {
-    Enable,
-    Disable,
-    Set(AutoSwitchSetArgs),
-}
-
-#[derive(Debug, Args)]
-struct AutoSwitchSetArgs {
-    #[arg(long)]
-    enabled: Option<bool>,
-    #[arg(long)]
-    input_json: Option<PathBuf>,
-}
-
-#[derive(Debug, Args)]
-struct EventsCommand {
-    #[command(subcommand)]
-    command: EventsSubcommand,
-}
-
-#[derive(Debug, Subcommand)]
-enum EventsSubcommand {
-    List(ListArgs),
-}
-
-#[derive(Debug, Args)]
-struct LogsCommand {
-    #[command(subcommand)]
-    command: LogsSubcommand,
-}
-
-#[derive(Debug, Args)]
-struct UsageCommand {
-    #[command(subcommand)]
-    command: Option<UsageSubcommand>,
-}
-
-#[derive(Debug, Subcommand)]
-enum UsageSubcommand {
-    Current,
-    Profile(ProfileIdArgs),
-    List,
-    Refresh(UsageRefreshArgs),
-    Config(UsageConfigCommand),
-}
-
-#[derive(Debug, Args)]
-struct UsageRefreshArgs {
-    id: Option<String>,
-    #[arg(long)]
-    enabled: bool,
-    #[arg(long)]
-    all: bool,
-    #[arg(long)]
-    input_json: Option<PathBuf>,
-}
-
-#[derive(Debug, Args)]
-struct UsageConfigCommand {
-    #[command(subcommand)]
-    command: Option<UsageConfigSubcommand>,
-}
-
-#[derive(Debug, Subcommand)]
-enum UsageConfigSubcommand {
-    Set(UsageConfigSetArgs),
-}
-
-#[derive(Debug, Args)]
-struct UsageConfigSetArgs {
-    #[arg(long)]
-    source_mode: Option<String>,
-    #[arg(long)]
-    menu_open_refresh_stale_after_seconds: Option<i64>,
-    #[arg(long)]
-    background_refresh_enabled: Option<bool>,
-    #[arg(long)]
-    background_refresh_interval_seconds: Option<i64>,
+    priority: Option<i32>,
     #[arg(long)]
     input_json: Option<PathBuf>,
 }
@@ -208,28 +223,6 @@ struct DiagnosticsCommand {
 #[derive(Debug, Subcommand)]
 enum DiagnosticsSubcommand {
     Export,
-}
-
-#[derive(Debug, Args)]
-struct ImportProfileArgs {
-    agent: Option<String>,
-    #[arg(long)]
-    nickname: Option<String>,
-    #[arg(long)]
-    priority: Option<i32>,
-    #[arg(long)]
-    input_json: Option<PathBuf>,
-}
-
-#[derive(Debug, Args)]
-struct LoginProfileArgs {
-    agent: Option<String>,
-    #[arg(long)]
-    nickname: Option<String>,
-    #[arg(long)]
-    priority: Option<i32>,
-    #[arg(long)]
-    input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -254,9 +247,13 @@ struct EditProfileArgs {
 }
 
 #[derive(Debug, Args)]
-struct ListArgs {
+struct ActivityEventsListArgs {
     #[arg(long)]
     limit: Option<usize>,
+    #[arg(long)]
+    profile_id: Option<String>,
+    #[arg(long)]
+    reason: Option<String>,
     #[arg(long)]
     input_json: Option<PathBuf>,
 }
@@ -310,33 +307,28 @@ fn run() -> Result<(), RelayError> {
 
 fn execute(cli: Cli) -> Result<Output, RelayError> {
     let bootstrap_mode = match &cli.command {
-        Commands::Doctor | Commands::Status => BootstrapMode::ReadOnly,
-        Commands::Usage(command) => match command.command {
-            None
-            | Some(UsageSubcommand::Current)
-            | Some(UsageSubcommand::Profile(_))
-            | Some(UsageSubcommand::List)
-            | Some(UsageSubcommand::Config(UsageConfigCommand { command: None })) => {
-                BootstrapMode::ReadOnly
-            }
-            Some(UsageSubcommand::Refresh(_))
-            | Some(UsageSubcommand::Config(UsageConfigCommand {
-                command: Some(UsageConfigSubcommand::Set(_)),
-            })) => BootstrapMode::ReadWrite,
+        Commands::Doctor
+        | Commands::Status
+        | Commands::List
+        | Commands::Show(_)
+        | Commands::Settings(SettingsCommand {
+            command: None | Some(SettingsSubcommand::Show),
+        }) => BootstrapMode::ReadOnly,
+        Commands::Settings(SettingsCommand {
+            command: Some(SettingsSubcommand::Set(_)),
+        })
+        | Commands::Edit(_)
+        | Commands::Remove(_)
+        | Commands::Enable(_)
+        | Commands::Disable(_)
+        | Commands::Switch(_)
+        | Commands::Refresh(_)
+        | Commands::Autoswitch(_)
+        | Commands::Codex(_) => BootstrapMode::ReadWrite,
+        Commands::Activity(command) => match &command.command {
+            ActivitySubcommand::Events(_) | ActivitySubcommand::Logs(_) => BootstrapMode::ReadOnly,
+            ActivitySubcommand::Diagnostics(_) => BootstrapMode::ReadWrite,
         },
-        Commands::Profiles(command) => match command.command {
-            ProfilesSubcommand::List => BootstrapMode::ReadOnly,
-            _ => BootstrapMode::ReadWrite,
-        },
-        Commands::Events(command) => match command.command {
-            EventsSubcommand::List(_) => BootstrapMode::ReadOnly,
-        },
-        Commands::Logs(command) => match command.command {
-            LogsSubcommand::Tail(_) => BootstrapMode::ReadOnly,
-        },
-        Commands::Switch(_) | Commands::AutoSwitch(_) | Commands::Diagnostics(_) => {
-            BootstrapMode::ReadWrite
-        }
     };
     let app = RelayApp::bootstrap_with_mode(bootstrap_mode)?;
     dispatch(cli, app)
@@ -354,7 +346,7 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
             ))
         }
         Commands::Status => {
-            let report = app.status_report()?;
+            let report = app.system_status()?;
             Ok(Output::success_rendered(
                 "status loaded",
                 report.clone(),
@@ -362,169 +354,81 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 cli.json,
             ))
         }
-        Commands::Usage(command) => match command.command {
-            None => usage_list_output(&app, "usage loaded", cli.json),
-            Some(UsageSubcommand::Current) => {
-                let snapshot = app.usage_report()?;
+        Commands::Settings(command) => match command.command {
+            None | Some(SettingsSubcommand::Show) => {
+                let settings = app.settings()?;
                 Ok(Output::success_rendered(
-                    "current usage loaded",
-                    snapshot.clone(),
-                    render_usage_detail(&snapshot),
+                    "settings loaded",
+                    settings.clone(),
+                    render_settings(&settings),
                     cli.json,
                 ))
             }
-            Some(UsageSubcommand::Profile(args)) => {
-                let snapshot = app.profile_usage_report(&profile_id_from_args(args)?)?;
+            Some(SettingsSubcommand::Set(args)) => {
+                let settings =
+                    app.update_usage_settings(usage_settings_request_from_args(args)?)?;
                 Ok(Output::success_rendered(
-                    "profile usage loaded",
-                    snapshot.clone(),
-                    render_usage_detail(&snapshot),
-                    cli.json,
-                ))
-            }
-            Some(UsageSubcommand::List) => usage_list_output(&app, "usage list loaded", cli.json),
-            Some(UsageSubcommand::Refresh(args)) => {
-                let target = usage_refresh_target_from_args(args)?;
-                match target {
-                    UsageRefreshTarget::Profile(id) => {
-                        let snapshot = app.refresh_usage_profile(&id)?;
-                        Ok(Output::success_rendered(
-                            "usage refreshed",
-                            snapshot.clone(),
-                            render_usage_detail(&snapshot),
-                            cli.json,
-                        ))
-                    }
-                    UsageRefreshTarget::Enabled => {
-                        let snapshots = app.refresh_enabled_usage_reports()?;
-                        let profiles = app.list_profiles()?;
-                        Ok(Output::success_rendered(
-                            "enabled profile usage refreshed",
-                            snapshots.clone(),
-                            render_usage_list(&snapshots, &profiles),
-                            cli.json,
-                        ))
-                    }
-                    UsageRefreshTarget::All => {
-                        let snapshots = app.refresh_all_usage_reports()?;
-                        let profiles = app.list_profiles()?;
-                        Ok(Output::success_rendered(
-                            "all profile usage refreshed",
-                            snapshots.clone(),
-                            render_usage_list(&snapshots, &profiles),
-                            cli.json,
-                        ))
-                    }
-                }
-            }
-            Some(UsageSubcommand::Config(command)) => match command.command {
-                None => {
-                    let settings = app.settings()?;
-                    Ok(Output::success_rendered(
-                        "usage settings loaded",
-                        settings.clone(),
-                        render_app_settings(&settings),
-                        cli.json,
-                    ))
-                }
-                Some(UsageConfigSubcommand::Set(args)) => {
-                    let settings =
-                        app.update_usage_settings(usage_settings_request_from_args(args)?)?;
-                    Ok(Output::success_rendered(
-                        "usage settings updated",
-                        settings.clone(),
-                        render_app_settings(&settings),
-                        cli.json,
-                    ))
-                }
-            },
-        },
-        Commands::Profiles(command) => match command.command {
-            ProfilesSubcommand::List => profiles_list_output(&app, cli.json),
-            ProfilesSubcommand::Add(args) => {
-                let request = add_profile_request_from_args(args)?;
-                let profile = app.add_profile(request)?;
-                Ok(Output::success_rendered(
-                    "profile created",
-                    profile.clone(),
-                    render_profile_detail(&profile),
-                    cli.json,
-                ))
-            }
-            ProfilesSubcommand::Edit(args) => {
-                let (id, request) = edit_profile_request_from_args(args)?;
-                let profile = app.edit_profile(&id, request)?;
-                Ok(Output::success_rendered(
-                    "profile updated",
-                    profile.clone(),
-                    render_profile_detail(&profile),
-                    cli.json,
-                ))
-            }
-            ProfilesSubcommand::Remove(args) => {
-                let profile = app.remove_profile(&profile_id_from_args(args)?)?;
-                Ok(Output::success_rendered(
-                    "profile removed",
-                    profile.clone(),
-                    render_profile_detail(&profile),
-                    cli.json,
-                ))
-            }
-            ProfilesSubcommand::Enable(args) => {
-                let profile = app.set_profile_enabled(&profile_id_from_args(args)?, true)?;
-                Ok(Output::success_rendered(
-                    "profile enabled",
-                    profile.clone(),
-                    render_profile_detail(&profile),
-                    cli.json,
-                ))
-            }
-            ProfilesSubcommand::Disable(args) => {
-                let profile = app.set_profile_enabled(&profile_id_from_args(args)?, false)?;
-                Ok(Output::success_rendered(
-                    "profile disabled",
-                    profile.clone(),
-                    render_profile_detail(&profile),
-                    cli.json,
-                ))
-            }
-            ProfilesSubcommand::Import(args) => {
-                let payload = import_profile_request_from_args(args)?;
-                let profile = app.import_profile(payload)?;
-                Ok(Output::success_rendered(
-                    "profile imported",
-                    profile.clone(),
-                    render_profile_detail(&profile),
-                    cli.json,
-                ))
-            }
-            ProfilesSubcommand::Login(args) => {
-                let payload = login_profile_request_from_args(args)?;
-                let result = app.login_profile(payload)?;
-                Ok(Output::success_rendered(
-                    "profile login created",
-                    result.clone(),
-                    render_agent_link_result(&result),
-                    cli.json,
-                ))
-            }
-            ProfilesSubcommand::Relink(args) => {
-                let (agent, id) = agent_profile_id_from_args(args)?;
-                let identity = app.relink_profile(agent, &id)?;
-                Ok(Output::success_rendered(
-                    "profile relinked",
-                    identity.clone(),
-                    render_probe_identity(&identity),
+                    "settings updated",
+                    settings.clone(),
+                    render_settings(&settings),
                     cli.json,
                 ))
             }
         },
+        Commands::List => list_output(&app, cli.json),
+        Commands::Show(command) => {
+            let detail = match show_target_from_args(command)? {
+                ShowTarget::Current => app.current_profile_detail()?,
+                ShowTarget::Profile(id) => app.profile_detail(&id)?,
+            };
+            Ok(Output::success_rendered(
+                "profile detail loaded",
+                detail.clone(),
+                render_profile_summary(&detail),
+                cli.json,
+            ))
+        }
+        Commands::Edit(args) => {
+            let (id, request) = edit_profile_request_from_args(args)?;
+            let profile = app.edit_profile(&id, request)?;
+            Ok(Output::success_rendered(
+                "profile updated",
+                profile.clone(),
+                render_profile_detail(&profile),
+                cli.json,
+            ))
+        }
+        Commands::Remove(args) => {
+            let profile = app.remove_profile(&profile_id_from_args(args)?)?;
+            Ok(Output::success_rendered(
+                "profile removed",
+                profile.clone(),
+                render_profile_detail(&profile),
+                cli.json,
+            ))
+        }
+        Commands::Enable(args) => {
+            let profile = app.set_profile_enabled(&profile_id_from_args(args)?, true)?;
+            Ok(Output::success_rendered(
+                "profile enabled",
+                profile.clone(),
+                render_profile_detail(&profile),
+                cli.json,
+            ))
+        }
+        Commands::Disable(args) => {
+            let profile = app.set_profile_enabled(&profile_id_from_args(args)?, false)?;
+            Ok(Output::success_rendered(
+                "profile disabled",
+                profile.clone(),
+                render_profile_detail(&profile),
+                cli.json,
+            ))
+        }
         Commands::Switch(command) => {
-            let target = switch_target_from_args(command)?;
-            let report = if target == "next" {
-                app.switch_next_profile()?
-            } else {
-                app.switch_to_profile(&target)?
+            let report = match switch_target_from_args(command)? {
+                SwitchTarget::Next => app.switch_next_profile()?,
+                SwitchTarget::Profile(id) => app.switch_to_profile(&id)?,
             };
             Ok(Output::success_rendered(
                 "switch completed",
@@ -533,72 +437,150 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 cli.json,
             ))
         }
-        Commands::AutoSwitch(command) => match command.command {
-            AutoSwitchSubcommand::Enable => {
+        Commands::Refresh(command) => match refresh_target_from_args(command)? {
+            RefreshTarget::Profile(id) => {
+                let snapshot = app.refresh_usage_profile(&id)?;
+                Ok(Output::success_rendered(
+                    "profile refreshed",
+                    snapshot.clone(),
+                    render_usage_detail(&snapshot),
+                    cli.json,
+                ))
+            }
+            RefreshTarget::Enabled => {
+                let snapshots = app.refresh_enabled_usage_reports()?;
+                let items = app.list_profiles_with_usage()?;
+                Ok(Output::success_rendered(
+                    "enabled profiles refreshed",
+                    snapshots.clone(),
+                    render_usage_list(&snapshots, &items),
+                    cli.json,
+                ))
+            }
+            RefreshTarget::All => {
+                let snapshots = app.refresh_all_usage_reports()?;
+                let items = app.list_profiles_with_usage()?;
+                Ok(Output::success_rendered(
+                    "all profiles refreshed",
+                    snapshots.clone(),
+                    render_usage_list(&snapshots, &items),
+                    cli.json,
+                ))
+            }
+        },
+        Commands::Autoswitch(command) => match command.command {
+            None | Some(AutoswitchSubcommand::Show) => {
+                let settings = app.settings()?;
+                Ok(Output::success_rendered(
+                    "autoswitch status loaded",
+                    settings.clone(),
+                    render_autoswitch_settings(&settings),
+                    cli.json,
+                ))
+            }
+            Some(AutoswitchSubcommand::Enable) => {
                 let settings = app.set_auto_switch_enabled(true)?;
                 Ok(Output::success_rendered(
-                    "auto-switch enabled",
+                    "autoswitch enabled",
                     settings.clone(),
-                    render_app_settings(&settings),
+                    render_autoswitch_settings(&settings),
                     cli.json,
                 ))
             }
-            AutoSwitchSubcommand::Disable => {
+            Some(AutoswitchSubcommand::Disable) => {
                 let settings = app.set_auto_switch_enabled(false)?;
                 Ok(Output::success_rendered(
-                    "auto-switch disabled",
+                    "autoswitch disabled",
                     settings.clone(),
-                    render_app_settings(&settings),
+                    render_autoswitch_settings(&settings),
                     cli.json,
                 ))
             }
-            AutoSwitchSubcommand::Set(args) => {
-                let enabled = auto_switch_enabled_from_args(args)?;
-                let settings = app.set_auto_switch_enabled(enabled)?;
+            Some(AutoswitchSubcommand::Set(args)) => {
+                let settings =
+                    app.update_system_settings(system_settings_request_from_args(args)?)?;
                 Ok(Output::success_rendered(
-                    if enabled {
-                        "auto-switch enabled"
-                    } else {
-                        "auto-switch disabled"
-                    },
+                    "autoswitch updated",
                     settings.clone(),
-                    render_app_settings(&settings),
+                    render_autoswitch_settings(&settings),
                     cli.json,
                 ))
             }
         },
-        Commands::Events(command) => match command.command {
-            EventsSubcommand::List(args) => {
-                let limit = events_limit_from_args(args)?;
-                let events = app.list_failure_events(limit)?;
-                let profiles = app.list_profiles()?;
+        Commands::Activity(command) => match command.command {
+            ActivitySubcommand::Events(command) => match command.command {
+                ActivityEventsSubcommand::List(args) => {
+                    let query = activity_events_query_from_args(args)?;
+                    let events = app.list_activity_events(query)?;
+                    let items = app.list_profiles_with_usage()?;
+                    Ok(Output::success_rendered(
+                        "activity events loaded",
+                        events.clone(),
+                        render_failure_events(&events, &items),
+                        cli.json,
+                    ))
+                }
+            },
+            ActivitySubcommand::Logs(command) => match command.command {
+                LogsSubcommand::Tail(args) => {
+                    let logs = app.logs_tail(log_lines_from_args(args)?)?;
+                    Ok(Output::success_rendered(
+                        "activity logs loaded",
+                        logs.clone(),
+                        render_log_tail(&logs),
+                        cli.json,
+                    ))
+                }
+            },
+            ActivitySubcommand::Diagnostics(command) => match command.command {
+                DiagnosticsSubcommand::Export => {
+                    let export = app.diagnostics_export()?;
+                    Ok(Output::success_rendered(
+                        "activity diagnostics exported",
+                        export.clone(),
+                        render_diagnostics_export(&export),
+                        cli.json,
+                    ))
+                }
+            },
+        },
+        Commands::Codex(command) => match command.command {
+            CodexSubcommand::Add(args) => {
+                let profile = app.add_profile(codex_add_request_from_args(args)?)?;
                 Ok(Output::success_rendered(
-                    "events loaded",
-                    events.clone(),
-                    render_failure_events(&events, &profiles),
+                    "codex profile created",
+                    profile.clone(),
+                    render_profile_detail(&profile),
                     cli.json,
                 ))
             }
-        },
-        Commands::Logs(command) => match command.command {
-            LogsSubcommand::Tail(args) => {
-                let lines = log_lines_from_args(args)?;
-                let logs = app.logs_tail(lines)?;
+            CodexSubcommand::Import(args) => {
+                let payload = codex_import_request_from_args(args)?;
+                let profile = app.import_profile(payload)?;
                 Ok(Output::success_rendered(
-                    "logs loaded",
-                    logs.clone(),
-                    render_log_tail(&logs),
+                    "codex profile imported",
+                    profile.clone(),
+                    render_profile_detail(&profile),
                     cli.json,
                 ))
             }
-        },
-        Commands::Diagnostics(command) => match command.command {
-            DiagnosticsSubcommand::Export => {
-                let export = app.diagnostics_export()?;
+            CodexSubcommand::Login(args) => {
+                let payload = codex_login_request_from_args(args)?;
+                let result = app.login_profile(payload)?;
                 Ok(Output::success_rendered(
-                    "diagnostics exported",
-                    export.clone(),
-                    render_diagnostics_export(&export),
+                    "codex login profile created",
+                    result.clone(),
+                    render_agent_link_result(&result),
+                    cli.json,
+                ))
+            }
+            CodexSubcommand::Relink(args) => {
+                let id = profile_id_from_args(args)?;
+                let identity = app.relink_profile(AgentKind::Codex, &id)?;
+                Ok(Output::success_rendered(
+                    "codex profile relinked",
+                    identity.clone(),
+                    render_probe_identity(&identity),
                     cli.json,
                 ))
             }
@@ -606,24 +588,12 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
     }
 }
 
-fn usage_list_output(app: &RelayApp, message: &str, json: bool) -> Result<Output, RelayError> {
-    let snapshots = app.list_usage_reports()?;
-    let profiles = app.list_profiles()?;
-    Ok(Output::success_rendered(
-        message,
-        snapshots.clone(),
-        render_usage_list(&snapshots, &profiles),
-        json,
-    ))
-}
-
-fn profiles_list_output(app: &RelayApp, json: bool) -> Result<Output, RelayError> {
-    let profiles = app.list_profiles()?;
-    let status = app.status_report()?;
+fn list_output(app: &RelayApp, json: bool) -> Result<Output, RelayError> {
+    let items = app.list_profiles_with_usage()?;
     Ok(Output::success_rendered(
         "profiles loaded",
-        profiles.clone(),
-        render_profiles_list(&profiles, status.active_state.active_profile_id.as_deref()),
+        items.clone(),
+        render_profiles_list(&items),
         json,
     ))
 }
@@ -694,7 +664,7 @@ fn render_doctor_report(report: &DoctorReport) -> String {
     ])
 }
 
-fn render_status_report(report: &StatusReport) -> String {
+fn render_status_report(report: &SystemStatusReport) -> String {
     render_sections(vec![
         (
             "Relay",
@@ -709,7 +679,10 @@ fn render_status_report(report: &StatusReport) -> String {
     ])
 }
 
-fn render_usage_list(snapshots: &[UsageSnapshot], profiles: &[Profile]) -> String {
+fn render_usage_list(
+    snapshots: &[UsageSnapshot],
+    profiles: &[relay_core::ProfileListItem],
+) -> String {
     let mut table = new_table();
     table.set_header(vec![
         "Profile",
@@ -726,8 +699,8 @@ fn render_usage_list(snapshots: &[UsageSnapshot], profiles: &[Profile]) -> Strin
         let enabled = snapshot
             .profile_id
             .as_deref()
-            .and_then(|id| profiles.iter().find(|profile| profile.id == id))
-            .map(|profile| profile.enabled)
+            .and_then(|id| profiles.iter().find(|item| item.profile.id == id))
+            .map(|item| item.profile.enabled)
             .unwrap_or(true);
         table.add_row(Row::from(vec![
             Cell::new(display_profile(snapshot)).set_alignment(CellAlignment::Left),
@@ -794,11 +767,15 @@ fn render_usage_detail(snapshot: &UsageSnapshot) -> String {
     render_sections(vec![("Usage", fields)])
 }
 
-fn render_app_settings(settings: &AppSettings) -> String {
-    render_sections(vec![("Settings", app_settings_fields(settings))])
+fn render_settings(settings: &AppSettings) -> String {
+    render_sections(vec![("Settings", usage_settings_fields(settings))])
 }
 
-fn render_profiles_list(profiles: &[Profile], active_profile_id: Option<&str>) -> String {
+fn render_autoswitch_settings(settings: &AppSettings) -> String {
+    render_sections(vec![("Autoswitch", autoswitch_fields(settings))])
+}
+
+fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> String {
     let mut table = new_table();
     table.set_header(vec![
         "Current",
@@ -807,19 +784,20 @@ fn render_profiles_list(profiles: &[Profile], active_profile_id: Option<&str>) -
         "Agent",
         "Priority",
         "Status",
+        "Session",
+        "Weekly",
+        "Source",
         "Auth",
-        "Paths",
+        "Notes",
     ]);
 
-    for profile in profiles {
+    for item in items {
+        let profile = &item.profile;
+        let usage = item.usage_summary.as_ref();
         table.add_row(Row::from(vec![
             styled_cell(
-                if Some(profile.id.as_str()) == active_profile_id {
-                    "yes"
-                } else {
-                    "-"
-                },
-                if Some(profile.id.as_str()) == active_profile_id {
+                if item.is_active { "yes" } else { "-" },
+                if item.is_active {
                     CellTone::Info
                 } else {
                     CellTone::Muted
@@ -841,8 +819,33 @@ fn render_profiles_list(profiles: &[Profile], active_profile_id: Option<&str>) -
                     CellTone::Muted
                 },
             ),
+            styled_cell(
+                usage
+                    .map(|value| window_label(&value.session))
+                    .unwrap_or_else(|| "-".into()),
+                usage
+                    .map(|value| status_tone(value.session.status.clone()))
+                    .unwrap_or(CellTone::Muted),
+            ),
+            styled_cell(
+                usage
+                    .map(|value| window_label(&value.weekly))
+                    .unwrap_or_else(|| "-".into()),
+                usage
+                    .map(|value| status_tone(value.weekly.status.clone()))
+                    .unwrap_or(CellTone::Muted),
+            ),
+            Cell::new(
+                usage
+                    .map(|value| usage_source_label(&value.source).to_string())
+                    .unwrap_or_else(|| "-".into()),
+            ),
             Cell::new(auth_mode_label(&profile.auth_mode)),
-            Cell::new(profile_paths_summary(profile)),
+            Cell::new(
+                usage
+                    .and_then(|value| value.message.clone())
+                    .unwrap_or_else(|| "-".into()),
+            ),
         ]));
     }
 
@@ -879,6 +882,52 @@ fn render_profile_detail(profile: &Profile) -> String {
             ("Updated", profile.updated_at.clone()),
         ],
     )])
+}
+
+fn render_profile_summary(detail: &ProfileDetail) -> String {
+    let mut sections = vec![(
+        "Profile",
+        vec![
+            ("Nickname", detail.profile.nickname.clone()),
+            ("Profile ID", detail.profile.id.clone()),
+            ("Agent", agent_kind_label(&detail.profile.agent).into()),
+            ("Active", yes_no(detail.is_active).into()),
+            (
+                "Status",
+                if detail.profile.enabled {
+                    "enabled"
+                } else {
+                    "disabled"
+                }
+                .into(),
+            ),
+            ("Switch Eligible", yes_no(detail.switch_eligible).into()),
+            (
+                "Eligibility Note",
+                detail
+                    .switch_ineligibility_reason
+                    .clone()
+                    .unwrap_or_else(|| "-".into()),
+            ),
+        ],
+    )];
+
+    if let Some(usage) = &detail.usage {
+        sections.push(("Usage", usage_fields(usage)));
+    }
+
+    if let Some(event) = &detail.last_failure_event {
+        sections.push((
+            "Recent Failure",
+            vec![
+                ("Reason", failure_reason_label(&event.reason).into()),
+                ("When", format_datetime(event.created_at)),
+                ("Message", event.message.clone()),
+            ],
+        ));
+    }
+
+    render_sections(sections)
 }
 
 fn render_agent_link_result(result: &AgentLinkResult) -> String {
@@ -933,10 +982,13 @@ fn render_switch_report(report: &SwitchReport) -> String {
     )])
 }
 
-fn render_failure_events(events: &[FailureEvent], profiles: &[Profile]) -> String {
+fn render_failure_events(
+    events: &[FailureEvent],
+    profiles: &[relay_core::ProfileListItem],
+) -> String {
     let by_profile = profiles
         .iter()
-        .map(|profile| (profile.id.as_str(), profile.nickname.as_str()))
+        .map(|item| (item.profile.id.as_str(), item.profile.nickname.as_str()))
         .collect::<HashMap<_, _>>();
     let mut table = new_table();
     table.set_header(vec![
@@ -1035,6 +1087,31 @@ fn detail_window_line(window: &UsageWindow) -> String {
         parts.push("estimated".into());
     }
     parts.join(" | ")
+}
+
+fn usage_fields(snapshot: &UsageSnapshot) -> Vec<(&'static str, String)> {
+    let mut fields = vec![
+        ("Source", usage_source_label(&snapshot.source).into()),
+        (
+            "Confidence",
+            usage_confidence_label(&snapshot.confidence).into(),
+        ),
+        (
+            "Freshness",
+            if snapshot.stale { "stale" } else { "fresh" }.into(),
+        ),
+        ("Updated", format_datetime(snapshot.last_refreshed_at)),
+        ("Session", detail_window_line(&snapshot.session)),
+        ("Weekly", detail_window_line(&snapshot.weekly)),
+        (
+            "Next Reset",
+            format_optional_datetime(snapshot.next_reset_at),
+        ),
+    ];
+    if let Some(message) = &snapshot.message {
+        fields.push(("Notes", message.clone()));
+    }
+    fields
 }
 
 fn render_sections(sections: Vec<(&'static str, Vec<(&'static str, String)>)>) -> String {
@@ -1234,14 +1311,6 @@ fn yes_no(value: bool) -> &'static str {
     if value { "yes" } else { "no" }
 }
 
-fn profile_paths_summary(profile: &Profile) -> String {
-    format!(
-        "home={} | config={}",
-        profile.agent_home.as_deref().unwrap_or("-"),
-        profile.config_path.as_deref().unwrap_or("-")
-    )
-}
-
 fn active_state_fields(state: &ActiveState) -> Vec<(&'static str, String)> {
     vec![
         (
@@ -1277,6 +1346,37 @@ fn app_settings_fields(settings: &AppSettings) -> Vec<(&'static str, String)> {
             yes_no(settings.auto_switch_enabled).into(),
         ),
         ("Cooldown Seconds", settings.cooldown_seconds.to_string()),
+        (
+            "Usage Source Mode",
+            usage_source_mode_label(&settings.usage_source_mode).into(),
+        ),
+        (
+            "Menu-open Refresh",
+            format!("{}s", settings.menu_open_refresh_stale_after_seconds),
+        ),
+        (
+            "Background Refresh",
+            yes_no(settings.usage_background_refresh_enabled).into(),
+        ),
+        (
+            "Background Interval",
+            format!("{}s", settings.usage_background_refresh_interval_seconds),
+        ),
+    ]
+}
+
+fn autoswitch_fields(settings: &AppSettings) -> Vec<(&'static str, String)> {
+    vec![
+        (
+            "Auto-switch Enabled",
+            yes_no(settings.auto_switch_enabled).into(),
+        ),
+        ("Cooldown Seconds", settings.cooldown_seconds.to_string()),
+    ]
+}
+
+fn usage_settings_fields(settings: &AppSettings) -> Vec<(&'static str, String)> {
+    vec![
         (
             "Usage Source Mode",
             usage_source_mode_label(&settings.usage_source_mode).into(),
@@ -1336,21 +1436,11 @@ fn parse_auth_mode(value: &str) -> Result<AuthMode, RelayError> {
     }
 }
 
-fn parse_agent_kind(value: &str) -> Result<AgentKind, RelayError> {
-    match value {
-        "codex" | "Codex" => Ok(AgentKind::Codex),
-        other => Err(RelayError::InvalidInput(format!(
-            "unsupported agent: {other}"
-        ))),
-    }
-}
-
-fn add_profile_request_from_args(args: AddProfileArgs) -> Result<AddProfileRequest, RelayError> {
+fn codex_add_request_from_args(args: CodexAddArgs) -> Result<AddProfileRequest, RelayError> {
     if let Some(input_json) = args.input_json.as_ref() {
         ensure_json_input_is_exclusive(
             input_json,
             &[
-                args.agent.is_some(),
                 args.nickname.is_some(),
                 args.priority.is_some(),
                 args.config_path.is_some(),
@@ -1358,9 +1448,9 @@ fn add_profile_request_from_args(args: AddProfileArgs) -> Result<AddProfileReque
                 args.auth_mode.is_some(),
             ],
         )?;
-        let payload: AddProfileInput = read_json_input(input_json)?;
+        let payload: CodexAddInput = read_json_input(input_json)?;
         return Ok(AddProfileRequest {
-            agent: payload.agent,
+            agent: AgentKind::Codex,
             nickname: payload.nickname,
             priority: payload.priority,
             config_path: payload.config_path,
@@ -1370,7 +1460,7 @@ fn add_profile_request_from_args(args: AddProfileArgs) -> Result<AddProfileReque
     }
 
     Ok(AddProfileRequest {
-        agent: parse_agent_kind(&require_field(args.agent, "agent is required")?)?,
+        agent: AgentKind::Codex,
         nickname: require_field(args.nickname, "profile nickname is required")?,
         priority: args.priority.unwrap_or(100),
         config_path: args.config_path,
@@ -1435,71 +1525,48 @@ fn edit_profile_request_from_args(
     ))
 }
 
-fn import_profile_request_from_args(
-    args: ImportProfileArgs,
+fn codex_import_request_from_args(
+    args: CodexImportArgs,
 ) -> Result<ImportProfileRequest, RelayError> {
     if let Some(input_json) = args.input_json.as_ref() {
         ensure_json_input_is_exclusive(
             input_json,
-            &[
-                args.agent.is_some(),
-                args.nickname.is_some(),
-                args.priority.is_some(),
-            ],
+            &[args.nickname.is_some(), args.priority.is_some()],
         )?;
         let payload: ImportProfileInput = read_json_input(input_json)?;
         return Ok(ImportProfileRequest {
-            agent: payload.agent,
+            agent: AgentKind::Codex,
             nickname: payload.nickname,
             priority: payload.priority,
         });
     }
 
     Ok(ImportProfileRequest {
-        agent: parse_agent_kind(&require_field(args.agent, "agent is required")?)?,
+        agent: AgentKind::Codex,
         nickname: args.nickname,
         priority: args.priority.unwrap_or(100),
     })
 }
 
-fn login_profile_request_from_args(
-    args: LoginProfileArgs,
-) -> Result<AgentLoginRequest, RelayError> {
+fn codex_login_request_from_args(args: CodexLoginArgs) -> Result<AgentLoginRequest, RelayError> {
     if let Some(input_json) = args.input_json.as_ref() {
         ensure_json_input_is_exclusive(
             input_json,
-            &[
-                args.agent.is_some(),
-                args.nickname.is_some(),
-                args.priority.is_some(),
-            ],
+            &[args.nickname.is_some(), args.priority.is_some()],
         )?;
         let payload: LoginProfileInput = read_json_input(input_json)?;
         return Ok(AgentLoginRequest {
-            agent: payload.agent,
+            agent: AgentKind::Codex,
             nickname: payload.nickname,
             priority: payload.priority,
         });
     }
 
     Ok(AgentLoginRequest {
-        agent: parse_agent_kind(&require_field(args.agent, "agent is required")?)?,
+        agent: AgentKind::Codex,
         nickname: args.nickname,
         priority: args.priority.unwrap_or(100),
     })
-}
-
-fn agent_profile_id_from_args(args: AgentProfileIdArgs) -> Result<(AgentKind, String), RelayError> {
-    if let Some(input_json) = args.input_json.as_ref() {
-        ensure_json_input_is_exclusive(input_json, &[args.agent.is_some(), args.id.is_some()])?;
-        let payload: AgentProfileIdInput = read_json_input(input_json)?;
-        return Ok((payload.agent, payload.id));
-    }
-
-    Ok((
-        parse_agent_kind(&require_field(args.agent, "agent is required")?)?,
-        require_field(args.id, "profile id is required")?,
-    ))
 }
 
 fn profile_id_from_args(args: ProfileIdArgs) -> Result<String, RelayError> {
@@ -1512,24 +1579,88 @@ fn profile_id_from_args(args: ProfileIdArgs) -> Result<String, RelayError> {
     require_field(args.id, "profile id is required")
 }
 
-fn switch_target_from_args(args: SwitchCommand) -> Result<String, RelayError> {
-    if let Some(input_json) = args.input_json.as_ref() {
-        ensure_json_input_is_exclusive(input_json, &[args.target.is_some()])?;
-        let payload: SwitchInput = read_json_input(input_json)?;
-        return Ok(payload.target);
-    }
-
-    require_field(args.target, "switch target is required")
-}
-
-fn auto_switch_enabled_from_args(args: AutoSwitchSetArgs) -> Result<bool, RelayError> {
+fn system_settings_request_from_args(
+    args: AutoswitchSetArgs,
+) -> Result<SystemSettingsUpdateRequest, RelayError> {
     if let Some(input_json) = args.input_json.as_ref() {
         ensure_json_input_is_exclusive(input_json, &[args.enabled.is_some()])?;
         let payload: AutoSwitchInput = read_json_input(input_json)?;
-        return Ok(payload.enabled);
+        return Ok(SystemSettingsUpdateRequest {
+            auto_switch_enabled: Some(payload.enabled),
+        });
     }
 
-    require_field(args.enabled, "auto-switch enabled value is required")
+    Ok(SystemSettingsUpdateRequest {
+        auto_switch_enabled: Some(require_field(
+            args.enabled,
+            "autoswitch enabled value is required",
+        )?),
+    })
+}
+
+enum ShowTarget {
+    Current,
+    Profile(String),
+}
+
+fn show_target_from_args(args: ShowCommand) -> Result<ShowTarget, RelayError> {
+    match args.target.as_deref() {
+        None | Some("current") => Ok(ShowTarget::Current),
+        Some(id) => Ok(ShowTarget::Profile(id.to_string())),
+    }
+}
+
+enum SwitchTarget {
+    Next,
+    Profile(String),
+}
+
+fn switch_target_from_args(args: SwitchCommand) -> Result<SwitchTarget, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(input_json, &[args.target.is_some()])?;
+        let payload: ProfileIdInput = read_json_input(input_json)?;
+        return Ok(SwitchTarget::Profile(payload.id));
+    }
+
+    match args.target.as_deref() {
+        None | Some("next") => Ok(SwitchTarget::Next),
+        Some(id) => Ok(SwitchTarget::Profile(id.to_string())),
+    }
+}
+
+enum RefreshTarget {
+    Profile(String),
+    Enabled,
+    All,
+}
+
+fn refresh_target_from_args(args: RefreshCommand) -> Result<RefreshTarget, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(input_json, &[args.target.is_some(), args.all])?;
+        let payload: RefreshInput = read_json_input(input_json)?;
+        return refresh_target_from_input(payload);
+    }
+
+    refresh_target_from_input(RefreshInput {
+        id: args.target,
+        all: args.all,
+    })
+}
+
+fn refresh_target_from_input(input: RefreshInput) -> Result<RefreshTarget, RelayError> {
+    if input.all && input.id.is_some() {
+        return Err(RelayError::InvalidInput(
+            "refresh cannot combine a profile id with --all".into(),
+        ));
+    }
+
+    if input.all {
+        Ok(RefreshTarget::All)
+    } else if let Some(id) = input.id {
+        Ok(RefreshTarget::Profile(id))
+    } else {
+        Ok(RefreshTarget::Enabled)
+    }
 }
 
 fn parse_usage_source_mode(value: &str) -> Result<UsageSourceMode, RelayError> {
@@ -1543,46 +1674,19 @@ fn parse_usage_source_mode(value: &str) -> Result<UsageSourceMode, RelayError> {
     }
 }
 
-enum UsageRefreshTarget {
-    Profile(String),
-    Enabled,
-    All,
-}
-
-fn usage_refresh_target_from_args(
-    args: UsageRefreshArgs,
-) -> Result<UsageRefreshTarget, RelayError> {
-    if let Some(input_json) = args.input_json.as_ref() {
-        ensure_json_input_is_exclusive(input_json, &[args.id.is_some(), args.enabled, args.all])?;
-        let payload: UsageRefreshInput = read_json_input(input_json)?;
-        return usage_refresh_target_from_input(payload);
-    }
-
-    usage_refresh_target_from_input(UsageRefreshInput {
-        id: args.id,
-        enabled: args.enabled,
-        all: args.all,
-    })
-}
-
-fn usage_refresh_target_from_input(
-    input: UsageRefreshInput,
-) -> Result<UsageRefreshTarget, RelayError> {
-    let selectors = [input.id.is_some(), input.enabled, input.all];
-    if selectors.into_iter().filter(|value| *value).count() != 1 {
-        return Err(RelayError::InvalidInput(
-            "usage refresh requires exactly one selector: profile id, --enabled, or --all".into(),
-        ));
-    }
-
-    if input.all {
-        Ok(UsageRefreshTarget::All)
-    } else if input.enabled {
-        Ok(UsageRefreshTarget::Enabled)
-    } else {
-        Ok(UsageRefreshTarget::Profile(input.id.ok_or_else(|| {
-            RelayError::InvalidInput("profile id is required".into())
-        })?))
+fn parse_failure_reason(value: &str) -> Result<FailureReason, RelayError> {
+    match value {
+        "session-exhausted" | "SessionExhausted" => Ok(FailureReason::SessionExhausted),
+        "weekly-exhausted" | "WeeklyExhausted" => Ok(FailureReason::WeeklyExhausted),
+        "auth-invalid" | "AuthInvalid" => Ok(FailureReason::AuthInvalid),
+        "quota-exhausted" | "QuotaExhausted" => Ok(FailureReason::QuotaExhausted),
+        "rate-limited" | "RateLimited" => Ok(FailureReason::RateLimited),
+        "command-failed" | "CommandFailed" => Ok(FailureReason::CommandFailed),
+        "validation-failed" | "ValidationFailed" => Ok(FailureReason::ValidationFailed),
+        "unknown" | "Unknown" => Ok(FailureReason::Unknown),
+        other => Err(RelayError::InvalidInput(format!(
+            "unsupported failure reason: {other}"
+        ))),
     }
 }
 
@@ -1620,14 +1724,35 @@ fn usage_settings_request_from_args(
     })
 }
 
-fn events_limit_from_args(args: ListArgs) -> Result<usize, RelayError> {
+fn activity_events_query_from_args(
+    args: ActivityEventsListArgs,
+) -> Result<ActivityEventsQuery, RelayError> {
     if let Some(input_json) = args.input_json.as_ref() {
-        ensure_json_input_is_exclusive(input_json, &[args.limit.is_some()])?;
+        ensure_json_input_is_exclusive(
+            input_json,
+            &[
+                args.limit.is_some(),
+                args.profile_id.is_some(),
+                args.reason.is_some(),
+            ],
+        )?;
         let payload: EventsListInput = read_json_input(input_json)?;
-        return Ok(payload.limit);
+        return Ok(ActivityEventsQuery {
+            limit: payload.limit,
+            profile_id: payload.profile_id,
+            reason: payload.reason,
+        });
     }
 
-    Ok(args.limit.unwrap_or(50))
+    Ok(ActivityEventsQuery {
+        limit: args.limit.unwrap_or(50),
+        profile_id: args.profile_id,
+        reason: args
+            .reason
+            .as_deref()
+            .map(parse_failure_reason)
+            .transpose()?,
+    })
 }
 
 fn log_lines_from_args(args: TailArgs) -> Result<usize, RelayError> {
@@ -1682,9 +1807,7 @@ fn default_auth_mode() -> AuthMode {
 }
 
 #[derive(Debug, Deserialize)]
-struct AddProfileInput {
-    #[serde(deserialize_with = "deserialize_agent_kind")]
-    agent: AgentKind,
+struct CodexAddInput {
     nickname: String,
     #[serde(default = "default_priority")]
     priority: i32,
@@ -1710,22 +1833,8 @@ struct ProfileIdInput {
 }
 
 #[derive(Debug, Deserialize)]
-struct SwitchInput {
-    target: String,
-}
-
-#[derive(Debug, Deserialize)]
 struct AutoSwitchInput {
     enabled: bool,
-}
-
-#[derive(Debug, Deserialize)]
-struct UsageRefreshInput {
-    id: Option<String>,
-    #[serde(default)]
-    enabled: bool,
-    #[serde(default)]
-    all: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1738,16 +1847,7 @@ struct UsageConfigSetInput {
 }
 
 #[derive(Debug, Deserialize)]
-struct AgentProfileIdInput {
-    #[serde(deserialize_with = "deserialize_agent_kind")]
-    agent: AgentKind,
-    id: String,
-}
-
-#[derive(Debug, Deserialize)]
 struct LoginProfileInput {
-    #[serde(deserialize_with = "deserialize_agent_kind")]
-    agent: AgentKind,
     nickname: Option<String>,
     #[serde(default = "default_priority")]
     priority: i32,
@@ -1767,27 +1867,41 @@ where
         .map_err(serde::de::Error::custom)
 }
 
-fn deserialize_agent_kind<'de, D>(deserializer: D) -> Result<AgentKind, D::Error>
+fn deserialize_failure_reason_option<'de, D>(
+    deserializer: D,
+) -> Result<Option<FailureReason>, D::Error>
 where
     D: serde::Deserializer<'de>,
 {
-    let value = String::deserialize(deserializer)?;
-    parse_agent_kind(&value).map_err(serde::de::Error::custom)
+    let value = Option::<String>::deserialize(deserializer)?;
+    value
+        .as_deref()
+        .map(parse_failure_reason)
+        .transpose()
+        .map_err(serde::de::Error::custom)
 }
 
 #[derive(Debug, Deserialize)]
 struct ImportProfileInput {
-    #[serde(deserialize_with = "deserialize_agent_kind")]
-    agent: AgentKind,
     nickname: Option<String>,
     #[serde(default = "default_priority")]
     priority: i32,
 }
 
 #[derive(Debug, Deserialize)]
+struct RefreshInput {
+    id: Option<String>,
+    #[serde(default)]
+    all: bool,
+}
+
+#[derive(Debug, Deserialize)]
 struct EventsListInput {
     #[serde(default = "default_list_limit")]
     limit: usize,
+    profile_id: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_failure_reason_option")]
+    reason: Option<FailureReason>,
 }
 
 #[derive(Debug, Deserialize)]

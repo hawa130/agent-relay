@@ -3,18 +3,19 @@ import XCTest
 @testable import RelayMacOSUI
 
 final class RelayCLIClientTests: XCTestCase {
-    func testFetchCurrentUsageAndUsageListUseNewCommands() async throws {
+    func testFetchCurrentUsageAndProfileListUseNewCommands() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
 
         let client = RelayCLIClient(relayCLIPathOverride: fixture.scriptPath, environment: [:])
         let current = try await client.fetchCurrentUsage()
-        let usageList = try await client.fetchUsageList()
+        let profileList = try await client.fetchProfileList()
 
         XCTAssertEqual(current.profileId, "p_active")
         XCTAssertEqual(current.source, .local)
-        XCTAssertEqual(usageList.count, 2)
-        XCTAssertEqual(usageList[1].profileId, "p_alt")
+        XCTAssertEqual(profileList.count, 2)
+        XCTAssertEqual(profileList[1].profile.id, "p_alt")
+        XCTAssertEqual(profileList[1].usageSummary?.profileId, "p_alt")
     }
 
     func testFetchStatusUsesJSONAndDecodesCurrentFields() async throws {
@@ -51,7 +52,7 @@ final class RelayCLIClientTests: XCTestCase {
         XCTAssertFalse(settings.usageBackgroundRefreshEnabled)
     }
 
-    func testImportProfileCommandUsesAgentAwareJSON() async throws {
+    func testImportProfileCommandUsesAgentSpecificJSON() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
 
@@ -63,12 +64,11 @@ final class RelayCLIClientTests: XCTestCase {
         )
 
         XCTAssertEqual(profile.id, "p_live")
-        XCTAssertEqual(payload["agent"] as? String, "codex")
         XCTAssertEqual(payload["nickname"] as? String, "live")
         XCTAssertEqual(payload["priority"] as? Int, 100)
     }
 
-    func testLoginProfileCommandUsesAgentAwareJSON() async throws {
+    func testLoginProfileCommandUsesAgentSpecificJSON() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
 
@@ -81,7 +81,6 @@ final class RelayCLIClientTests: XCTestCase {
 
         XCTAssertEqual(link.profile.id, "p_browser")
         XCTAssertEqual(link.probeIdentity.accountId, "acct-123")
-        XCTAssertEqual(payload["agent"] as? String, "codex")
         XCTAssertEqual(payload["nickname"] as? String, "browser")
         XCTAssertEqual(payload["priority"] as? Int, 90)
     }
@@ -137,45 +136,45 @@ case "$cmd" in
 {"success":true,"error_code":null,"message":"status loaded","data":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600}}}
 EOF
     ;;
-  "--json usage current")
+  "--json show")
     cat <<'EOF'
-{"success":true,"error_code":null,"message":"current usage loaded","data":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}
+{"success":true,"error_code":null,"message":"profile detail loaded","data":{"profile":{"id":"p_active","nickname":"active","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/active-home","config_path":"/tmp/active-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":true,"usage":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"},"last_failure_event":null,"switch_eligible":true,"switch_ineligibility_reason":null}}
 EOF
     ;;
-  "--json usage list")
+  "--json list")
     cat <<'EOF'
-{"success":true,"error_code":null,"message":"usage list loaded","data":[{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"},{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}]}
+{"success":true,"error_code":null,"message":"profiles loaded","data":[{"profile":{"id":"p_active","nickname":"active","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/active-home","config_path":"/tmp/active-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":true,"usage_summary":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}},{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":false,"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}]}
 EOF
     ;;
-  "--json usage refresh --input-json -")
+  "--json refresh --input-json -")
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
     cat <<'EOF'
 {"success":true,"error_code":null,"message":"usage refreshed","data":{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}} 
 EOF
     ;;
-  "--json usage config set --input-json -")
+  "--json settings set --input-json -")
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
     cat <<'EOF'
 {"success":true,"error_code":null,"message":"usage settings updated","data":{"auto_switch_enabled":false,"cooldown_seconds":600,"usage_source_mode":"WebEnhanced","menu_open_refresh_stale_after_seconds":5,"usage_background_refresh_enabled":false,"usage_background_refresh_interval_seconds":300}}
 EOF
     ;;
-  "--json profiles import --input-json -")
+  "--json codex import --input-json -")
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
     cat <<'EOF'
 {"success":true,"error_code":null,"message":"profile imported","data":{"id":"p_live","nickname":"live","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/live-home","config_path":"/tmp/live-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"}}
 EOF
     ;;
-  "--json profiles login --input-json -")
+  "--json codex login --input-json -")
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
     cat <<'EOF'
 {"success":true,"error_code":null,"message":"codex login profile created","data":{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"probe_identity":{"profile_id":"p_browser","provider":"CodexOfficial","principal_id":"acct-123","display_name":"browser@example.com","credentials":{"account_id":"acct-123","access_token":"access-token"},"metadata":{"email":"browser@example.com","plan_hint":"team"}},"activated":false}}
 EOF
     ;;
-  "--json switch next")
+  "--json switch")
     cat <<'EOF'
 {"success":true,"error_code":null,"message":"switched to next profile","data":{"profile_id":"p_next","previous_profile_id":"p_active","checkpoint_id":"cp-123","rollback_performed":false,"switched_at":"2026-03-08T12:27:12Z","message":"switched to next profile"}}
 EOF

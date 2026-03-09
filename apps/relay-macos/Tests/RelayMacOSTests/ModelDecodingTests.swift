@@ -169,4 +169,112 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(result.probeIdentity.accountId, "acct-123")
         XCTAssertFalse(result.activated)
     }
+
+    func testProfileDetailDecodesAggregateFields() throws {
+        let json = """
+        {
+          "profile": {
+            "id": "p_1",
+            "nickname": "work",
+            "agent": "Codex",
+            "priority": 100,
+            "enabled": true,
+            "agent_home": "/Users/test/.relay/profiles/work",
+            "config_path": "/Users/test/.relay/profiles/work/config.toml",
+            "auth_mode": "ConfigFilesystem",
+            "created_at": "2026-03-08T12:27:12Z",
+            "updated_at": "2026-03-08T12:27:12Z"
+          },
+          "is_active": false,
+          "usage": {
+            "profile_id": "p_1",
+            "profile_name": "work",
+            "source": "Local",
+            "confidence": "High",
+            "stale": false,
+            "last_refreshed_at": "2026-03-08T12:27:12Z",
+            "next_reset_at": "2026-03-08T17:06:00Z",
+            "session": {
+              "used_percent": 29.0,
+              "window_minutes": 300,
+              "reset_at": "2026-03-08T17:06:00Z",
+              "status": "Healthy",
+              "exact": true
+            },
+            "weekly": {
+              "used_percent": 31.0,
+              "window_minutes": 10080,
+              "reset_at": "2026-03-12T06:36:18Z",
+              "status": "Healthy",
+              "exact": true
+            },
+            "auto_switch_reason": null,
+            "can_auto_switch": false,
+            "message": "local usage"
+          },
+          "last_failure_event": null,
+          "switch_eligible": true,
+          "switch_ineligibility_reason": null
+        }
+        """.data(using: .utf8)!
+
+        let detail = try JSONDecoder.relayDecoder.decode(ProfileDetail.self, from: json)
+
+        XCTAssertEqual(detail.profile.id, "p_1")
+        XCTAssertFalse(detail.isActive)
+        XCTAssertEqual(detail.usage?.profileId, "p_1")
+        XCTAssertTrue(detail.switchEligible)
+    }
+
+    func testProfileListItemDecodesAggregateListFields() throws {
+        let json = """
+        {
+          "profile": {
+            "id": "p_1",
+            "nickname": "work",
+            "agent": "Codex",
+            "priority": 100,
+            "enabled": true,
+            "agent_home": "/Users/test/.relay/profiles/work",
+            "config_path": "/Users/test/.relay/profiles/work/config.toml",
+            "auth_mode": "ConfigFilesystem",
+            "created_at": "2026-03-08T12:27:12Z",
+            "updated_at": "2026-03-08T12:27:12Z"
+          },
+          "is_active": true,
+          "usage_summary": {
+            "profile_id": "p_1",
+            "profile_name": "work",
+            "source": "Local",
+            "confidence": "High",
+            "stale": false,
+            "last_refreshed_at": "2026-03-08T12:27:12Z",
+            "next_reset_at": "2026-03-08T17:06:00Z",
+            "session": {
+              "used_percent": 18.0,
+              "window_minutes": 300,
+              "reset_at": "2026-03-08T17:06:00Z",
+              "status": "Healthy",
+              "exact": true
+            },
+            "weekly": {
+              "used_percent": 22.0,
+              "window_minutes": 10080,
+              "reset_at": "2026-03-12T06:36:18Z",
+              "status": "Healthy",
+              "exact": true
+            },
+            "auto_switch_reason": null,
+            "can_auto_switch": false,
+            "message": "local usage"
+          }
+        }
+        """.data(using: .utf8)!
+
+        let item = try JSONDecoder.relayDecoder.decode(ProfileListItem.self, from: json)
+
+        XCTAssertEqual(item.profile.id, "p_1")
+        XCTAssertTrue(item.isActive)
+        XCTAssertEqual(item.usageSummary?.profileId, "p_1")
+    }
 }
