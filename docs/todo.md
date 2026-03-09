@@ -40,6 +40,7 @@ These items capture the current gaps against the latest Relay product/function g
 - [x] Replace the Codex-specific probe identity table shape with a generic provider envelope plus provider-specific credentials/metadata payloads.
 - [x] Remove remaining main-layer `codex_*` platform and diagnostics names so Codex-specific logic stays inside adapters and explicit agent selections.
 - [x] Make bare `relay usage` a per-profile usage list, add `relay usage current`, and align the macOS menu/profile UI around usage badges and list-first presentation.
+- [x] Replace pretty-JSON human CLI output with command-specific tables and summaries across all user-facing commands while keeping `--json` stable.
 
 ## Phase 0: Foundation
 

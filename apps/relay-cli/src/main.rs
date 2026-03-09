@@ -6,13 +6,17 @@ use comfy_table::{
 };
 use relay_core::models::JsonResponse;
 use relay_core::{
-    AddProfileRequest, AgentKind, AgentLoginRequest, AuthMode, BootstrapMode, EditProfileRequest,
-    ImportProfileRequest, Profile, RelayApp, RelayError, UsageConfidence,
+    ActiveState, AddProfileRequest, AgentKind, AgentLinkResult, AgentLoginRequest, AppSettings,
+    AuthMode, BootstrapMode, DiagnosticsExport, DoctorReport, EditProfileRequest, FailureEvent,
+    FailureReason, ImportProfileRequest, LogTail, ProbeProvider, Profile, ProfileProbeIdentity,
+    RelayApp, RelayError, StatusReport, SwitchOutcome, SwitchReport, UsageConfidence,
     UsageSettingsUpdateRequest, UsageSnapshot, UsageSourceMode, UsageStatus, UsageWindow,
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::env;
 use std::fs;
-use std::io::{self, Read};
+use std::io::{self, IsTerminal, Read};
 use std::path::PathBuf;
 use std::process::ExitCode;
 use tracing_subscriber::EnvFilter;
@@ -340,16 +344,24 @@ fn execute(cli: Cli) -> Result<Output, RelayError> {
 
 fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
     match cli.command {
-        Commands::Doctor => Ok(Output::success(
-            "doctor completed",
-            app.doctor_report()?,
-            cli.json,
-        )),
-        Commands::Status => Ok(Output::success(
-            "status loaded",
-            app.status_report()?,
-            cli.json,
-        )),
+        Commands::Doctor => {
+            let report = app.doctor_report()?;
+            Ok(Output::success_rendered(
+                "doctor completed",
+                report.clone(),
+                render_doctor_report(&report),
+                cli.json,
+            ))
+        }
+        Commands::Status => {
+            let report = app.status_report()?;
+            Ok(Output::success_rendered(
+                "status loaded",
+                report.clone(),
+                render_status_report(&report),
+                cli.json,
+            ))
+        }
         Commands::Usage(command) => match command.command {
             None => usage_list_output(&app, "usage loaded", cli.json),
             Some(UsageSubcommand::Current) => {
@@ -406,116 +418,151 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 }
             }
             Some(UsageSubcommand::Config(command)) => match command.command {
-                None => Ok(Output::success(
-                    "usage settings loaded",
-                    app.settings()?,
-                    cli.json,
-                )),
-                Some(UsageConfigSubcommand::Set(args)) => Ok(Output::success(
-                    "usage settings updated",
-                    app.update_usage_settings(usage_settings_request_from_args(args)?)?,
-                    cli.json,
-                )),
+                None => {
+                    let settings = app.settings()?;
+                    Ok(Output::success_rendered(
+                        "usage settings loaded",
+                        settings.clone(),
+                        render_app_settings(&settings),
+                        cli.json,
+                    ))
+                }
+                Some(UsageConfigSubcommand::Set(args)) => {
+                    let settings =
+                        app.update_usage_settings(usage_settings_request_from_args(args)?)?;
+                    Ok(Output::success_rendered(
+                        "usage settings updated",
+                        settings.clone(),
+                        render_app_settings(&settings),
+                        cli.json,
+                    ))
+                }
             },
         },
         Commands::Profiles(command) => match command.command {
-            ProfilesSubcommand::List => Ok(Output::success(
-                "profiles loaded",
-                app.list_profiles()?,
-                cli.json,
-            )),
+            ProfilesSubcommand::List => profiles_list_output(&app, cli.json),
             ProfilesSubcommand::Add(args) => {
                 let request = add_profile_request_from_args(args)?;
-                Ok(Output::success(
+                let profile = app.add_profile(request)?;
+                Ok(Output::success_rendered(
                     "profile created",
-                    app.add_profile(request)?,
+                    profile.clone(),
+                    render_profile_detail(&profile),
                     cli.json,
                 ))
             }
             ProfilesSubcommand::Edit(args) => {
                 let (id, request) = edit_profile_request_from_args(args)?;
-                Ok(Output::success(
+                let profile = app.edit_profile(&id, request)?;
+                Ok(Output::success_rendered(
                     "profile updated",
-                    app.edit_profile(&id, request)?,
+                    profile.clone(),
+                    render_profile_detail(&profile),
                     cli.json,
                 ))
             }
-            ProfilesSubcommand::Remove(args) => Ok(Output::success(
-                "profile removed",
-                app.remove_profile(&profile_id_from_args(args)?)?,
-                cli.json,
-            )),
-            ProfilesSubcommand::Enable(args) => Ok(Output::success(
-                "profile enabled",
-                app.set_profile_enabled(&profile_id_from_args(args)?, true)?,
-                cli.json,
-            )),
-            ProfilesSubcommand::Disable(args) => Ok(Output::success(
-                "profile disabled",
-                app.set_profile_enabled(&profile_id_from_args(args)?, false)?,
-                cli.json,
-            )),
+            ProfilesSubcommand::Remove(args) => {
+                let profile = app.remove_profile(&profile_id_from_args(args)?)?;
+                Ok(Output::success_rendered(
+                    "profile removed",
+                    profile.clone(),
+                    render_profile_detail(&profile),
+                    cli.json,
+                ))
+            }
+            ProfilesSubcommand::Enable(args) => {
+                let profile = app.set_profile_enabled(&profile_id_from_args(args)?, true)?;
+                Ok(Output::success_rendered(
+                    "profile enabled",
+                    profile.clone(),
+                    render_profile_detail(&profile),
+                    cli.json,
+                ))
+            }
+            ProfilesSubcommand::Disable(args) => {
+                let profile = app.set_profile_enabled(&profile_id_from_args(args)?, false)?;
+                Ok(Output::success_rendered(
+                    "profile disabled",
+                    profile.clone(),
+                    render_profile_detail(&profile),
+                    cli.json,
+                ))
+            }
             ProfilesSubcommand::Import(args) => {
                 let payload = import_profile_request_from_args(args)?;
-                Ok(Output::success(
+                let profile = app.import_profile(payload)?;
+                Ok(Output::success_rendered(
                     "profile imported",
-                    app.import_profile(payload)?,
+                    profile.clone(),
+                    render_profile_detail(&profile),
                     cli.json,
                 ))
             }
             ProfilesSubcommand::Login(args) => {
                 let payload = login_profile_request_from_args(args)?;
-                Ok(Output::success(
+                let result = app.login_profile(payload)?;
+                Ok(Output::success_rendered(
                     "profile login created",
-                    app.login_profile(payload)?,
+                    result.clone(),
+                    render_agent_link_result(&result),
                     cli.json,
                 ))
             }
             ProfilesSubcommand::Relink(args) => {
                 let (agent, id) = agent_profile_id_from_args(args)?;
-                Ok(Output::success(
+                let identity = app.relink_profile(agent, &id)?;
+                Ok(Output::success_rendered(
                     "profile relinked",
-                    app.relink_profile(agent, &id)?,
+                    identity.clone(),
+                    render_probe_identity(&identity),
                     cli.json,
                 ))
             }
         },
         Commands::Switch(command) => {
             let target = switch_target_from_args(command)?;
-            if target == "next" {
-                Ok(Output::success(
-                    "switch completed",
-                    app.switch_next_profile()?,
-                    cli.json,
-                ))
+            let report = if target == "next" {
+                app.switch_next_profile()?
             } else {
-                Ok(Output::success(
-                    "switch completed",
-                    app.switch_to_profile(&target)?,
+                app.switch_to_profile(&target)?
+            };
+            Ok(Output::success_rendered(
+                "switch completed",
+                report.clone(),
+                render_switch_report(&report),
+                cli.json,
+            ))
+        }
+        Commands::AutoSwitch(command) => match command.command {
+            AutoSwitchSubcommand::Enable => {
+                let settings = app.set_auto_switch_enabled(true)?;
+                Ok(Output::success_rendered(
+                    "auto-switch enabled",
+                    settings.clone(),
+                    render_app_settings(&settings),
                     cli.json,
                 ))
             }
-        }
-        Commands::AutoSwitch(command) => match command.command {
-            AutoSwitchSubcommand::Enable => Ok(Output::success(
-                "auto-switch enabled",
-                app.set_auto_switch_enabled(true)?,
-                cli.json,
-            )),
-            AutoSwitchSubcommand::Disable => Ok(Output::success(
-                "auto-switch disabled",
-                app.set_auto_switch_enabled(false)?,
-                cli.json,
-            )),
+            AutoSwitchSubcommand::Disable => {
+                let settings = app.set_auto_switch_enabled(false)?;
+                Ok(Output::success_rendered(
+                    "auto-switch disabled",
+                    settings.clone(),
+                    render_app_settings(&settings),
+                    cli.json,
+                ))
+            }
             AutoSwitchSubcommand::Set(args) => {
                 let enabled = auto_switch_enabled_from_args(args)?;
-                Ok(Output::success(
+                let settings = app.set_auto_switch_enabled(enabled)?;
+                Ok(Output::success_rendered(
                     if enabled {
                         "auto-switch enabled"
                     } else {
                         "auto-switch disabled"
                     },
-                    app.set_auto_switch_enabled(enabled)?,
+                    settings.clone(),
+                    render_app_settings(&settings),
                     cli.json,
                 ))
             }
@@ -523,9 +570,12 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
         Commands::Events(command) => match command.command {
             EventsSubcommand::List(args) => {
                 let limit = events_limit_from_args(args)?;
-                Ok(Output::success(
+                let events = app.list_failure_events(limit)?;
+                let profiles = app.list_profiles()?;
+                Ok(Output::success_rendered(
                     "events loaded",
-                    app.list_failure_events(limit)?,
+                    events.clone(),
+                    render_failure_events(&events, &profiles),
                     cli.json,
                 ))
             }
@@ -533,19 +583,25 @@ fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
         Commands::Logs(command) => match command.command {
             LogsSubcommand::Tail(args) => {
                 let lines = log_lines_from_args(args)?;
-                Ok(Output::success(
+                let logs = app.logs_tail(lines)?;
+                Ok(Output::success_rendered(
                     "logs loaded",
-                    app.logs_tail(lines)?,
+                    logs.clone(),
+                    render_log_tail(&logs),
                     cli.json,
                 ))
             }
         },
         Commands::Diagnostics(command) => match command.command {
-            DiagnosticsSubcommand::Export => Ok(Output::success(
-                "diagnostics exported",
-                app.diagnostics_export()?,
-                cli.json,
-            )),
+            DiagnosticsSubcommand::Export => {
+                let export = app.diagnostics_export()?;
+                Ok(Output::success_rendered(
+                    "diagnostics exported",
+                    export.clone(),
+                    render_diagnostics_export(&export),
+                    cli.json,
+                ))
+            }
         },
     }
 }
@@ -561,12 +617,100 @@ fn usage_list_output(app: &RelayApp, message: &str, json: bool) -> Result<Output
     ))
 }
 
+fn profiles_list_output(app: &RelayApp, json: bool) -> Result<Output, RelayError> {
+    let profiles = app.list_profiles()?;
+    let status = app.status_report()?;
+    Ok(Output::success_rendered(
+        "profiles loaded",
+        profiles.clone(),
+        render_profiles_list(&profiles, status.active_state.active_profile_id.as_deref()),
+        json,
+    ))
+}
+
+fn render_doctor_report(report: &DoctorReport) -> String {
+    render_sections(vec![
+        (
+            "Environment",
+            vec![
+                ("Platform", report.platform.clone()),
+                (
+                    "Primary Agent",
+                    agent_kind_label(&report.primary_agent).into(),
+                ),
+                (
+                    "Agent Binary",
+                    report.agent_binary.clone().unwrap_or_else(|| "-".into()),
+                ),
+                (
+                    "Managed Files",
+                    if report.managed_files.is_empty() {
+                        "-".into()
+                    } else {
+                        report.managed_files.join(", ")
+                    },
+                ),
+            ],
+        ),
+        (
+            "Paths",
+            vec![
+                ("Relay Home", report.relay_home.clone()),
+                ("Relay DB", report.relay_db_path.clone()),
+                ("Relay Log", report.relay_log_path.clone()),
+                ("Live Agent Home", report.live_agent_home.clone()),
+                (
+                    "Default Agent Home",
+                    report
+                        .default_agent_home
+                        .clone()
+                        .unwrap_or_else(|| "-".into()),
+                ),
+                (
+                    "Default Home Exists",
+                    yes_no(report.default_agent_home_exists).into(),
+                ),
+            ],
+        ),
+        (
+            "Environment Overrides",
+            vec![
+                (
+                    "Agent Home Env",
+                    report
+                        .agent_home_env_name
+                        .clone()
+                        .unwrap_or_else(|| "-".into()),
+                ),
+                (
+                    "Agent Home Value",
+                    report
+                        .agent_home_env_value
+                        .clone()
+                        .unwrap_or_else(|| "-".into()),
+                ),
+            ],
+        ),
+    ])
+}
+
+fn render_status_report(report: &StatusReport) -> String {
+    render_sections(vec![
+        (
+            "Relay",
+            vec![
+                ("Relay Home", report.relay_home.clone()),
+                ("Live Agent Home", report.live_agent_home.clone()),
+                ("Profile Count", report.profile_count.to_string()),
+            ],
+        ),
+        ("Active State", active_state_fields(&report.active_state)),
+        ("Settings", app_settings_fields(&report.settings)),
+    ])
+}
+
 fn render_usage_list(snapshots: &[UsageSnapshot], profiles: &[Profile]) -> String {
-    let mut table = Table::new();
-    table
-        .load_preset(UTF8_FULL)
-        .apply_modifier(UTF8_ROUND_CORNERS)
-        .set_content_arrangement(ContentArrangement::Dynamic);
+    let mut table = new_table();
     table.set_header(vec![
         "Profile",
         "State",
@@ -591,7 +735,7 @@ fn render_usage_list(snapshots: &[UsageSnapshot], profiles: &[Profile]) -> Strin
                 profile_state_label(enabled, snapshot.stale),
                 usage_tone(snapshot),
             ),
-            Cell::new(usage_source_label(&snapshot.source)),
+            styled_cell(usage_source_label(&snapshot.source), CellTone::Info),
             styled_cell(
                 usage_confidence_label(&snapshot.confidence),
                 confidence_tone(snapshot.confidence.clone()),
@@ -613,43 +757,245 @@ fn render_usage_list(snapshots: &[UsageSnapshot], profiles: &[Profile]) -> Strin
 }
 
 fn render_usage_detail(snapshot: &UsageSnapshot) -> String {
-    let mut lines = Vec::new();
-    lines.push(format!("Profile: {}", display_profile(snapshot)));
-    lines.push(format!(
-        "Source: {} | Confidence: {} | {}",
-        usage_source_label(&snapshot.source),
-        usage_confidence_label(&snapshot.confidence),
-        if snapshot.stale { "stale" } else { "fresh" }
-    ));
-    lines.push(format!(
-        "Updated: {}",
-        format_datetime(snapshot.last_refreshed_at)
-    ));
-    lines.push(format!(
-        "Session: {}",
-        detail_window_line(&snapshot.session)
-    ));
-    lines.push(format!("Weekly: {}", detail_window_line(&snapshot.weekly)));
-    lines.push(format!(
-        "Next reset: {}",
-        format_optional_datetime(snapshot.next_reset_at)
-    ));
-    lines.push(format!(
-        "Auto-switch: {}",
-        if snapshot.can_auto_switch {
-            snapshot
-                .auto_switch_reason
-                .as_ref()
-                .map(|reason| format!("eligible ({reason:?})"))
-                .unwrap_or_else(|| "eligible".into())
-        } else {
-            "not eligible".into()
-        }
-    ));
+    let mut fields = vec![
+        ("Profile", display_profile(snapshot)),
+        ("Source", usage_source_label(&snapshot.source).into()),
+        (
+            "Confidence",
+            usage_confidence_label(&snapshot.confidence).into(),
+        ),
+        (
+            "Freshness",
+            if snapshot.stale { "stale" } else { "fresh" }.into(),
+        ),
+        ("Updated", format_datetime(snapshot.last_refreshed_at)),
+        ("Session", detail_window_line(&snapshot.session)),
+        ("Weekly", detail_window_line(&snapshot.weekly)),
+        (
+            "Next Reset",
+            format_optional_datetime(snapshot.next_reset_at),
+        ),
+        (
+            "Auto-switch",
+            if snapshot.can_auto_switch {
+                snapshot
+                    .auto_switch_reason
+                    .as_ref()
+                    .map(|reason| format!("eligible ({reason:?})"))
+                    .unwrap_or_else(|| "eligible".into())
+            } else {
+                "not eligible".into()
+            },
+        ),
+    ];
     if let Some(message) = &snapshot.message {
-        lines.push(format!("Notes: {message}"));
+        fields.push(("Notes", message.clone()));
+    }
+    render_sections(vec![("Usage", fields)])
+}
+
+fn render_app_settings(settings: &AppSettings) -> String {
+    render_sections(vec![("Settings", app_settings_fields(settings))])
+}
+
+fn render_profiles_list(profiles: &[Profile], active_profile_id: Option<&str>) -> String {
+    let mut table = new_table();
+    table.set_header(vec![
+        "Current",
+        "Nickname",
+        "Profile ID",
+        "Agent",
+        "Priority",
+        "Status",
+        "Auth",
+        "Paths",
+    ]);
+
+    for profile in profiles {
+        table.add_row(Row::from(vec![
+            styled_cell(
+                if Some(profile.id.as_str()) == active_profile_id {
+                    "yes"
+                } else {
+                    "-"
+                },
+                if Some(profile.id.as_str()) == active_profile_id {
+                    CellTone::Info
+                } else {
+                    CellTone::Muted
+                },
+            ),
+            Cell::new(profile.nickname.as_str()),
+            Cell::new(profile.id.as_str()),
+            Cell::new(agent_kind_label(&profile.agent)),
+            Cell::new(profile.priority),
+            styled_cell(
+                if profile.enabled {
+                    "enabled"
+                } else {
+                    "disabled"
+                },
+                if profile.enabled {
+                    CellTone::Good
+                } else {
+                    CellTone::Muted
+                },
+            ),
+            Cell::new(auth_mode_label(&profile.auth_mode)),
+            Cell::new(profile_paths_summary(profile)),
+        ]));
+    }
+
+    table.to_string()
+}
+
+fn render_profile_detail(profile: &Profile) -> String {
+    render_sections(vec![(
+        "Profile",
+        vec![
+            ("Nickname", profile.nickname.clone()),
+            ("Profile ID", profile.id.clone()),
+            ("Agent", agent_kind_label(&profile.agent).into()),
+            ("Priority", profile.priority.to_string()),
+            (
+                "Status",
+                if profile.enabled {
+                    "enabled"
+                } else {
+                    "disabled"
+                }
+                .into(),
+            ),
+            ("Auth Mode", auth_mode_label(&profile.auth_mode).into()),
+            (
+                "Agent Home",
+                profile.agent_home.clone().unwrap_or_else(|| "-".into()),
+            ),
+            (
+                "Config Path",
+                profile.config_path.clone().unwrap_or_else(|| "-".into()),
+            ),
+            ("Created", profile.created_at.clone()),
+            ("Updated", profile.updated_at.clone()),
+        ],
+    )])
+}
+
+fn render_agent_link_result(result: &AgentLinkResult) -> String {
+    let mut sections = vec![
+        (
+            "Profile",
+            vec![
+                ("Nickname", result.profile.nickname.clone()),
+                ("Profile ID", result.profile.id.clone()),
+                ("Agent", agent_kind_label(&result.profile.agent).into()),
+                (
+                    "Status",
+                    if result.profile.enabled {
+                        "enabled"
+                    } else {
+                        "disabled"
+                    }
+                    .into(),
+                ),
+            ],
+        ),
+        ("Link", vec![("Activated", yes_no(result.activated).into())]),
+    ];
+    sections.push((
+        "Probe Identity",
+        probe_identity_fields(&result.probe_identity),
+    ));
+    render_sections(sections)
+}
+
+fn render_probe_identity(identity: &ProfileProbeIdentity) -> String {
+    render_sections(vec![("Probe Identity", probe_identity_fields(identity))])
+}
+
+fn render_switch_report(report: &SwitchReport) -> String {
+    render_sections(vec![(
+        "Switch",
+        vec![
+            ("Target Profile", report.profile_id.clone()),
+            (
+                "Previous Profile",
+                report
+                    .previous_profile_id
+                    .clone()
+                    .unwrap_or_else(|| "-".into()),
+            ),
+            ("Checkpoint", report.checkpoint_id.clone()),
+            ("Rollback", yes_no(report.rollback_performed).into()),
+            ("Switched At", format_datetime(report.switched_at)),
+            ("Message", report.message.clone()),
+        ],
+    )])
+}
+
+fn render_failure_events(events: &[FailureEvent], profiles: &[Profile]) -> String {
+    let by_profile = profiles
+        .iter()
+        .map(|profile| (profile.id.as_str(), profile.nickname.as_str()))
+        .collect::<HashMap<_, _>>();
+    let mut table = new_table();
+    table.set_header(vec![
+        "When",
+        "Profile",
+        "Reason",
+        "Cooldown Until",
+        "Message",
+    ]);
+
+    for event in events {
+        let profile_label = event
+            .profile_id
+            .as_deref()
+            .map(|id| {
+                by_profile
+                    .get(id)
+                    .map(|name| format!("{name} ({id})"))
+                    .unwrap_or_else(|| id.into())
+            })
+            .unwrap_or_else(|| "-".into());
+        table.add_row(Row::from(vec![
+            Cell::new(format_datetime(event.created_at)),
+            Cell::new(profile_label),
+            styled_cell(
+                failure_reason_label(&event.reason),
+                failure_reason_tone(&event.reason),
+            ),
+            Cell::new(format_optional_datetime(event.cooldown_until)),
+            Cell::new(event.message.as_str()),
+        ]));
+    }
+
+    table.to_string()
+}
+
+fn render_log_tail(log: &LogTail) -> String {
+    let mut lines = vec![
+        format!("Path: {}", log.path),
+        format!("Lines: {}", log.lines.len()),
+        String::new(),
+    ];
+    if log.lines.is_empty() {
+        lines.push("No log lines available.".into());
+    } else {
+        lines.extend(log.lines.iter().cloned());
     }
     lines.join("\n")
+}
+
+fn render_diagnostics_export(export: &DiagnosticsExport) -> String {
+    render_sections(vec![(
+        "Diagnostics",
+        vec![
+            ("Archive Path", export.archive_path.clone()),
+            ("Bundle Dir", export.bundle_dir.clone()),
+            ("Created At", format_datetime(export.created_at)),
+        ],
+    )])
 }
 
 fn display_profile(snapshot: &UsageSnapshot) -> String {
@@ -691,6 +1037,41 @@ fn detail_window_line(window: &UsageWindow) -> String {
     parts.join(" | ")
 }
 
+fn render_sections(sections: Vec<(&'static str, Vec<(&'static str, String)>)>) -> String {
+    let mut blocks = Vec::new();
+    for (title, fields) in sections {
+        blocks.push(render_section(title, &fields));
+    }
+    blocks.join("\n\n")
+}
+
+fn render_section(title: &str, fields: &[(&str, String)]) -> String {
+    let label_width = fields
+        .iter()
+        .map(|(label, _)| label.len())
+        .max()
+        .unwrap_or(0);
+    let mut lines = vec![title.to_string()];
+    for (label, value) in fields {
+        lines.push(format!(
+            "  {:width$}: {}",
+            label,
+            value,
+            width = label_width
+        ));
+    }
+    lines.join("\n")
+}
+
+fn new_table() -> Table {
+    let mut table = Table::new();
+    table
+        .load_preset(UTF8_FULL)
+        .apply_modifier(UTF8_ROUND_CORNERS)
+        .set_content_arrangement(ContentArrangement::Dynamic);
+    table
+}
+
 fn format_optional_datetime(value: Option<DateTime<Utc>>) -> String {
     value.map(format_datetime).unwrap_or_else(|| "-".into())
 }
@@ -704,6 +1085,9 @@ fn format_datetime(value: DateTime<Utc>) -> String {
 
 fn styled_cell(value: impl Into<String>, tone: CellTone) -> Cell {
     let mut cell = Cell::new(value.into()).set_alignment(CellAlignment::Left);
+    if !styles_enabled() {
+        return cell;
+    }
     match tone {
         CellTone::Info => {
             cell = cell.fg(comfy_table::Color::Cyan);
@@ -724,6 +1108,10 @@ fn styled_cell(value: impl Into<String>, tone: CellTone) -> Cell {
         }
     }
     cell
+}
+
+fn styles_enabled() -> bool {
+    io::stdout().is_terminal() && env::var_os("NO_COLOR").is_none()
 }
 
 fn usage_tone(snapshot: &UsageSnapshot) -> CellTone {
@@ -756,11 +1144,31 @@ fn status_tone(status: UsageStatus) -> CellTone {
     }
 }
 
+fn failure_reason_tone(reason: &FailureReason) -> CellTone {
+    match reason {
+        FailureReason::SessionExhausted | FailureReason::WeeklyExhausted => CellTone::Bad,
+        FailureReason::QuotaExhausted | FailureReason::RateLimited | FailureReason::AuthInvalid => {
+            CellTone::Warn
+        }
+        FailureReason::CommandFailed | FailureReason::ValidationFailed | FailureReason::Unknown => {
+            CellTone::Muted
+        }
+    }
+}
+
 fn usage_source_label(source: &relay_core::UsageSource) -> &'static str {
     match source {
         relay_core::UsageSource::Local => "Local",
         relay_core::UsageSource::Fallback => "Fallback",
         relay_core::UsageSource::WebEnhanced => "WebEnhanced",
+    }
+}
+
+fn usage_source_mode_label(mode: &UsageSourceMode) -> &'static str {
+    match mode {
+        UsageSourceMode::Auto => "Auto",
+        UsageSourceMode::Local => "Local",
+        UsageSourceMode::WebEnhanced => "WebEnhanced",
     }
 }
 
@@ -779,6 +1187,133 @@ fn usage_status_label(status: &UsageStatus) -> &'static str {
         UsageStatus::Exhausted => "Exhausted",
         UsageStatus::Unknown => "Unknown",
     }
+}
+
+fn failure_reason_label(reason: &FailureReason) -> &'static str {
+    match reason {
+        FailureReason::SessionExhausted => "SessionExhausted",
+        FailureReason::WeeklyExhausted => "WeeklyExhausted",
+        FailureReason::AuthInvalid => "AuthInvalid",
+        FailureReason::QuotaExhausted => "QuotaExhausted",
+        FailureReason::RateLimited => "RateLimited",
+        FailureReason::CommandFailed => "CommandFailed",
+        FailureReason::ValidationFailed => "ValidationFailed",
+        FailureReason::Unknown => "Unknown",
+    }
+}
+
+fn auth_mode_label(mode: &AuthMode) -> &'static str {
+    match mode {
+        AuthMode::ConfigFilesystem => "ConfigFilesystem",
+        AuthMode::EnvReference => "EnvReference",
+        AuthMode::KeychainReference => "KeychainReference",
+    }
+}
+
+fn agent_kind_label(kind: &AgentKind) -> &'static str {
+    match kind {
+        AgentKind::Codex => "Codex",
+    }
+}
+
+fn probe_provider_label(provider: &ProbeProvider) -> &'static str {
+    match provider {
+        ProbeProvider::CodexOfficial => "CodexOfficial",
+    }
+}
+
+fn switch_outcome_label(outcome: &SwitchOutcome) -> &'static str {
+    match outcome {
+        SwitchOutcome::NotRun => "NotRun",
+        SwitchOutcome::Success => "Success",
+        SwitchOutcome::Failed => "Failed",
+    }
+}
+
+fn yes_no(value: bool) -> &'static str {
+    if value { "yes" } else { "no" }
+}
+
+fn profile_paths_summary(profile: &Profile) -> String {
+    format!(
+        "home={} | config={}",
+        profile.agent_home.as_deref().unwrap_or("-"),
+        profile.config_path.as_deref().unwrap_or("-")
+    )
+}
+
+fn active_state_fields(state: &ActiveState) -> Vec<(&'static str, String)> {
+    vec![
+        (
+            "Active Profile",
+            state
+                .active_profile_id
+                .clone()
+                .unwrap_or_else(|| "-".into()),
+        ),
+        (
+            "Last Switch At",
+            format_optional_datetime(state.last_switch_at),
+        ),
+        (
+            "Last Switch Result",
+            switch_outcome_label(&state.last_switch_result).into(),
+        ),
+        (
+            "Auto-switch Enabled",
+            yes_no(state.auto_switch_enabled).into(),
+        ),
+        (
+            "Last Error",
+            state.last_error.clone().unwrap_or_else(|| "-".into()),
+        ),
+    ]
+}
+
+fn app_settings_fields(settings: &AppSettings) -> Vec<(&'static str, String)> {
+    vec![
+        (
+            "Auto-switch Enabled",
+            yes_no(settings.auto_switch_enabled).into(),
+        ),
+        ("Cooldown Seconds", settings.cooldown_seconds.to_string()),
+        (
+            "Usage Source Mode",
+            usage_source_mode_label(&settings.usage_source_mode).into(),
+        ),
+        (
+            "Menu-open Refresh",
+            format!("{}s", settings.menu_open_refresh_stale_after_seconds),
+        ),
+        (
+            "Background Refresh",
+            yes_no(settings.usage_background_refresh_enabled).into(),
+        ),
+        (
+            "Background Interval",
+            format!("{}s", settings.usage_background_refresh_interval_seconds),
+        ),
+    ]
+}
+
+fn probe_identity_fields(identity: &ProfileProbeIdentity) -> Vec<(&'static str, String)> {
+    vec![
+        ("Profile ID", identity.profile_id.clone()),
+        ("Provider", probe_provider_label(&identity.provider).into()),
+        (
+            "Principal ID",
+            identity.principal_id.clone().unwrap_or_else(|| "-".into()),
+        ),
+        (
+            "Display Name",
+            identity.display_name.clone().unwrap_or_else(|| "-".into()),
+        ),
+        ("Account ID", identity.account_id().unwrap_or("-").into()),
+        ("Email", identity.email().unwrap_or("-").into()),
+        ("Plan", identity.plan_hint().unwrap_or("-").into()),
+        ("Created", identity.created_at.clone()),
+        ("Updated", identity.updated_at.clone()),
+    ]
 }
 
 #[derive(Clone, Copy)]
@@ -1277,10 +1812,6 @@ struct Output {
 }
 
 impl Output {
-    fn success<T: Serialize>(message: &str, data: T, json: bool) -> Self {
-        Self::success_rendered(message, data, String::new(), json)
-    }
-
     fn success_rendered<T: Serialize>(
         message: &str,
         data: T,
@@ -1303,8 +1834,7 @@ impl Output {
             JsonResponse::success(self.text, value).write_json()?;
             Ok(())
         } else {
-            println!("{}", self.text);
-            println!(
+            print!(
                 "{}",
                 self.rendered_body.as_deref().unwrap_or(self.body.as_str())
             );
