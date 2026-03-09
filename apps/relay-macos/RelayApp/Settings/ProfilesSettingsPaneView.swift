@@ -131,21 +131,22 @@ public struct ProfilesSettingsPaneView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top, spacing: 18) {
                     VStack(alignment: .leading, spacing: 4) {
+                        Text(profile.agent.rawValue)
+                            .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
+                            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                            .textCase(.uppercase)
+
                         Text(profile.nickname)
                             .font(.system(size: 19, weight: .semibold, design: .rounded))
-
-                        Text(profile.agent.rawValue)
-                            .font(NativePreferencesTheme.Typography.body)
-                            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
 
                         HStack(spacing: 6) {
                             ProfileStateBadge(
                                 title: profile.enabled ? "Enabled" : "Disabled",
-                                tint: profile.enabled ? .green : .secondary
+                                kind: profile.enabled ? .success : .neutral
                             )
 
                             if model.activeProfileId == profile.id {
-                                ProfileStateBadge(title: "Active", tint: .accentColor)
+                                ProfileStateBadge(title: "Active", kind: .info)
                             }
                         }
                     }
@@ -395,15 +396,15 @@ private struct UsageMetricRow: View {
 
 private struct ProfileStateBadge: View {
     let title: String
-    let tint: Color
+    let kind: NativePreferencesTheme.Badge.Kind
 
     var body: some View {
         Text(title)
             .font(.system(size: 10, weight: .semibold))
-            .foregroundStyle(tint)
+            .foregroundStyle(NativePreferencesTheme.Badge.text(kind))
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
-            .background(tint.opacity(0.12), in: Capsule())
+            .background(NativePreferencesTheme.Badge.fill(kind), in: Capsule())
     }
 }
 
