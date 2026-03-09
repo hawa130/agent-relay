@@ -7,6 +7,7 @@ extension Defaults.Keys {
 
 public enum SettingsPaneID: String, CaseIterable, Identifiable, Sendable {
     case general
+    case codex
     case profiles
     case activity
     case about
@@ -17,6 +18,8 @@ public enum SettingsPaneID: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .general:
             return "General"
+        case .codex:
+            return "Codex"
         case .profiles:
             return "Profiles"
         case .activity:
@@ -30,6 +33,8 @@ public enum SettingsPaneID: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .general:
             return "gearshape"
+        case .codex:
+            return "terminal"
         case .profiles:
             return "square.grid.2x2"
         case .activity:

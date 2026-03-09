@@ -5,10 +5,11 @@ pub mod platform;
 pub mod services;
 pub mod store;
 
+pub use adapters::codex::{CodexSettings, CodexSettingsUpdateRequest};
 pub use app::BootstrapMode;
 pub use app::{
     ActivityEventsQuery, AddProfileRequest, AgentLoginRequest, EditProfileRequest,
-    ImportProfileRequest, RelayApp, SystemSettingsUpdateRequest, UsageSettingsUpdateRequest,
+    ImportProfileRequest, RelayApp, SystemSettingsUpdateRequest,
 };
 pub use models::{
     ActiveState, AgentKind, AgentLinkResult, AppSettings, AuthMode, DiagnosticsExport,

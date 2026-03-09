@@ -281,8 +281,8 @@ mod tests {
     use crate::adapters::UsageProvider;
     use crate::adapters::codex::CodexAdapter;
     use crate::models::{
-        AuthMode, FailureReason, UsageConfidence, UsageSnapshot, UsageSource, UsageSourceMode,
-        UsageStatus, UsageWindow,
+        AuthMode, FailureReason, RelayError, UsageConfidence, UsageSnapshot, UsageSource,
+        UsageSourceMode, UsageStatus, UsageWindow,
     };
     use crate::store::{FileUsageStore, SqliteStore};
     use chrono::{Duration, Utc};

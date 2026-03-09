@@ -18,11 +18,7 @@ final class ModelDecodingTests: XCTestCase {
           },
           "settings": {
             "auto_switch_enabled": true,
-            "cooldown_seconds": 600,
-            "usage_source_mode": "Auto",
-            "menu_open_refresh_stale_after_seconds": 10,
-            "usage_background_refresh_enabled": true,
-            "usage_background_refresh_interval_seconds": 120
+            "cooldown_seconds": 600
           }
         }
         """.data(using: .utf8)!
@@ -33,7 +29,7 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(report.activeState.activeProfileId, "p_active")
         XCTAssertEqual(report.activeState.lastSwitchResult, .success)
         XCTAssertTrue(report.activeState.autoSwitchEnabled)
-        XCTAssertEqual(report.settings.usageSourceMode, .auto)
+        XCTAssertEqual(report.settings.cooldownSeconds, 600)
     }
 
     func testProfileDecodesCurrentAgentHomeKey() throws {
@@ -114,7 +110,7 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(snapshot.confidence, .high)
     }
 
-    func testAppSettingsDecodeNewUsageFieldsWithDefaults() throws {
+    func testAppSettingsDecodeCurrentFields() throws {
         let json = """
         {
           "auto_switch_enabled": false,
@@ -124,10 +120,19 @@ final class ModelDecodingTests: XCTestCase {
 
         let settings = try JSONDecoder.relayDecoder.decode(AppSettings.self, from: json)
 
-        XCTAssertEqual(settings.usageSourceMode, .auto)
-        XCTAssertEqual(settings.menuOpenRefreshStaleAfterSeconds, 10)
-        XCTAssertTrue(settings.usageBackgroundRefreshEnabled)
-        XCTAssertEqual(settings.usageBackgroundRefreshIntervalSeconds, 120)
+        XCTAssertEqual(settings.cooldownSeconds, 600)
+    }
+
+    func testCodexSettingsDecodeCurrentFields() throws {
+        let json = """
+        {
+          "usage_source_mode": "WebEnhanced"
+        }
+        """.data(using: .utf8)!
+
+        let settings = try JSONDecoder.relayDecoder.decode(CodexSettings.self, from: json)
+
+        XCTAssertEqual(settings.usageSourceMode, .webEnhanced)
     }
 
     func testAgentLinkResultDecodesProbeIdentity() throws {

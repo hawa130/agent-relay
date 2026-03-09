@@ -61,11 +61,15 @@ struct RelayCLIClient {
         try await run(["refresh", "--all"], as: [UsageSnapshot].self)
     }
 
-    func setUsageSettings(_ draft: UsageSettingsDraft) async throws -> AppSettings {
+    func fetchCodexSettings() async throws -> CodexSettings {
+        try await run(["codex", "settings"], as: CodexSettings.self)
+    }
+
+    func setCodexSettings(_ draft: CodexSettingsDraft) async throws -> CodexSettings {
         try await run(
-            ["settings", "set", "--input-json", "-"],
+            ["codex", "settings", "set", "--input-json", "-"],
             input: draft,
-            as: AppSettings.self
+            as: CodexSettings.self
         )
     }
 

@@ -6,6 +6,7 @@ import RelayMacOSUI
 final class RelayAppDelegate: NSObject, NSApplicationDelegate {
     private let model = RelayAppModel()
     private lazy var settingsSessionModel = SettingsSessionModel(session: model)
+    private lazy var codexSettingsPaneModel = CodexSettingsPaneModel(session: model)
     private lazy var profilesPaneModel = ProfilesPaneModel(session: model)
     private lazy var activityPaneModel = ActivityPaneModel(session: model)
     private var statusItemController: RelayStatusItemController?
@@ -17,6 +18,18 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
                 toolbarIcon: Self.toolbarIcon(SettingsPaneID.general.symbol, description: SettingsPaneID.general.title)
             ) {
                 GeneralSettingsPaneView(model: self.settingsSessionModel)
+                    .frame(
+                        width: NativePreferencesTheme.Metrics.windowWidth,
+                        height: NativePreferencesTheme.Metrics.windowHeight,
+                        alignment: .topLeading
+                    )
+            },
+            Settings.Pane(
+                identifier: .relayCodex,
+                title: SettingsPaneID.codex.title,
+                toolbarIcon: Self.toolbarIcon(SettingsPaneID.codex.symbol, description: SettingsPaneID.codex.title)
+            ) {
+                CodexSettingsPaneView(model: self.codexSettingsPaneModel)
                     .frame(
                         width: NativePreferencesTheme.Metrics.windowWidth,
                         height: NativePreferencesTheme.Metrics.windowHeight,
@@ -99,6 +112,7 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
 @MainActor
 private extension Settings.PaneIdentifier {
     static let relayGeneral = Self("general")
+    static let relayCodex = Self("codex")
     static let relayProfiles = Self("profiles")
     static let relayActivity = Self("activity")
     static let relayAbout = Self("about")
@@ -110,6 +124,8 @@ private extension SettingsPaneID {
         switch self {
         case .general:
             return .relayGeneral
+        case .codex:
+            return .relayCodex
         case .profiles:
             return .relayProfiles
         case .activity:

@@ -137,6 +137,17 @@ public struct ProfilesSettingsPaneView: View {
                         Text(profile.agent.rawValue)
                             .font(NativePreferencesTheme.Typography.body)
                             .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+
+                        HStack(spacing: 6) {
+                            ProfileStateBadge(
+                                title: profile.enabled ? "Enabled" : "Disabled",
+                                tint: profile.enabled ? .green : .secondary
+                            )
+
+                            if model.activeProfileId == profile.id {
+                                ProfileStateBadge(title: "Active", tint: .accentColor)
+                            }
+                        }
                     }
 
                     Spacer(minLength: 20)
@@ -161,15 +172,7 @@ public struct ProfilesSettingsPaneView: View {
 
                 Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 8) {
                     GridRow {
-                        NativeDetailRow(title: "Status", value: profile.enabled ? "Enabled" : "Disabled")
                         NativeDetailRow(title: "Priority", value: "\(profile.priority)")
-                    }
-
-                    GridRow {
-                        NativeDetailRow(
-                            title: "Active",
-                            value: model.activeProfileId == profile.id ? "Active" : "Inactive"
-                        )
                         NativeDetailRow(title: "Auth Mode", value: profile.authMode.displayName)
                     }
                 }
@@ -229,9 +232,6 @@ public struct ProfilesSettingsPaneView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         NativeDetailRow(title: "Source", value: usage.source.displayName)
                         NativeDetailRow(title: "Updated", value: usage.lastRefreshedAt.formatted())
-                        if let resetAt = usage.nextResetAt {
-                            NativeDetailRow(title: "Next Reset", value: resetAt.formatted())
-                        }
                     }
 
                     if let note = usage.userFacingNote {
@@ -390,6 +390,20 @@ private struct UsageMetricRow: View {
     private func barWidth(for totalWidth: CGFloat) -> CGFloat {
         let percent = min(max(window.usedPercent ?? 0, 0), 100) / 100
         return max(8, totalWidth * percent)
+    }
+}
+
+private struct ProfileStateBadge: View {
+    let title: String
+    let tint: Color
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(tint)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(tint.opacity(0.12), in: Capsule())
     }
 }
 

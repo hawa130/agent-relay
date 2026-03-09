@@ -5,6 +5,7 @@ import Defaults
 @MainActor
 public final class RelayAppModel: ObservableObject {
     @Published private(set) var status: StatusReport?
+    @Published private(set) var codexSettings: CodexSettings?
     @Published private(set) var usage: UsageSnapshot?
     @Published private(set) var usageSnapshots: [UsageSnapshot] = []
     @Published private(set) var doctor: DoctorReport?
@@ -21,16 +22,11 @@ public final class RelayAppModel: ObservableObject {
     @Published var lastErrorMessage: String?
     private let client = RelayCLIClient()
     private let notificationService = RelayNotificationService()
-    private var pollTask: Task<Void, Never>?
     private var lastAutoSwitchConflictSignature: String?
     private var hasStarted = false
 
     public init() {
         selectedProfileId = Defaults[.selectedProfileId]
-    }
-
-    deinit {
-        pollTask?.cancel()
     }
 
     public var menuBarTitle: String {
@@ -94,7 +90,6 @@ public final class RelayAppModel: ObservableObject {
         hasStarted = true
         Task {
             await refresh()
-            startPolling()
         }
     }
 
@@ -121,12 +116,14 @@ public final class RelayAppModel: ObservableObject {
 
         do {
             async let statusTask = client.fetchStatus()
+            async let codexSettingsTask = client.fetchCodexSettings()
             async let profileListTask = client.fetchProfileList()
             async let doctorTask = client.fetchDoctor()
             async let eventsTask = client.fetchEvents(limit: 10)
             async let logsTask = client.fetchLogs(lines: 25)
 
             status = try await statusTask
+            codexSettings = try await codexSettingsTask
             let profileItems = try await profileListTask
             profiles = profileItems.map(\.profile)
             usageSnapshots = profileItems.compactMap(\.usageSummary)
@@ -189,48 +186,8 @@ public final class RelayAppModel: ObservableObject {
         }
     }
 
-    func setUsageSourceMode(_ mode: UsageSourceMode) async {
-        await updateUsageSettings(
-            UsageSettingsDraft(
-                sourceMode: mode,
-                menuOpenRefreshStaleAfterSeconds: nil,
-                backgroundRefreshEnabled: nil,
-                backgroundRefreshIntervalSeconds: nil
-            )
-        )
-    }
-
-    func setMenuOpenRefreshStaleAfterSeconds(_ seconds: Int) async {
-        await updateUsageSettings(
-            UsageSettingsDraft(
-                sourceMode: nil,
-                menuOpenRefreshStaleAfterSeconds: seconds,
-                backgroundRefreshEnabled: nil,
-                backgroundRefreshIntervalSeconds: nil
-            )
-        )
-    }
-
-    func setBackgroundRefreshEnabled(_ enabled: Bool) async {
-        await updateUsageSettings(
-            UsageSettingsDraft(
-                sourceMode: nil,
-                menuOpenRefreshStaleAfterSeconds: nil,
-                backgroundRefreshEnabled: enabled,
-                backgroundRefreshIntervalSeconds: nil
-            )
-        )
-    }
-
-    func setBackgroundRefreshIntervalSeconds(_ seconds: Int) async {
-        await updateUsageSettings(
-            UsageSettingsDraft(
-                sourceMode: nil,
-                menuOpenRefreshStaleAfterSeconds: nil,
-                backgroundRefreshEnabled: nil,
-                backgroundRefreshIntervalSeconds: seconds
-            )
-        )
+    func setCodexUsageSourceMode(_ mode: UsageSourceMode) async {
+        await updateCodexSettings(CodexSettingsDraft(sourceMode: mode))
     }
 
     func refreshUsage(profileId: String) async {
@@ -257,10 +214,6 @@ public final class RelayAppModel: ObservableObject {
     }
 
     func refreshForMenuOpen() async {
-        await refresh()
-        guard shouldRefreshUsageOnMenuOpen else {
-            return
-        }
         await refreshEnabledUsage()
     }
 
@@ -357,37 +310,14 @@ public final class RelayAppModel: ObservableObject {
         }
     }
 
-    private func startPolling() {
-        guard pollTask == nil else {
-            return
-        }
-
-        pollTask = Task { [weak self] in
-            while !Task.isCancelled {
-                guard let self else {
-                    break
-                }
-                let interval = max(
-                    self.status?.settings.usageBackgroundRefreshIntervalSeconds ?? 120,
-                    15
-                )
-                try? await Task.sleep(for: .seconds(interval))
-                guard self.status?.settings.usageBackgroundRefreshEnabled ?? true else {
-                    continue
-                }
-                await self.refreshEnabledUsage()
-            }
-        }
-    }
-
-    private func updateUsageSettings(_ draft: UsageSettingsDraft) async {
+    private func updateCodexSettings(_ draft: CodexSettingsDraft) async {
         do {
-            _ = try await client.setUsageSettings(draft)
+            codexSettings = try await client.setCodexSettings(draft)
             await refresh()
         } catch {
             lastErrorMessage = error.localizedDescription
             await notificationService.post(
-                title: "Relay usage settings update failed",
+                title: "Relay Codex settings update failed",
                 body: error.localizedDescription
             )
         }
@@ -513,24 +443,5 @@ public final class RelayAppModel: ObservableObject {
             return false
         }
         return code == "RELAY_CONFLICT"
-    }
-
-    private var shouldRefreshUsageOnMenuOpen: Bool {
-        guard let settings = status?.settings else {
-            return true
-        }
-        let threshold = TimeInterval(max(settings.menuOpenRefreshStaleAfterSeconds, 0))
-        let now = Date()
-        return profiles
-            .filter(\.enabled)
-            .contains { profile in
-                guard let snapshot = usageSnapshot(for: profile.id) else {
-                    return true
-                }
-                if snapshot.message == "Usage has not been fetched yet." {
-                    return true
-                }
-                return now.timeIntervalSince(snapshot.lastRefreshedAt) >= threshold
-            }
     }
 }
