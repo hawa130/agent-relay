@@ -1,4 +1,4 @@
-use crate::adapters::CodexAdapter;
+use crate::adapters::AgentAdapter;
 use crate::models::{ActiveState, AppSettings, RelayError, StatusReport};
 use crate::platform::RelayPaths;
 use crate::store::SqliteStore;
@@ -8,7 +8,7 @@ pub fn build(
     store: &SqliteStore,
     active_state: ActiveState,
     settings: AppSettings,
-    adapter: &CodexAdapter,
+    adapter: &dyn AgentAdapter,
 ) -> Result<StatusReport, RelayError> {
     let profiles = store.list_profiles()?;
 

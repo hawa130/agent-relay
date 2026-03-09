@@ -1,4 +1,4 @@
-use crate::adapters::CodexAdapter;
+use crate::adapters::AgentAdapter;
 use crate::models::{CodexLinkResult, Profile, ProfileProbeIdentity, RelayError};
 use crate::platform::find_binary;
 use crate::store::{AddProfileRecord, SqliteStore};
@@ -16,7 +16,7 @@ const CODEX_LOGIN_POLL_MILLIS: u64 = 250;
 
 pub fn login_new_profile(
     store: &SqliteStore,
-    adapter: &CodexAdapter,
+    adapter: &dyn AgentAdapter,
     profiles_dir: &Path,
     nickname: Option<String>,
     priority: i32,
@@ -30,6 +30,7 @@ pub fn login_new_profile(
     copy_login_auth(&login_home, &snapshot_dir)?;
 
     let profile = store.add_profile(AddProfileRecord {
+        agent: crate::models::AgentKind::Codex,
         nickname: nickname.unwrap_or_else(|| {
             identity
                 .email()
@@ -38,7 +39,7 @@ pub fn login_new_profile(
         }),
         priority,
         config_path: Some(snapshot_dir.join("config.toml")),
-        codex_home: Some(snapshot_dir),
+        agent_home: Some(snapshot_dir),
         auth_mode: crate::models::AuthMode::ConfigFilesystem,
     })?;
 
@@ -56,7 +57,7 @@ pub fn login_new_profile(
 
 pub fn relink_profile(
     store: &SqliteStore,
-    adapter: &CodexAdapter,
+    adapter: &dyn AgentAdapter,
     profile: &Profile,
 ) -> Result<ProfileProbeIdentity, RelayError> {
     let live_home = adapter.live_home();
