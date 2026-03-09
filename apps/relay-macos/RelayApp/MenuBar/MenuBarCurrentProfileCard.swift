@@ -4,7 +4,7 @@ struct MenuBarCurrentProfileCard: View {
     let model: MenuBarCurrentCardModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5) {
             MenuBarUsageCardHeaderView(model: model)
 
             if hasDetails {
@@ -21,10 +21,10 @@ struct MenuBarCurrentProfileCard: View {
                 MenuBarUsageCardSectionView(model: model)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 2)
-        .padding(.bottom, 2)
-        .frame(width: 310, alignment: .leading)
+        .padding(.horizontal, 13)
+        .padding(.top, 1)
+        .padding(.bottom, 1)
+        .frame(width: 300, alignment: .leading)
     }
 
     private var hasDetails: Bool {

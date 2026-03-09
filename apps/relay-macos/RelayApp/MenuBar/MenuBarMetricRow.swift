@@ -5,10 +5,9 @@ struct MenuBarMetricRow: View {
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(model.title)
-                .font(.body)
-                .fontWeight(.medium)
+                .font(.system(size: 11.5, weight: .semibold))
                 .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
 
             MenuBarUsageProgressBar(
@@ -20,7 +19,7 @@ struct MenuBarMetricRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(model.percentLabel)
-                        .font(.footnote)
+                        .font(.system(size: 10.5))
                         .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
                         .lineLimit(1)
 
@@ -28,7 +27,7 @@ struct MenuBarMetricRow: View {
 
                     if let resetText = model.resetText {
                         Text(resetText)
-                            .font(.footnote)
+                            .font(.system(size: 10.5))
                             .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                             .lineLimit(1)
                     }
@@ -38,7 +37,7 @@ struct MenuBarMetricRow: View {
                     HStack(alignment: .firstTextBaseline) {
                         if let detailLeftText = model.detailLeftText {
                             Text(detailLeftText)
-                                .font(.footnote)
+                                .font(.system(size: 10.5))
                                 .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
                                 .lineLimit(1)
                         }
@@ -47,7 +46,7 @@ struct MenuBarMetricRow: View {
 
                         if let detailRightText = model.detailRightText {
                             Text(detailRightText)
-                                .font(.footnote)
+                                .font(.system(size: 10.5))
                                 .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                                 .lineLimit(1)
                         }

@@ -4,12 +4,19 @@ import SwiftUI
 
 @MainActor
 public final class RelayStatusItemController: NSObject, NSMenuDelegate {
+    private enum Metrics {
+        static let contentWidth: CGFloat = 300
+    }
+
     private let model: RelayAppModel
     private let openSettings: () -> Void
     private let statusItem: NSStatusItem
     private let menu: NSMenu
     private var menuIsOpen = false
     private var cancellables: Set<AnyCancellable> = []
+    private var presenter: MenuBarPresenter {
+        MenuBarPresenter(session: model)
+    }
 
     public init(
         model: RelayAppModel,
@@ -91,11 +98,11 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
 
         button.title = ""
         button.image = statusButtonImage()
-        button.toolTip = model.menuBarTitle
+        button.toolTip = presenter.title
     }
 
     private func statusButtonImage() -> NSImage? {
-        guard let image = NSImage(systemSymbolName: model.menuBarSymbol, accessibilityDescription: nil) else {
+        guard let image = NSImage(systemSymbolName: presenter.symbolName, accessibilityDescription: nil) else {
             return nil
         }
 
@@ -118,7 +125,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         if let profile = model.activeProfile {
             let usage = model.usageSnapshot(for: profile.id)
             let card = MenuBarCurrentProfileCard(model: currentCardModel(profile: profile, usage: usage))
-            menu.addItem(makeHostingItem(for: card, width: 310))
+            menu.addItem(makeHostingItem(for: card, width: Metrics.contentWidth))
             return
         }
 
@@ -207,11 +214,11 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         MenuBarCurrentCardModel(
             providerName: profile.agent.rawValue,
             email: profile.nickname,
-            subtitleText: currentCardSubtitle(),
+            subtitleText: presenter.currentCardSubtitle,
             planText: usage?.source.rawValue,
             metrics: currentMetricRows(usage: usage),
             placeholder: usage == nil ? "No usage yet" : nil,
-            usageNotes: currentCardNotes(usage: usage)
+            usageNotes: presenter.currentCardNotes(usage: usage)
         )
     }
 
@@ -239,22 +246,6 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         )
     }
 
-    private func currentCardSubtitle() -> String {
-        if model.isRefreshing {
-            return "Refreshing…"
-        }
-
-        if let lastRefresh = model.lastRefresh {
-            return "Updated \(relativeDescription(for: lastRefresh))"
-        }
-
-        return "Waiting for refresh"
-    }
-
-    private func currentCardNotes(usage: UsageSnapshot?) -> [String] {
-        usage?.userFacingNote.map { [$0] } ?? []
-    }
-
     private func makeProfileMenuItem(_ profile: Profile) -> NSMenuItem {
         let isActive = model.activeProfileId == profile.id
         let canSelect = profile.enabled && !model.isSwitching && !isActive
@@ -263,13 +254,13 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         let row = RelayMenuItemContainerView(highlightState: highlightState) {
             MenuBarProfilePickerItem(
                 profileName: profile.nickname,
-                statusText: profileStatusText(profile: profile, usage: usage, isActive: isActive),
+                statusText: presenter.profileStatusText(profile: profile, usage: usage, isActive: isActive),
                 sessionText: usageText(title: "Session", window: usage?.session),
                 sessionResetText: usage?.session.resetAt.map { "Resets \(preciseResetDescription(for: $0))" },
                 weeklyText: usageText(title: "Weekly", window: usage?.weekly),
                 weeklyResetText: usage?.weekly.resetAt.map { "Resets \(preciseResetDescription(for: $0))" },
-                footerText: profileFooterText(profile: profile, usage: usage),
-                symbolName: profileSymbolName(profile: profile, usage: usage, isActive: isActive),
+                footerText: presenter.profileFooterText(profile: profile, usage: usage),
+                symbolName: presenter.profileSymbolName(profile: profile, usage: usage, isActive: isActive),
                 isDimmed: !profile.enabled
             )
         }
@@ -281,7 +272,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
                 self?.selectProfile(id: profile.id)
             } : nil
         )
-        let width: CGFloat = 310
+        let width: CGFloat = Metrics.contentWidth
         let measuredHeight = hostingView.measuredHeight(width: width)
         hostingView.frame = NSRect(x: 0, y: 0, width: width, height: measuredHeight)
 
@@ -292,69 +283,12 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         return item
     }
 
-    private func profileStatusText(profile: Profile, usage: UsageSnapshot?, isActive: Bool) -> String {
-        if isActive {
-            return "Active"
-        }
-
-        if !profile.enabled {
-            return "Disabled"
-        }
-
-        if usage?.stale == true {
-            return "Stale"
-        }
-
-        return "Ready"
-    }
-
     private func usageText(title: String, window: UsageWindow?) -> String? {
         guard let window else {
             return nil
         }
 
         return "\(title) \(window.menuBarDisplayValue)"
-    }
-
-    private func profileFooterText(profile: Profile, usage: UsageSnapshot?) -> String? {
-        var parts = [profile.agent.rawValue]
-
-        if let usage {
-            parts.append(usage.source.rawValue)
-            if usage.stale {
-                parts.append("Stale")
-            }
-        } else {
-            parts.append("No usage yet")
-        }
-
-        parts.append("P\(profile.priority)")
-        return parts.joined(separator: " • ")
-    }
-
-    private func profileSymbolName(profile: Profile, usage: UsageSnapshot?, isActive: Bool) -> String {
-        if isActive {
-            return "checkmark.circle.fill"
-        }
-
-        if !profile.enabled {
-            return "slash.circle"
-        }
-
-        switch (usage?.weekly.status ?? usage?.session.status) ?? .unknown {
-        case .warning:
-            return "exclamationmark.circle"
-        case .exhausted:
-            return "xmark.circle"
-        default:
-            return "circle"
-        }
-    }
-
-    private func relativeDescription(for date: Date) -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
     }
 
     private func preciseResetDescription(for date: Date) -> String {

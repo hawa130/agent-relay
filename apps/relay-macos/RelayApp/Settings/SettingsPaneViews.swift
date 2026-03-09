@@ -2,25 +2,25 @@ import LaunchAtLogin
 import SwiftUI
 
 public struct GeneralSettingsPaneView: View {
-    @ObservedObject var model: RelayAppModel
+    @ObservedObject var model: SettingsSessionModel
 
-    public init(model: RelayAppModel) {
+    public init(model: SettingsSessionModel) {
         self.model = model
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+        NativePaneScrollView {
+            VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
                 paneHeader(
                     title: "General",
                     subtitle: "Relay environment, startup behavior, and usage refresh controls."
                 )
 
                 SettingsSurfaceCard("Relay") {
-                    settingsRow("CLI", value: ProcessInfo.processInfo.environment["RELAY_CLI_PATH"] ?? "Bundled relay")
-                    settingsRow("Relay Home", value: model.status?.relayHome ?? "-")
-                    settingsRow("Live Agent Home", value: model.status?.liveAgentHome ?? "-")
-                    settingsRow("Platform", value: model.doctor?.platform ?? "-")
+                    NativeDetailRow(title: "CLI", value: ProcessInfo.processInfo.environment["RELAY_CLI_PATH"] ?? "Bundled relay")
+                    NativePathRow(title: "Relay Home", value: model.status?.relayHome ?? "-")
+                    NativePathRow(title: "Live Agent Home", value: model.status?.liveAgentHome ?? "-")
+                    NativeDetailRow(title: "Platform", value: model.doctor?.platform ?? "-")
                 }
 
                 SettingsSurfaceCard("Behavior") {
@@ -106,26 +106,18 @@ public struct GeneralSettingsPaneView: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .padding(28)
-        }
-        .task {
-            await model.refresh()
         }
         .onAppear {
             SettingsPaneID.persistedSelection = .general
         }
     }
 
-    private func settingsRow(_ title: String, value: String) -> some View {
-        LabeledContent(title, value: value)
-    }
 }
 
 public struct ActivitySettingsPaneView: View {
-    @ObservedObject var model: RelayAppModel
+    @ObservedObject var model: ActivityPaneModel
 
-    public init(model: RelayAppModel) {
+    public init(model: ActivityPaneModel) {
         self.model = model
     }
 
@@ -138,31 +130,31 @@ public struct ActivitySettingsPaneView: View {
 }
 
 public struct AboutSettingsPaneView: View {
-    @ObservedObject var model: RelayAppModel
+    @ObservedObject var model: SettingsSessionModel
 
-    public init(model: RelayAppModel) {
+    public init(model: SettingsSessionModel) {
         self.model = model
     }
 
     public var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+        NativePaneScrollView {
+            VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
                 paneHeader(
                     title: "About Relay",
                     subtitle: "CLI-first local profile orchestration for coding agents."
                 )
 
                 SettingsSurfaceCard("Application") {
-                    settingsRow("Version", value: appVersion)
-                    settingsRow("CLI Path", value: ProcessInfo.processInfo.environment["RELAY_CLI_PATH"] ?? "Bundled relay")
-                    settingsRow("Profiles", value: "\(model.status?.profileCount ?? model.profiles.count)")
+                    NativeDetailRow(title: "Version", value: appVersion)
+                    NativeDetailRow(title: "CLI Path", value: ProcessInfo.processInfo.environment["RELAY_CLI_PATH"] ?? "Bundled relay")
+                    NativeDetailRow(title: "Profiles", value: "\(model.profilesCount)")
                 }
 
                 SettingsSurfaceCard("Runtime") {
-                    settingsRow("Relay Home", value: model.status?.relayHome ?? "-")
-                    settingsRow("Live Agent Home", value: model.status?.liveAgentHome ?? "-")
-                    settingsRow("Platform", value: model.doctor?.platform ?? "-")
-                    settingsRow("Agent Binary", value: model.doctor?.agentBinary ?? "-")
+                    NativePathRow(title: "Relay Home", value: model.status?.relayHome ?? "-")
+                    NativePathRow(title: "Live Agent Home", value: model.status?.liveAgentHome ?? "-")
+                    NativeDetailRow(title: "Platform", value: model.doctor?.platform ?? "-")
+                    NativeDetailRow(title: "Agent Binary", value: model.doctor?.agentBinary ?? "-")
                 }
 
                 SettingsSurfaceCard("Project") {
@@ -171,11 +163,6 @@ public struct AboutSettingsPaneView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .padding(28)
-        }
-        .task {
-            await model.refresh()
         }
         .onAppear {
             SettingsPaneID.persistedSelection = .about
@@ -197,10 +184,6 @@ public struct AboutSettingsPaneView: View {
             return "Development"
         }
     }
-
-    private func settingsRow(_ title: String, value: String) -> some View {
-        LabeledContent(title, value: value)
-    }
 }
 
 struct SettingsSurfaceCard<Content: View>: View {
@@ -213,22 +196,85 @@ struct SettingsSurfaceCard<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(title)
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-            content
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionContentSpacing) {
+                Text(title)
+                    .font(NativePreferencesTheme.Typography.sectionLabel)
+                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                    .textCase(.uppercase)
+                content
+            }
+            .font(NativePreferencesTheme.Typography.body)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 6)
+
+            Divider()
+                .padding(.top, 14)
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .padding(.horizontal, 2)
     }
 }
 
 func paneHeader(title: String, subtitle: String) -> some View {
     VStack(alignment: .leading, spacing: 6) {
         Text(title)
-            .font(.system(size: 30, weight: .semibold, design: .rounded))
+            .font(NativePreferencesTheme.Typography.paneTitle)
         Text(subtitle)
-            .foregroundStyle(.secondary)
+            .font(NativePreferencesTheme.Typography.paneSubtitle)
+            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+    }
+}
+
+struct NativePaneScrollView<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        ScrollView {
+            content
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(.horizontal, NativePreferencesTheme.Metrics.paneHorizontalPadding)
+                .padding(.vertical, NativePreferencesTheme.Metrics.paneVerticalPadding)
+        }
+        .background(NativePreferencesTheme.Colors.paneBackground)
+    }
+}
+
+struct NativeDetailRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            Text(title)
+                .font(NativePreferencesTheme.Typography.detail.weight(.medium))
+                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                .frame(width: NativePreferencesTheme.Metrics.detailLabelWidth, alignment: .leading)
+
+            Text(value)
+                .font(NativePreferencesTheme.Typography.body)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+struct NativePathRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(NativePreferencesTheme.Typography.detail.weight(.medium))
+                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+
+            Text(value)
+                .font(NativePreferencesTheme.Typography.body)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }

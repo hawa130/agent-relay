@@ -13,7 +13,7 @@ struct MenuBarUsageProgressBar: View {
     var body: some View {
         Capsule()
             .fill(MenuBarHighlightStyle.progressTrack(isHighlighted))
-            .frame(height: 6)
+            .frame(height: 4)
             .overlay(alignment: .leading) {
                 GeometryReader { proxy in
                     Capsule()

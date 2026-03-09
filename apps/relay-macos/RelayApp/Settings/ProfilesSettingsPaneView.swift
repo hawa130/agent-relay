@@ -1,12 +1,12 @@
 import SwiftUI
 
 public struct ProfilesSettingsPaneView: View {
-    @ObservedObject var model: RelayAppModel
+    @ObservedObject var model: ProfilesPaneModel
     @State private var showingLoginSheet = false
     @State private var editingProfile: Profile?
     @State private var deletingProfile: Profile?
 
-    public init(model: RelayAppModel) {
+    public init(model: ProfilesPaneModel) {
         self.model = model
     }
 
@@ -16,10 +16,7 @@ public struct ProfilesSettingsPaneView: View {
             Divider()
             detail
         }
-        .background(Color(nsColor: .windowBackgroundColor))
-        .task {
-            await model.refresh()
-        }
+        .background(NativePreferencesTheme.Colors.paneBackground)
         .onAppear {
             SettingsPaneID.persistedSelection = .profiles
         }
@@ -56,12 +53,13 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 14) {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Profiles")
-                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .font(NativePreferencesTheme.Typography.paneTitle)
                 Text("Manage connected agent accounts and inspect live usage in one place.")
-                    .foregroundStyle(.secondary)
+                    .font(NativePreferencesTheme.Typography.paneSubtitle)
+                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
             }
 
             HStack(spacing: 10) {
@@ -79,34 +77,40 @@ public struct ProfilesSettingsPaneView: View {
                 .disabled(model.isMutatingProfiles)
             }
 
-            List(
-                selection: Binding(
-                    get: { model.selectedProfileId },
-                    set: { value in
-                        model.selectProfile(value)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    ForEach(model.profiles) { profile in
+                        Button {
+                            model.selectProfile(profile.id)
+                        } label: {
+                            ProfileListRow(
+                                profile: profile,
+                                usage: model.usageSnapshot(for: profile.id),
+                                isActive: model.activeProfileId == profile.id,
+                                isSelected: model.selectedProfileId == profile.id
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
-                )
-            ) {
-                ForEach(model.profiles) { profile in
-                    ProfileListRow(
-                        profile: profile,
-                        usage: model.usageSnapshot(for: profile.id),
-                        isActive: model.activeProfileId == profile.id
-                    )
-                    .tag(Optional(profile.id))
-                    .listRowInsets(EdgeInsets(top: 8, leading: 10, bottom: 8, trailing: 10))
                 }
             }
-            .listStyle(.sidebar)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(24)
-        .frame(minWidth: 330, idealWidth: 340, maxWidth: 360, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .controlBackgroundColor))
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .frame(
+            minWidth: NativePreferencesTheme.Metrics.sidebarWidth,
+            idealWidth: NativePreferencesTheme.Metrics.sidebarWidth,
+            maxWidth: NativePreferencesTheme.Metrics.sidebarWidth + 20,
+            maxHeight: .infinity,
+            alignment: .topLeading
+        )
+        .background(NativePreferencesTheme.Colors.paneBackground)
     }
 
     private var detail: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+        NativePaneScrollView {
+            VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
                 if let profile = selectedProfile {
                     profileHero(profile)
                     usageCard(profile)
@@ -127,29 +131,26 @@ public struct ProfilesSettingsPaneView: View {
                     .frame(maxWidth: .infinity, minHeight: 520)
                 }
             }
-            .padding(28)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private func profileHero(_ profile: Profile) -> some View {
-        SettingsSurfaceCard(profile.nickname) {
-            HStack(alignment: .top, spacing: 24) {
-                VStack(alignment: .leading, spacing: 12) {
-                    settingsRow("Agent", value: profile.agent.rawValue)
-                    settingsRow("Priority", value: "\(profile.priority)")
-                    settingsRow("Auth Mode", value: profile.authMode.displayName)
-                    settingsRow("Status", value: profile.enabled ? "Enabled" : "Disabled")
-                    if model.activeProfileId == profile.id {
-                        settingsRow("Current", value: "Active")
+        SettingsSurfaceCard("Profile") {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(profile.nickname)
+                            .font(.system(size: 19, weight: .semibold, design: .rounded))
+
+                        Text(profile.agent.rawValue)
+                            .font(NativePreferencesTheme.Typography.body)
+                            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
                     }
-                }
 
-                Spacer(minLength: 24)
+                    Spacer(minLength: 20)
 
-                VStack(alignment: .trailing, spacing: 10) {
-                    HStack(spacing: 10) {
+                    HStack(spacing: 8) {
                         Button("Refresh Usage") {
                             Task {
                                 await model.refreshUsage(profileId: profile.id)
@@ -164,7 +165,24 @@ public struct ProfilesSettingsPaneView: View {
                         .buttonStyle(.borderedProminent)
                         .disabled(!profile.enabled || model.isSwitching)
                     }
+                }
 
+                Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 8) {
+                    GridRow {
+                        NativeDetailRow(title: "Status", value: profile.enabled ? "Enabled" : "Disabled")
+                        NativeDetailRow(title: "Priority", value: "\(profile.priority)")
+                    }
+
+                    GridRow {
+                        NativeDetailRow(
+                            title: "Current",
+                            value: model.activeProfileId == profile.id ? "Active" : "Inactive"
+                        )
+                        NativeDetailRow(title: "Auth Mode", value: profile.authMode.displayName)
+                    }
+                }
+
+                HStack(alignment: .center, spacing: 12) {
                     Toggle(
                         "Enabled",
                         isOn: Binding(
@@ -178,28 +196,24 @@ public struct ProfilesSettingsPaneView: View {
                     )
                     .toggleStyle(.switch)
                     .disabled(model.isMutatingProfiles)
-                }
-            }
 
-            Divider()
+                    Button("Edit") {
+                        editingProfile = profile
+                    }
+                    .disabled(model.isMutatingProfiles)
 
-            HStack(spacing: 12) {
-                Button("Edit") {
-                    editingProfile = profile
-                }
-                .disabled(model.isMutatingProfiles)
+                    Button("Remove", role: .destructive) {
+                        deletingProfile = profile
+                    }
+                    .disabled(model.isMutatingProfiles)
 
-                Button("Remove", role: .destructive) {
-                    deletingProfile = profile
-                }
-                .disabled(model.isMutatingProfiles)
+                    Spacer()
 
-                Spacer()
-
-                if let failure = selectedFailureEvent {
-                    Label(failure.reason.rawValue.replacingOccurrences(of: "_", with: " "), systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.orange)
+                    if let failure = selectedFailureEvent {
+                        Label(failure.reason.rawValue.replacingOccurrences(of: "_", with: " "), systemImage: "exclamationmark.triangle.fill")
+                            .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
         }
@@ -211,13 +225,14 @@ public struct ProfilesSettingsPaneView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
                     UsageMetricRow(title: "Weekly", window: usage.weekly, stale: usage.stale)
-                    settingsRow("Source", value: usage.source.rawValue)
-                    settingsRow("Updated", value: usage.lastRefreshedAt.formatted())
+                    NativeDetailRow(title: "Source", value: usage.source.rawValue)
+                    NativeDetailRow(title: "Updated", value: usage.lastRefreshedAt.formatted())
                     if let resetAt = usage.nextResetAt {
-                        settingsRow("Next Reset", value: resetAt.formatted())
+                        NativeDetailRow(title: "Next Reset", value: resetAt.formatted())
                     }
                     if let note = usage.userFacingNote {
                         Text(note)
+                            .font(NativePreferencesTheme.Typography.detail)
                             .foregroundStyle(usage.stale ? .orange : .secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -232,8 +247,10 @@ public struct ProfilesSettingsPaneView: View {
 
     private func settingsCard(_ profile: Profile) -> some View {
         SettingsSurfaceCard("Paths") {
-            settingsRow("Agent Home", value: profile.agentHome ?? "-")
-            settingsRow("Config Path", value: profile.configPath ?? "-")
+            VStack(alignment: .leading, spacing: 10) {
+                NativePathRow(title: "Agent Home", value: profile.agentHome ?? "-")
+                NativePathRow(title: "Config Path", value: profile.configPath ?? "-")
+            }
         }
     }
 
@@ -245,11 +262,7 @@ public struct ProfilesSettingsPaneView: View {
         guard let profileId = selectedProfile?.id else {
             return nil
         }
-        return model.events.first { $0.profileId == profileId }
-    }
-
-    private func settingsRow(_ title: String, value: String) -> some View {
-        LabeledContent(title, value: value)
+        return model.recentFailureEvent(for: profileId)
     }
 }
 
@@ -257,28 +270,25 @@ private struct ProfileListRow: View {
     let profile: Profile
     let usage: UsageSnapshot?
     let isActive: Bool
+    let isSelected: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Circle()
-                .fill(statusColor)
-                .frame(width: 8, height: 8)
-                .padding(.top, 8)
-
-            VStack(alignment: .leading, spacing: 6) {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(profile.nickname)
-                        .font(.system(.body, design: .rounded).weight(.semibold))
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+
                     if isActive {
-                        Text("Current")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.tint)
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 7, height: 7)
                     }
                 }
 
                 Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(NativePreferencesTheme.Typography.detail)
+                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
 
                 if let usage {
                     UsageBadgeRow(usage: usage)
@@ -286,16 +296,16 @@ private struct ProfileListRow: View {
             }
 
             Spacer(minLength: 10)
-
-            Image(systemName: profile.enabled ? "checkmark.square.fill" : "square")
-                .foregroundStyle(profile.enabled ? Color.accentColor : Color.secondary)
-                .padding(.top, 2)
         }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(nsColor: .controlColor))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(rowBackground, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .strokeBorder(rowBorder, lineWidth: isSelected ? 1 : 0.5)
         )
+        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
     private var subtitle: String {
@@ -305,20 +315,18 @@ private struct ProfileListRow: View {
         return "\(profile.agent.rawValue) • usage unavailable"
     }
 
-    private var statusColor: Color {
-        if !profile.enabled {
-            return .gray
+    private var rowBackground: Color {
+        if isSelected {
+            return Color.accentColor.opacity(0.12)
         }
+        return NativePreferencesTheme.Colors.groupedBackground.opacity(0.55)
+    }
 
-        if isActive {
-            return .green
+    private var rowBorder: Color {
+        if isSelected {
+            return Color.accentColor.opacity(0.28)
         }
-
-        if usage?.stale == true {
-            return .orange
-        }
-
-        return .secondary
+        return NativePreferencesTheme.Colors.sectionBorder.opacity(0.55)
     }
 }
 
@@ -328,13 +336,14 @@ private struct UsageMetricRow: View {
     let stale: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack {
                 Text(title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.system(size: 13, weight: .semibold))
                 Spacer()
                 Text(window.usedPercent.map { String(format: "%.0f%% used", $0) } ?? window.status.rawValue.capitalized)
-                    .foregroundStyle(.secondary)
+                    .font(NativePreferencesTheme.Typography.detail)
+                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
             }
 
             GeometryReader { geometry in
@@ -346,16 +355,16 @@ private struct UsageMetricRow: View {
                         .frame(width: barWidth(for: geometry.size.width))
                 }
             }
-            .frame(height: 10)
+            .frame(height: NativePreferencesTheme.Metrics.usageBarHeight)
 
             HStack {
                 Text(window.resetAt.map { "Resets \($0.formatted(date: .abbreviated, time: .shortened))" } ?? "No reset window")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(NativePreferencesTheme.Typography.detail)
+                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
                 Spacer()
                 Text(window.exact ? "Exact" : "Estimate")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(NativePreferencesTheme.Typography.detail)
+                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
             }
         }
     }

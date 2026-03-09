@@ -98,6 +98,17 @@ public final class RelayAppModel: ObservableObject {
         }
     }
 
+    func refreshIfStale(maxAge seconds: TimeInterval) async {
+        guard let lastRefresh else {
+            await refresh()
+            return
+        }
+
+        if Date().timeIntervalSince(lastRefresh) >= seconds {
+            await refresh()
+        }
+    }
+
     func refresh(notifyOnFailure: Bool = false) async {
         guard !isRefreshing else {
             return

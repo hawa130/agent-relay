@@ -23,19 +23,19 @@ struct MenuBarActionRow: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: systemImage)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                 .frame(width: 14)
 
             Text(title)
-                .font(.system(size: 14))
+                .font(.system(size: 13))
                 .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
 
             Spacer()
 
             if let trailing {
                 Text(trailing)
-                    .font(.caption.monospacedDigit())
+                    .font(.system(size: 10.5, design: .monospaced))
                     .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
             }
 
@@ -45,7 +45,7 @@ struct MenuBarActionRow: View {
                     .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
             }
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .contentShape(Rectangle())
     }
 }

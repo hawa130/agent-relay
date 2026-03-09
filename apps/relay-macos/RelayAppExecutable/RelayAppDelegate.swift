@@ -4,7 +4,10 @@ import RelayMacOSUI
 
 @MainActor
 final class RelayAppDelegate: NSObject, NSApplicationDelegate {
-    let model = RelayAppModel()
+    private let model = RelayAppModel()
+    private lazy var settingsSessionModel = SettingsSessionModel(session: model)
+    private lazy var profilesPaneModel = ProfilesPaneModel(session: model)
+    private lazy var activityPaneModel = ActivityPaneModel(session: model)
     private var statusItemController: RelayStatusItemController?
     private lazy var settingsWindowController = SettingsWindowController(
         panes: [
@@ -13,32 +16,48 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
                 title: SettingsPaneID.general.title,
                 toolbarIcon: Self.toolbarIcon(SettingsPaneID.general.symbol, description: SettingsPaneID.general.title)
             ) {
-                GeneralSettingsPaneView(model: self.model)
-                    .frame(minWidth: 860, minHeight: 620, alignment: .topLeading)
+                GeneralSettingsPaneView(model: self.settingsSessionModel)
+                    .frame(
+                        width: NativePreferencesTheme.Metrics.windowWidth,
+                        height: NativePreferencesTheme.Metrics.windowHeight,
+                        alignment: .topLeading
+                    )
             },
             Settings.Pane(
                 identifier: .relayProfiles,
                 title: SettingsPaneID.profiles.title,
                 toolbarIcon: Self.toolbarIcon(SettingsPaneID.profiles.symbol, description: SettingsPaneID.profiles.title)
             ) {
-                ProfilesSettingsPaneView(model: self.model)
-                    .frame(minWidth: 1020, minHeight: 700, alignment: .topLeading)
+                ProfilesSettingsPaneView(model: self.profilesPaneModel)
+                    .frame(
+                        width: NativePreferencesTheme.Metrics.windowWidth,
+                        height: NativePreferencesTheme.Metrics.windowHeight,
+                        alignment: .topLeading
+                    )
             },
             Settings.Pane(
                 identifier: .relayActivity,
                 title: SettingsPaneID.activity.title,
                 toolbarIcon: Self.toolbarIcon(SettingsPaneID.activity.symbol, description: SettingsPaneID.activity.title)
             ) {
-                ActivitySettingsPaneView(model: self.model)
-                    .frame(minWidth: 900, minHeight: 640, alignment: .topLeading)
+                ActivitySettingsPaneView(model: self.activityPaneModel)
+                    .frame(
+                        width: NativePreferencesTheme.Metrics.windowWidth,
+                        height: NativePreferencesTheme.Metrics.windowHeight,
+                        alignment: .topLeading
+                    )
             },
             Settings.Pane(
                 identifier: .relayAbout,
                 title: SettingsPaneID.about.title,
                 toolbarIcon: Self.toolbarIcon(SettingsPaneID.about.symbol, description: SettingsPaneID.about.title)
             ) {
-                AboutSettingsPaneView(model: self.model)
-                    .frame(minWidth: 760, minHeight: 520, alignment: .topLeading)
+                AboutSettingsPaneView(model: self.settingsSessionModel)
+                    .frame(
+                        width: NativePreferencesTheme.Metrics.windowWidth,
+                        height: NativePreferencesTheme.Metrics.windowHeight,
+                        alignment: .topLeading
+                    )
             },
         ],
         style: .toolbarItems,
@@ -65,6 +84,9 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
     private func openSettingsWindow() {
         NSApp.activate(ignoringOtherApps: true)
         settingsWindowController.show(pane: SettingsPaneID.persistedSelection.settingsIdentifier)
+        Task { [weak self] in
+            await self?.settingsSessionModel.refreshIfStale()
+        }
     }
 
     private static func toolbarIcon(_ symbolName: String, description: String) -> NSImage {
