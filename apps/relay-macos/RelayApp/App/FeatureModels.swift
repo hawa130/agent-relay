@@ -2,40 +2,6 @@ import Combine
 import Foundation
 
 @MainActor
-public final class SettingsSessionModel: ObservableObject {
-    private let session: RelayAppModel
-    private var cancellables: Set<AnyCancellable> = []
-
-    public init(session: RelayAppModel) {
-        self.session = session
-        bindSession()
-    }
-
-    var status: StatusReport? { session.status }
-    var doctor: DoctorReport? { session.doctor }
-    var profilesCount: Int { session.status?.profileCount ?? session.profiles.count }
-    var lastErrorMessage: String? { session.lastErrorMessage }
-    var autoSwitchEnabled: Bool { session.autoSwitchEnabled }
-
-    func setAutoSwitch(enabled: Bool) async {
-        await session.setAutoSwitch(enabled: enabled)
-    }
-
-    public func refreshIfStale() async {
-        await session.refreshIfStale(maxAge: 30)
-    }
-
-    private func bindSession() {
-        session.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-    }
-}
-
-@MainActor
 public final class SettingsPaneModel: ObservableObject {
     private let session: RelayAppModel
     private var cancellables: Set<AnyCancellable> = []
@@ -43,7 +9,7 @@ public final class SettingsPaneModel: ObservableObject {
 
     public init(session: RelayAppModel) {
         self.session = session
-        self.selectedItem = SettingsSidebarSelection.persistedSelection
+        self.selectedItem = .general
         bindSession()
     }
 
@@ -59,7 +25,6 @@ public final class SettingsPaneModel: ObservableObject {
         }
 
         selectedItem = item
-        SettingsSidebarSelection.persistedSelection = item
     }
 
     func setAutoSwitch(enabled: Bool) async {
@@ -144,43 +109,6 @@ public final class ProfilesPaneModel: ObservableObject {
 
     func refreshIfStale() async {
         await session.refreshIfStale(maxAge: 30)
-    }
-
-    private func bindSession() {
-        session.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.objectWillChange.send()
-            }
-            .store(in: &cancellables)
-    }
-}
-
-@MainActor
-public final class ActivityPaneModel: ObservableObject {
-    private let session: RelayAppModel
-    private var cancellables: Set<AnyCancellable> = []
-
-    public init(session: RelayAppModel) {
-        self.session = session
-        bindSession()
-    }
-
-    var events: [FailureEvent] { session.events }
-    var logTail: LogTail? { session.logTail }
-    var diagnosticsExport: DiagnosticsExport? { session.diagnosticsExport }
-    var lastErrorMessage: String? { session.lastErrorMessage }
-
-    func refresh() async {
-        await session.refresh()
-    }
-
-    func refreshIfStale() async {
-        await session.refreshIfStale(maxAge: 30)
-    }
-
-    func exportDiagnostics() async {
-        await session.exportDiagnostics()
     }
 
     private func bindSession() {

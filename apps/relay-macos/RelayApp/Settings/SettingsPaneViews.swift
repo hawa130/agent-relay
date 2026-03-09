@@ -15,9 +15,6 @@ public struct SettingsPaneView: View {
             detail
         }
         .background(NativePreferencesTheme.Colors.paneBackground)
-        .onAppear {
-            SettingsPaneID.persistedSelection = .settings
-        }
     }
 
     private var sidebar: some View {
@@ -153,6 +150,10 @@ private struct GeneralSettingsDetailView: View {
                 NativeDetailRow(title: "Profiles", value: "\(model.profilesCount)")
             }
 
+            Section("About") {
+                NativeDetailRow(title: "Version", value: appVersion)
+            }
+
             if let error = model.lastErrorMessage {
                 Section("Last Error") {
                     Text(error)
@@ -164,6 +165,22 @@ private struct GeneralSettingsDetailView: View {
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .background(NativePreferencesTheme.Colors.paneBackground)
+    }
+
+    private var appVersion: String {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+
+        switch (version, build) {
+        case let (version?, build?) where version != build:
+            return "\(version) (\(build))"
+        case let (version?, _):
+            return version
+        case let (_, build?):
+            return build
+        default:
+            return "Development"
+        }
     }
 }
 
@@ -348,60 +365,6 @@ private struct SettingsDetailIconTile<Content: View>: View {
             content
         }
         .frame(width: 40, height: 40)
-    }
-}
-
-public struct ActivitySettingsPaneView: View {
-    @ObservedObject var model: ActivityPaneModel
-
-    public init(model: ActivityPaneModel) {
-        self.model = model
-    }
-
-    public var body: some View {
-        ActivityView(model: model)
-            .onAppear {
-                SettingsPaneID.persistedSelection = .activity
-            }
-    }
-}
-
-public struct AboutSettingsPaneView: View {
-    @ObservedObject var model: SettingsSessionModel
-
-    public init(model: SettingsSessionModel) {
-        self.model = model
-    }
-
-    public var body: some View {
-        Form {
-            Section("Application") {
-                NativeDetailRow(title: "Version", value: appVersion)
-                NativeDetailRow(title: "Profiles", value: "\(model.profilesCount)")
-            }
-        }
-        .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .background(NativePreferencesTheme.Colors.paneBackground)
-        .onAppear {
-            SettingsPaneID.persistedSelection = .about
-        }
-    }
-
-    private var appVersion: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
-
-        switch (version, build) {
-        case let (version?, build?) where version != build:
-            return "\(version) (\(build))"
-        case let (version?, _):
-            return version
-        case let (_, build?):
-            return build
-        default:
-            return "Development"
-        }
     }
 }
 
