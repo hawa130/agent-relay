@@ -159,28 +159,35 @@ public struct AboutSettingsPaneView: View {
 
 struct SettingsSurfaceCard<Content: View>: View {
     let title: String
+    let headerAccessory: AnyView?
     let content: Content
 
-    init(_ title: String, @ViewBuilder content: () -> Content) {
+    init(_ title: String, headerAccessory: AnyView? = nil, @ViewBuilder content: () -> Content) {
         self.title = title
+        self.headerAccessory = headerAccessory
         self.content = content()
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionContentSpacing) {
-                Text(title)
-                    .font(NativePreferencesTheme.Typography.sectionLabel)
-                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-                    .textCase(.uppercase)
+                HStack(alignment: .center, spacing: 8) {
+                    Text(title)
+                        .font(NativePreferencesTheme.Typography.sectionLabel)
+                        .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                        .textCase(.uppercase)
+
+                    Spacer()
+
+                    if let headerAccessory {
+                        headerAccessory
+                    }
+                }
                 content
             }
             .font(NativePreferencesTheme.Typography.body)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 6)
-
-            Divider()
-                .padding(.top, 14)
         }
         .padding(.horizontal, 2)
     }
