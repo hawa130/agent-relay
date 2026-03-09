@@ -3,11 +3,11 @@ import XCTest
 @testable import RelayMacOSUI
 
 final class ModelDecodingTests: XCTestCase {
-    func testStatusReportDecodesLegacyHomeKeyAndActiveProfileID() throws {
+    func testStatusReportDecodesCurrentFields() throws {
         let json = """
         {
           "relay_home": "/tmp/relay",
-          "live_codex_home": "/Users/test/.codex",
+          "live_agent_home": "/Users/test/.codex",
           "profile_count": 2,
           "active_state": {
             "active_profile_id": "p_active",
@@ -30,13 +30,13 @@ final class ModelDecodingTests: XCTestCase {
         let report = try JSONDecoder.relayDecoder.decode(StatusReport.self, from: json)
 
         XCTAssertEqual(report.liveAgentHome, "/Users/test/.codex")
-        XCTAssertEqual(report.activeState.activeProfileID, "p_active")
+        XCTAssertEqual(report.activeState.activeProfileId, "p_active")
         XCTAssertEqual(report.activeState.lastSwitchResult, .success)
         XCTAssertTrue(report.activeState.autoSwitchEnabled)
         XCTAssertEqual(report.settings.usageSourceMode, .auto)
     }
 
-    func testProfileDecodesLegacyCodexHomeKey() throws {
+    func testProfileDecodesCurrentAgentHomeKey() throws {
         let json = """
         {
           "id": "p_1",
@@ -44,7 +44,7 @@ final class ModelDecodingTests: XCTestCase {
           "agent": "Codex",
           "priority": 100,
           "enabled": true,
-          "codex_home": "/Users/test/.relay/profiles/work",
+          "agent_home": "/Users/test/.relay/profiles/work",
           "config_path": "/Users/test/.relay/profiles/work/config.toml",
           "auth_mode": "ConfigFilesystem",
           "created_at": "2026-03-08T12:27:12Z",
@@ -72,9 +72,9 @@ final class ModelDecodingTests: XCTestCase {
 
         let report = try JSONDecoder.relayDecoder.decode(SwitchReport.self, from: json)
 
-        XCTAssertEqual(report.profileID, "p_target")
-        XCTAssertEqual(report.previousProfileID, "p_prev")
-        XCTAssertEqual(report.checkpointID, "cp_1")
+        XCTAssertEqual(report.profileId, "p_target")
+        XCTAssertEqual(report.previousProfileId, "p_prev")
+        XCTAssertEqual(report.checkpointId, "cp_1")
     }
 
     func testUsageSnapshotDecodesProfileID() throws {
@@ -109,7 +109,7 @@ final class ModelDecodingTests: XCTestCase {
 
         let snapshot = try JSONDecoder.relayDecoder.decode(UsageSnapshot.self, from: json)
 
-        XCTAssertEqual(snapshot.profileID, "p_usage")
+        XCTAssertEqual(snapshot.profileId, "p_usage")
         XCTAssertEqual(snapshot.source, .local)
         XCTAssertEqual(snapshot.confidence, .high)
     }
@@ -166,7 +166,7 @@ final class ModelDecodingTests: XCTestCase {
         let result = try JSONDecoder.relayDecoder.decode(CodexLinkResult.self, from: json)
 
         XCTAssertEqual(result.profile.id, "p_browser")
-        XCTAssertEqual(result.probeIdentity.accountID, "acct-123")
+        XCTAssertEqual(result.probeIdentity.accountId, "acct-123")
         XCTAssertFalse(result.activated)
     }
 }

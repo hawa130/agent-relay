@@ -51,12 +51,12 @@ Profile management:
 
 ```bash
 relay profiles list --json
-relay profiles add --nickname work --codex-home /path/to/codex-home --json
+relay profiles add codex --nickname work --agent-home /path/to/codex-home --json
 relay profiles edit <id> --nickname updated --json
 relay profiles enable <id> --json
 relay profiles disable <id> --json
 relay profiles remove <id> --json
-relay profiles import-codex --nickname imported-live --json
+relay profiles import codex --nickname imported-live --json
 ```
 
 Switching:

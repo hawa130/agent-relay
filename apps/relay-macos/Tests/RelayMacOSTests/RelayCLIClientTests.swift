@@ -3,7 +3,7 @@ import XCTest
 @testable import RelayMacOSUI
 
 final class RelayCLIClientTests: XCTestCase {
-    func testFetchStatusUsesJSONAndDecodesLegacyFields() async throws {
+    func testFetchStatusUsesJSONAndDecodesCurrentFields() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
 
@@ -11,7 +11,7 @@ final class RelayCLIClientTests: XCTestCase {
         let status = try await client.fetchStatus()
 
         XCTAssertEqual(status.liveAgentHome, "/Users/test/.codex")
-        XCTAssertEqual(status.activeState.activeProfileID, "p_active")
+        XCTAssertEqual(status.activeState.activeProfileId, "p_active")
         XCTAssertEqual(status.profileCount, 1)
     }
 
@@ -20,7 +20,7 @@ final class RelayCLIClientTests: XCTestCase {
         defer { fixture.cleanup() }
 
         let client = RelayCLIClient(relayCLIPathOverride: fixture.scriptPath, environment: [:])
-        let usage = try await client.refreshUsage(profileID: "p_alt")
+        let usage = try await client.refreshUsage(profileId: "p_alt")
         let settings = try await client.setUsageSettings(
             UsageSettingsDraft(
                 sourceMode: .webEnhanced,
@@ -30,11 +30,28 @@ final class RelayCLIClientTests: XCTestCase {
             )
         )
 
-        XCTAssertEqual(usage.profileID, "p_alt")
+        XCTAssertEqual(usage.profileId, "p_alt")
         XCTAssertEqual(usage.source, .local)
         XCTAssertEqual(settings.usageSourceMode, .webEnhanced)
         XCTAssertEqual(settings.menuOpenRefreshStaleAfterSeconds, 5)
         XCTAssertFalse(settings.usageBackgroundRefreshEnabled)
+    }
+
+    func testImportCodexCommandUsesJSONWithoutInlineAgentArgument() async throws {
+        let fixture = try RelayCLIFixture.make()
+        defer { fixture.cleanup() }
+
+        let client = RelayCLIClient(relayCLIPathOverride: fixture.scriptPath, environment: [:])
+        let profile = try await client.importCodexProfile(nickname: "live", priority: 100)
+        let payloadData = try Data(contentsOf: URL(fileURLWithPath: fixture.payloadPath))
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: payloadData) as? [String: Any]
+        )
+
+        XCTAssertEqual(profile.id, "p_live")
+        XCTAssertEqual(payload["agent"] as? String, "codex")
+        XCTAssertEqual(payload["nickname"] as? String, "live")
+        XCTAssertEqual(payload["priority"] as? Int, 100)
     }
 
     func testLoginCodexCommandUsesJSON() async throws {
@@ -43,9 +60,16 @@ final class RelayCLIClientTests: XCTestCase {
 
         let client = RelayCLIClient(relayCLIPathOverride: fixture.scriptPath, environment: [:])
         let link = try await client.loginCodexProfile(nickname: "browser", priority: 90)
+        let payloadData = try Data(contentsOf: URL(fileURLWithPath: fixture.payloadPath))
+        let payload = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: payloadData) as? [String: Any]
+        )
 
         XCTAssertEqual(link.profile.id, "p_browser")
-        XCTAssertEqual(link.probeIdentity.accountID, "acct-123")
+        XCTAssertEqual(link.probeIdentity.accountId, "acct-123")
+        XCTAssertEqual(payload["agent"] as? String, "codex")
+        XCTAssertEqual(payload["nickname"] as? String, "browser")
+        XCTAssertEqual(payload["priority"] as? Int, 90)
     }
 }
 
@@ -85,7 +109,7 @@ script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 case "$cmd" in
   "--json status")
     cat <<'EOF'
-{"success":true,"error_code":null,"message":"status loaded","data":{"relay_home":"/tmp/relay","live_codex_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600}}}
+{"success":true,"error_code":null,"message":"status loaded","data":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600}}}
 EOF
     ;;
   "--json usage refresh --input-json -")
@@ -102,18 +126,18 @@ EOF
 {"success":true,"error_code":null,"message":"usage settings updated","data":{"auto_switch_enabled":false,"cooldown_seconds":600,"usage_source_mode":"WebEnhanced","menu_open_refresh_stale_after_seconds":5,"usage_background_refresh_enabled":false,"usage_background_refresh_interval_seconds":300}}
 EOF
     ;;
-  "--json profiles login-codex --input-json -")
+  "--json profiles import --input-json -")
+    payload="$(cat)"
+    printf '%s' "$payload" > "$script_dir/last-input.json"
+    cat <<'EOF'
+{"success":true,"error_code":null,"message":"profile imported","data":{"id":"p_live","nickname":"live","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/live-home","config_path":"/tmp/live-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"}}
+EOF
+    ;;
+  "--json profiles login --input-json -")
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
     cat <<'EOF'
 {"success":true,"error_code":null,"message":"codex login profile created","data":{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"probe_identity":{"profile_id":"p_browser","provider":"CodexOfficial","principal_id":"acct-123","display_name":"browser@example.com","credentials":{"account_id":"acct-123","access_token":"access-token"},"metadata":{"email":"browser@example.com","plan_hint":"team"}},"activated":false}}
-EOF
-    ;;
-  "--json profiles relink-codex --input-json -")
-    payload="$(cat)"
-    printf '%s' "$payload" > "$script_dir/last-input.json"
-    cat <<'EOF'
-{"success":true,"error_code":null,"message":"codex profile relinked","data":{"profile_id":"p_browser","provider":"CodexOfficial","principal_id":"acct-123","display_name":"browser@example.com","credentials":{"account_id":"acct-123","access_token":"access-token"},"metadata":{"email":"browser@example.com","plan_hint":"team"}}}
 EOF
     ;;
   *)

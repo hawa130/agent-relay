@@ -2,7 +2,7 @@ import Defaults
 
 extension Defaults.Keys {
     static let selectedSettingsSection = Key<String>("selectedSettingsSection", default: SettingsSection.general.rawValue)
-    static let selectedProfileID = Key<String?>("selectedProfileID", default: nil)
+    static let selectedProfileId = Key<String?>("selectedProfileId", default: nil)
 }
 
 enum SettingsSection: String, CaseIterable, Identifiable, Sendable {

@@ -24,10 +24,10 @@ struct RelayCLIClient {
         try await run(["usage"], as: UsageSnapshot.self)
     }
 
-    func fetchUsage(profileID: String) async throws -> UsageSnapshot {
+    func fetchUsage(profileId: String) async throws -> UsageSnapshot {
         try await run(
             ["usage", "profile", "--input-json", "-"],
-            input: ProfileIDPayload(id: profileID),
+            input: ProfileIdPayload(id: profileId),
             as: UsageSnapshot.self
         )
     }
@@ -36,10 +36,10 @@ struct RelayCLIClient {
         try await run(["usage", "list"], as: [UsageSnapshot].self)
     }
 
-    func refreshUsage(profileID: String) async throws -> UsageSnapshot {
+    func refreshUsage(profileId: String) async throws -> UsageSnapshot {
         try await run(
             ["usage", "refresh", "--input-json", "-"],
-            input: UsageRefreshPayload(id: profileID, enabled: false, all: false),
+            input: UsageRefreshPayload(id: profileId, enabled: false, all: false),
             as: UsageSnapshot.self
         )
     }
@@ -72,8 +72,8 @@ struct RelayCLIClient {
         try await run(["profiles", "list"], as: [Profile].self)
     }
 
-    func editProfile(profileID: String, draft: ProfileDraft) async throws -> Profile {
-        let payload = EditProfilePayload(profileID: profileID, draft: draft)
+    func editProfile(profileId: String, draft: ProfileDraft) async throws -> Profile {
+        let payload = EditProfilePayload(profileId: profileId, draft: draft)
         return try await run(
             ["profiles", "edit", "--input-json", "-"],
             input: payload,
@@ -81,34 +81,34 @@ struct RelayCLIClient {
         )
     }
 
-    func removeProfile(profileID: String) async throws -> Profile {
+    func removeProfile(profileId: String) async throws -> Profile {
         try await run(
             ["profiles", "remove", "--input-json", "-"],
-            input: ProfileIDPayload(id: profileID),
+            input: ProfileIdPayload(id: profileId),
             as: Profile.self
         )
     }
 
     func importCodexProfile(nickname: String?, priority: Int) async throws -> Profile {
         try await run(
-            ["profiles", "import-codex", "--input-json", "-"],
-            input: ImportCodexPayload(nickname: nickname, priority: priority),
+            ["profiles", "import", "--input-json", "-"],
+            input: ImportProfilePayload(nickname: nickname, priority: priority),
             as: Profile.self
         )
     }
 
     func loginCodexProfile(nickname: String?, priority: Int) async throws -> CodexLinkResult {
         try await run(
-            ["profiles", "login-codex", "--input-json", "-"],
-            input: LoginCodexPayload(nickname: nickname, priority: priority),
+            ["profiles", "login", "--input-json", "-"],
+            input: LoginProfilePayload(nickname: nickname, priority: priority),
             as: CodexLinkResult.self
         )
     }
 
-    func switchToProfile(_ profileID: String) async throws -> SwitchReport {
+    func switchToProfile(_ profileId: String) async throws -> SwitchReport {
         try await run(
             ["switch", "--input-json", "-"],
-            input: SwitchPayload(target: profileID),
+            input: SwitchPayload(target: profileId),
             as: SwitchReport.self
         )
     }
@@ -121,10 +121,10 @@ struct RelayCLIClient {
         )
     }
 
-    func setProfileEnabled(profileID: String, enabled: Bool) async throws -> Profile {
+    func setProfileEnabled(profileId: String, enabled: Bool) async throws -> Profile {
         try await run(
             ["profiles", enabled ? "enable" : "disable", "--input-json", "-"],
-            input: ProfileIDPayload(id: profileID),
+            input: ProfileIdPayload(id: profileId),
             as: Profile.self
         )
     }

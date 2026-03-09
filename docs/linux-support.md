@@ -34,7 +34,7 @@ Minimum release gate:
 
 Linux smoke scenarios:
 
-1. Add a profile with `--codex-home` pointing at a temp Codex fixture.
+1. Add a profile with `codex --agent-home` pointing at a temp Codex fixture.
 2. Import a live Codex home from `CODEX_HOME`.
 3. Switch to a second profile and confirm the target config is written.
 4. Trigger a failed switch and confirm rollback plus failure event logging.

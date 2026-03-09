@@ -16,14 +16,14 @@ public final class RelayAppModel: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var isSwitching = false
     @Published private(set) var isMutatingProfiles = false
-    @Published var selectedProfileID: String?
+    @Published var selectedProfileId: String?
     @Published var lastErrorMessage: String?
     private let client = RelayCLIClient()
     private let notificationService = RelayNotificationService()
     private var pollTask: Task<Void, Never>?
 
     public init() {
-        selectedProfileID = Defaults[.selectedProfileID]
+        selectedProfileId = Defaults[.selectedProfileId]
         Task {
             await notificationService.requestAuthorizationIfNeeded()
             await refresh()
@@ -50,42 +50,42 @@ public final class RelayAppModel: ObservableObject {
         }
     }
 
-    var activeProfileID: String? {
-        status?.activeState.activeProfileID
+    var activeProfileId: String? {
+        status?.activeState.activeProfileId
     }
 
     var activeProfile: Profile? {
-        guard let activeProfileID else {
+        guard let activeProfileId else {
             return nil
         }
-        return profiles.first { $0.id == activeProfileID }
+        return profiles.first { $0.id == activeProfileId }
     }
 
     var selectedProfile: Profile? {
-        guard let selectedProfileID else {
+        guard let selectedProfileId else {
             return activeProfile ?? profiles.first
         }
-        return profiles.first { $0.id == selectedProfileID } ?? activeProfile ?? profiles.first
+        return profiles.first { $0.id == selectedProfileId } ?? activeProfile ?? profiles.first
     }
 
     var selectedUsage: UsageSnapshot? {
-        guard let profileID = selectedProfile?.id else {
+        guard let profileId = selectedProfile?.id else {
             return usage
         }
-        return usageSnapshot(for: profileID)
+        return usageSnapshot(for: profileId)
     }
 
     var autoSwitchEnabled: Bool {
         status?.settings.autoSwitchEnabled ?? false
     }
 
-    func usageSnapshot(for profileID: String) -> UsageSnapshot? {
-        usageSnapshots.first { $0.profileID == profileID }
+    func usageSnapshot(for profileId: String) -> UsageSnapshot? {
+        usageSnapshots.first { $0.profileId == profileId }
     }
 
-    func selectProfile(_ profileID: String?) {
-        selectedProfileID = profileID
-        Defaults[.selectedProfileID] = profileID
+    func selectProfile(_ profileId: String?) {
+        selectedProfileId = profileId
+        Defaults[.selectedProfileId] = profileId
     }
 
     func refresh(notifyOnFailure: Bool = false) async {
@@ -128,7 +128,7 @@ public final class RelayAppModel: ObservableObject {
         }
     }
 
-    func switchToProfile(_ profileID: String) async {
+    func switchToProfile(_ profileId: String) async {
         guard !isSwitching else {
             return
         }
@@ -139,8 +139,8 @@ public final class RelayAppModel: ObservableObject {
         }
 
         do {
-            let report = try await client.switchToProfile(profileID)
-            selectProfile(profileID)
+            let report = try await client.switchToProfile(profileId)
+            selectProfile(profileId)
             await refresh()
             await notificationService.post(
                 title: "Relay switched profile",
@@ -212,9 +212,9 @@ public final class RelayAppModel: ObservableObject {
         )
     }
 
-    func refreshUsage(profileID: String) async {
+    func refreshUsage(profileId: String) async {
         do {
-            let snapshot = try await client.refreshUsage(profileID: profileID)
+            let snapshot = try await client.refreshUsage(profileId: profileId)
             mergeUsageSnapshot(snapshot)
             await refresh()
         } catch {
@@ -242,21 +242,21 @@ public final class RelayAppModel: ObservableObject {
         await refreshEnabledUsage()
     }
 
-    func setProfileEnabled(_ profileID: String, enabled: Bool) async {
+    func setProfileEnabled(_ profileId: String, enabled: Bool) async {
         await performProfileMutation { [self] in
-            _ = try await self.client.setProfileEnabled(profileID: profileID, enabled: enabled)
+            _ = try await self.client.setProfileEnabled(profileId: profileId, enabled: enabled)
         }
     }
 
-    func editProfile(profileID: String, draft: ProfileDraft) async {
+    func editProfile(profileId: String, draft: ProfileDraft) async {
         await performProfileMutation { [self] in
-            _ = try await self.client.editProfile(profileID: profileID, draft: draft)
+            _ = try await self.client.editProfile(profileId: profileId, draft: draft)
         }
     }
 
-    func removeProfile(_ profileID: String) async {
+    func removeProfile(_ profileId: String) async {
         await performProfileMutation { [self] in
-            _ = try await self.client.removeProfile(profileID: profileID)
+            _ = try await self.client.removeProfile(profileId: profileId)
         }
     }
 
@@ -372,22 +372,22 @@ public final class RelayAppModel: ObservableObject {
     }
 
     private func normalizeSelection() {
-        if let selectedProfileID, profiles.contains(where: { $0.id == selectedProfileID }) {
+        if let selectedProfileId, profiles.contains(where: { $0.id == selectedProfileId }) {
             return
         }
-        selectProfile(activeProfileID ?? profiles.first?.id)
+        selectProfile(activeProfileId ?? profiles.first?.id)
     }
 
     private func mergeUsageSnapshot(_ snapshot: UsageSnapshot) {
-        if let profileID = snapshot.profileID,
-            let index = usageSnapshots.firstIndex(where: { $0.profileID == profileID })
+        if let profileId = snapshot.profileId,
+            let index = usageSnapshots.firstIndex(where: { $0.profileId == profileId })
         {
             usageSnapshots[index] = snapshot
         } else {
             usageSnapshots.append(snapshot)
         }
 
-        if snapshot.profileID == activeProfileID {
+        if snapshot.profileId == activeProfileId {
             usage = snapshot
         }
     }

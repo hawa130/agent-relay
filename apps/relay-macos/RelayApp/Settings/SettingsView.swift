@@ -37,7 +37,7 @@ public struct SettingsView: View {
                 initialDraft: ProfileDraft(profile: profile),
                 mode: .edit(profile)
             ) { draft in
-                await model.editProfile(profileID: profile.id, draft: draft)
+                await model.editProfile(profileId: profile.id, draft: draft)
             }
         }
         .alert("Remove Profile?", isPresented: .constant(deletingProfile != nil), presenting: deletingProfile) { profile in
@@ -203,7 +203,7 @@ public struct SettingsView: View {
 
             List(
                 selection: Binding(
-                    get: { model.selectedProfileID },
+                    get: { model.selectedProfileId },
                     set: { value in
                         model.selectProfile(value)
                     }
@@ -220,7 +220,7 @@ public struct SettingsView: View {
 
                         Spacer(minLength: 8)
 
-                        if model.activeProfileID == profile.id {
+                        if model.activeProfileId == profile.id {
                             Text("Current")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.tint)
@@ -238,7 +238,7 @@ public struct SettingsView: View {
         Group {
             if let profile = selectedProfile {
                 Form {
-                    if model.activeProfileID == profile.id {
+                    if model.activeProfileId == profile.id {
                         Section {
                             Label("This is the active profile in use right now.", systemImage: "checkmark.circle.fill")
                                 .foregroundStyle(.tint)
@@ -251,7 +251,7 @@ public struct SettingsView: View {
                         LabeledContent("Priority", value: "\(profile.priority)")
                         LabeledContent("Auth Mode", value: profile.authMode.displayName)
                         LabeledContent("Status", value: profile.enabled ? "Enabled" : "Disabled")
-                        if model.activeProfileID == profile.id {
+                        if model.activeProfileId == profile.id {
                             LabeledContent("Current", value: "Active")
                         }
                     }
@@ -285,7 +285,7 @@ public struct SettingsView: View {
 
                         Button("Refresh Usage") {
                             Task {
-                                await model.refreshUsage(profileID: profile.id)
+                                await model.refreshUsage(profileId: profile.id)
                             }
                         }
                     }
@@ -409,8 +409,8 @@ public struct SettingsView: View {
     }
 
     private var selectedProfile: Profile? {
-        if let selectedProfileID = model.selectedProfileID {
-            return model.profiles.first { $0.id == selectedProfileID }
+        if let selectedProfileId = model.selectedProfileId {
+            return model.profiles.first { $0.id == selectedProfileId }
         }
         return model.profiles.first
     }

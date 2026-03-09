@@ -12,10 +12,11 @@ struct DoctorReport: Decodable, Sendable {
     let relayHome: String
     let relayDbPath: String
     let relayLogPath: String
-    let liveCodexHome: String
-    let codexBinary: String?
-    let codexHome: String?
-    let codexHomeExists: Bool
+    let primaryAgent: AgentKind?
+    let liveAgentHome: String
+    let agentBinary: String?
+    let defaultAgentHome: String?
+    let defaultAgentHomeExists: Bool
     let managedFiles: [String]
 }
 
@@ -25,37 +26,16 @@ struct StatusReport: Decodable, Sendable {
     let profileCount: Int
     let activeState: ActiveState
     let settings: AppSettings
-
-    private enum CodingKeys: String, CodingKey {
-        case relayHome
-        case liveAgentHome
-        case liveCodexHome
-        case profileCount
-        case activeState
-        case settings
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        relayHome = try container.decode(String.self, forKey: .relayHome)
-        liveAgentHome =
-            try container.decodeIfPresent(String.self, forKey: .liveAgentHome)
-            ?? container.decode(String.self, forKey: .liveCodexHome)
-        profileCount = try container.decode(Int.self, forKey: .profileCount)
-        activeState = try container.decode(ActiveState.self, forKey: .activeState)
-        settings = try container.decode(AppSettings.self, forKey: .settings)
-    }
 }
 
 struct ActiveState: Decodable, Sendable {
-    let activeProfileID: String?
+    let activeProfileId: String?
     let lastSwitchAt: Date?
     let lastSwitchResult: SwitchOutcome
     let autoSwitchEnabled: Bool
     let lastError: String?
 
     private enum CodingKeys: String, CodingKey {
-        case activeProfileID
         case activeProfileId
         case lastSwitchAt
         case lastSwitchResult
@@ -65,9 +45,7 @@ struct ActiveState: Decodable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        activeProfileID =
-            try container.decodeIfPresent(String.self, forKey: .activeProfileID)
-            ?? container.decodeIfPresent(String.self, forKey: .activeProfileId)
+        activeProfileId = try container.decodeIfPresent(String.self, forKey: .activeProfileId)
         lastSwitchAt = try container.decodeIfPresent(Date.self, forKey: .lastSwitchAt)
         lastSwitchResult =
             try container.decodeIfPresent(SwitchOutcome.self, forKey: .lastSwitchResult)
@@ -130,40 +108,10 @@ struct Profile: Decodable, Identifiable, Sendable {
     let authMode: AuthMode
     let createdAt: Date
     let updatedAt: Date
-
-    private enum CodingKeys: String, CodingKey {
-        case id
-        case nickname
-        case agent
-        case priority
-        case enabled
-        case agentHome
-        case codexHome
-        case configPath
-        case authMode
-        case createdAt
-        case updatedAt
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        nickname = try container.decode(String.self, forKey: .nickname)
-        agent = try container.decode(AgentKind.self, forKey: .agent)
-        priority = try container.decode(Int.self, forKey: .priority)
-        enabled = try container.decode(Bool.self, forKey: .enabled)
-        agentHome =
-            try container.decodeIfPresent(String.self, forKey: .agentHome)
-            ?? container.decodeIfPresent(String.self, forKey: .codexHome)
-        configPath = try container.decodeIfPresent(String.self, forKey: .configPath)
-        authMode = try container.decode(AuthMode.self, forKey: .authMode)
-        createdAt = try container.decode(Date.self, forKey: .createdAt)
-        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
-    }
 }
 
 struct UsageSnapshot: Decodable, Sendable {
-    let profileID: String?
+    let profileId: String?
     let profileName: String?
     let source: UsageSource
     let confidence: UsageConfidence
@@ -175,40 +123,6 @@ struct UsageSnapshot: Decodable, Sendable {
     let autoSwitchReason: FailureReason?
     let canAutoSwitch: Bool
     let message: String?
-
-    private enum CodingKeys: String, CodingKey {
-        case profileID
-        case profileId
-        case profileName
-        case source
-        case confidence
-        case stale
-        case lastRefreshedAt
-        case nextResetAt
-        case session
-        case weekly
-        case autoSwitchReason
-        case canAutoSwitch
-        case message
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        profileID =
-            try container.decodeIfPresent(String.self, forKey: .profileID)
-            ?? container.decodeIfPresent(String.self, forKey: .profileId)
-        profileName = try container.decodeIfPresent(String.self, forKey: .profileName)
-        source = try container.decode(UsageSource.self, forKey: .source)
-        confidence = try container.decode(UsageConfidence.self, forKey: .confidence)
-        stale = try container.decode(Bool.self, forKey: .stale)
-        lastRefreshedAt = try container.decode(Date.self, forKey: .lastRefreshedAt)
-        nextResetAt = try container.decodeIfPresent(Date.self, forKey: .nextResetAt)
-        session = try container.decode(UsageWindow.self, forKey: .session)
-        weekly = try container.decode(UsageWindow.self, forKey: .weekly)
-        autoSwitchReason = try container.decodeIfPresent(FailureReason.self, forKey: .autoSwitchReason)
-        canAutoSwitch = try container.decode(Bool.self, forKey: .canAutoSwitch)
-        message = try container.decodeIfPresent(String.self, forKey: .message)
-    }
 }
 
 struct UsageSettingsDraft: Encodable, Sendable {
@@ -228,33 +142,11 @@ struct UsageWindow: Decodable, Sendable {
 
 struct FailureEvent: Decodable, Identifiable, Sendable {
     let id: String
-    let profileID: String?
+    let profileId: String?
     let reason: FailureReason
     let message: String
     let cooldownUntil: Date?
     let createdAt: Date
-
-    private enum CodingKeys: String, CodingKey {
-        case id
-        case profileID
-        case profileId
-        case reason
-        case message
-        case cooldownUntil
-        case createdAt
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        profileID =
-            try container.decodeIfPresent(String.self, forKey: .profileID)
-            ?? container.decodeIfPresent(String.self, forKey: .profileId)
-        reason = try container.decode(FailureReason.self, forKey: .reason)
-        message = try container.decode(String.self, forKey: .message)
-        cooldownUntil = try container.decodeIfPresent(Date.self, forKey: .cooldownUntil)
-        createdAt = try container.decode(Date.self, forKey: .createdAt)
-    }
 }
 
 struct LogTail: Decodable, Sendable {
@@ -269,58 +161,27 @@ struct DiagnosticsExport: Decodable, Sendable {
 }
 
 struct SwitchReport: Decodable, Sendable {
-    let profileID: String
-    let previousProfileID: String?
-    let checkpointID: String
+    let profileId: String
+    let previousProfileId: String?
+    let checkpointId: String
     let rollbackPerformed: Bool
     let switchedAt: Date
     let message: String
-
-    private enum CodingKeys: String, CodingKey {
-        case profileID
-        case profileId
-        case previousProfileID
-        case previousProfileId
-        case checkpointID
-        case checkpointId
-        case rollbackPerformed
-        case switchedAt
-        case message
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        profileID =
-            try container.decodeIfPresent(String.self, forKey: .profileID)
-            ?? container.decode(String.self, forKey: .profileId)
-        previousProfileID =
-            try container.decodeIfPresent(String.self, forKey: .previousProfileID)
-            ?? container.decodeIfPresent(String.self, forKey: .previousProfileId)
-        checkpointID =
-            try container.decodeIfPresent(String.self, forKey: .checkpointID)
-            ?? container.decode(String.self, forKey: .checkpointId)
-        rollbackPerformed = try container.decode(Bool.self, forKey: .rollbackPerformed)
-        switchedAt = try container.decode(Date.self, forKey: .switchedAt)
-        message = try container.decode(String.self, forKey: .message)
-    }
 }
 
 struct ProfileProbeIdentity: Decodable, Sendable {
-    let profileID: String
-    let accountID: String
+    let profileId: String
+    let accountId: String
     let email: String?
     let planHint: String?
     let provider: String?
-    let principalID: String?
+    let principalId: String?
     let displayName: String?
 
     private enum CodingKeys: String, CodingKey {
-        case profileID
         case profileId
         case provider
-        case accountID
         case accountId
-        case principalID
         case principalId
         case displayName
         case credentials
@@ -330,56 +191,45 @@ struct ProfileProbeIdentity: Decodable, Sendable {
     }
 
     private enum CredentialsKeys: String, CodingKey {
-        case accountID
-        case accountId = "account_id"
+        case accountId
     }
 
     private enum MetadataKeys: String, CodingKey {
         case email
         case planHint
-        case planHintSnake = "plan_hint"
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        profileID =
-            try container.decodeIfPresent(String.self, forKey: .profileID)
-            ?? container.decode(String.self, forKey: .profileId)
+        profileId = try container.decode(String.self, forKey: .profileId)
         provider = try container.decodeIfPresent(String.self, forKey: .provider)
-        principalID =
-            try container.decodeIfPresent(String.self, forKey: .principalID)
-            ?? container.decodeIfPresent(String.self, forKey: .principalId)
+        principalId = try container.decodeIfPresent(String.self, forKey: .principalId)
         displayName = try container.decodeIfPresent(String.self, forKey: .displayName)
 
         var nestedAccountID: String?
         if container.contains(.credentials) {
             let credentials = try container.nestedContainer(keyedBy: CredentialsKeys.self, forKey: .credentials)
-            nestedAccountID =
-                try credentials.decodeIfPresent(String.self, forKey: .accountID)
-                ?? credentials.decodeIfPresent(String.self, forKey: .accountId)
+            nestedAccountID = try credentials.decodeIfPresent(String.self, forKey: .accountId)
         }
-        guard let accountID =
-            try container.decodeIfPresent(String.self, forKey: .accountID)
-            ?? container.decodeIfPresent(String.self, forKey: .accountId)
+        guard let accountId =
+            try container.decodeIfPresent(String.self, forKey: .accountId)
             ?? nestedAccountID
-            ?? principalID
+            ?? principalId
         else {
             throw DecodingError.dataCorruptedError(
-                forKey: .accountID,
+                forKey: .accountId,
                 in: container,
                 debugDescription: "Missing probe identity account/principal identifier"
             )
         }
-        self.accountID = accountID
+        self.accountId = accountId
 
         var nestedEmail: String?
         var nestedPlanHint: String?
         if container.contains(.metadata) {
             let metadata = try container.nestedContainer(keyedBy: MetadataKeys.self, forKey: .metadata)
             nestedEmail = try metadata.decodeIfPresent(String.self, forKey: .email)
-            nestedPlanHint =
-                try metadata.decodeIfPresent(String.self, forKey: .planHint)
-                ?? metadata.decodeIfPresent(String.self, forKey: .planHintSnake)
+            nestedPlanHint = try metadata.decodeIfPresent(String.self, forKey: .planHint)
         }
         email =
             try container.decodeIfPresent(String.self, forKey: .email)
@@ -541,8 +391,8 @@ struct EditProfilePayload: Encodable, Sendable {
     let configPath: String??
     let authMode: AuthMode
 
-    init(profileID: String, draft: ProfileDraft) {
-        id = profileID
+    init(profileId: String, draft: ProfileDraft) {
+        id = profileId
         nickname = draft.nickname
         priority = draft.priority
         agentHome = draft.clearAgentHome ? .some(nil) : .some(draft.agentHome.isEmpty ? nil : draft.agentHome)
@@ -551,16 +401,18 @@ struct EditProfilePayload: Encodable, Sendable {
     }
 }
 
-struct ProfileIDPayload: Encodable, Sendable {
+struct ProfileIdPayload: Encodable, Sendable {
     let id: String
 }
 
-struct ImportCodexPayload: Encodable, Sendable {
+struct ImportProfilePayload: Encodable, Sendable {
+    let agent = "codex"
     let nickname: String?
     let priority: Int
 }
 
-struct LoginCodexPayload: Encodable, Sendable {
+struct LoginProfilePayload: Encodable, Sendable {
+    let agent = "codex"
     let nickname: String?
     let priority: Int
 }

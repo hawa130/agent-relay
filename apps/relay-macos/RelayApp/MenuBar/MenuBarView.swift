@@ -63,11 +63,11 @@ public struct MenuBarView: View {
             .disabled(model.isRefreshing)
 
             Button("Refresh Selected") {
-                guard let profileID = model.selectedProfile?.id else {
+                guard let profileId = model.selectedProfile?.id else {
                     return
                 }
                 Task {
-                    await model.refreshUsage(profileID: profileID)
+                    await model.refreshUsage(profileId: profileId)
                 }
             }
             .disabled(model.selectedProfile == nil)
@@ -101,7 +101,7 @@ public struct MenuBarView: View {
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(profile.nickname)
-                                        .font(.subheadline.weight(model.selectedProfileID == profile.id ? .semibold : .regular))
+                                        .font(.subheadline.weight(model.selectedProfileId == profile.id ? .semibold : .regular))
                                         .foregroundStyle(.primary)
                                     Text(profileSubtitle(profile))
                                         .font(.caption)
@@ -111,7 +111,7 @@ public struct MenuBarView: View {
 
                                 Spacer(minLength: 8)
 
-                                if model.activeProfileID == profile.id {
+                                if model.activeProfileId == profile.id {
                                     Image(systemName: "checkmark.square.fill")
                                         .foregroundStyle(.tint)
                                 }
@@ -120,7 +120,7 @@ public struct MenuBarView: View {
                             .padding(.vertical, 8)
                             .background(
                                 RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                    .fill(model.selectedProfileID == profile.id ? Color.accentColor.opacity(0.14) : Color.gray.opacity(0.08))
+                                    .fill(model.selectedProfileId == profile.id ? Color.accentColor.opacity(0.14) : Color.gray.opacity(0.08))
                             )
                         }
                         .buttonStyle(.plain)
@@ -142,7 +142,7 @@ public struct MenuBarView: View {
                             await model.switchToProfile(profile.id)
                         }
                     }
-                    .disabled(model.activeProfileID == profile.id || model.isSwitching)
+                    .disabled(model.activeProfileId == profile.id || model.isSwitching)
                 }
             }
 
