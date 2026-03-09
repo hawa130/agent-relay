@@ -117,6 +117,22 @@ fn run_json_with_env(
     serde_json::from_slice(&output.stdout).expect("json output")
 }
 
+fn run_text(relay_home: &Path, codex_home: &Path, args: &[&str]) -> String {
+    let output = Command::new(relay_bin())
+        .args(args)
+        .env("RELAY_HOME", relay_home)
+        .env("CODEX_HOME", codex_home)
+        .output()
+        .expect("command output");
+    assert!(
+        output.status.success(),
+        "command failed: {}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).expect("utf8 output")
+}
+
 fn run_failure(relay_home: &Path, codex_home: &Path, args: &[&str]) -> Value {
     let output = Command::new(relay_bin())
         .args(args)
@@ -269,10 +285,19 @@ fn profile_crud_and_auto_switch_commands_work() {
     let status = run_json(&relay_home, &live_codex_home, &["--json", "status"]);
     assert_eq!(status["data"]["settings"]["auto_switch_enabled"], true);
 
-    let usage = run_json(&relay_home, &live_codex_home, &["--json", "usage"]);
-    assert_eq!(usage["data"]["source"], "Local");
-    assert_eq!(usage["data"]["session"]["used_percent"], 41.0);
-    assert_eq!(usage["data"]["weekly"]["used_percent"], 12.0);
+    let usage_list = run_json(&relay_home, &live_codex_home, &["--json", "usage"]);
+    let items = usage_list["data"].as_array().expect("usage list");
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["profile_id"], profile_id);
+
+    let current_usage = run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "usage", "current"],
+    );
+    assert_eq!(current_usage["data"]["source"], "Local");
+    assert_eq!(current_usage["data"]["session"]["used_percent"], 41.0);
+    assert_eq!(current_usage["data"]["weekly"]["used_percent"], 12.0);
 }
 
 #[test]
@@ -629,6 +654,14 @@ fn usage_profile_list_refresh_and_config_work() {
     assert!(items.iter().any(|item| item["profile_id"] == active_id));
     assert!(items.iter().any(|item| item["profile_id"] == alternate_id));
 
+    let current = run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "usage", "current"],
+    );
+    assert_eq!(current["data"]["profile_id"], Value::Null);
+    assert_eq!(current["data"]["source"], "Local");
+
     let updated_settings = run_json_with_stdin(
         &relay_home,
         &live_codex_home,
@@ -872,12 +905,81 @@ fn read_only_commands_do_not_create_relay_home() {
         "read-only status should not create relay home"
     );
 
-    let usage = run_json(&relay_home, &live_codex_home, &["--json", "usage"]);
+    let usage_list = run_json(&relay_home, &live_codex_home, &["--json", "usage"]);
+    assert_eq!(usage_list["data"], serde_json::json!([]));
+    let usage = run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "usage", "current"],
+    );
     assert_eq!(usage["data"]["source"], "Local");
     assert!(
         !relay_home.exists(),
         "read-only usage should not create relay home or usage cache"
     );
+}
+
+#[test]
+fn usage_text_output_renders_table_and_detail_views() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let alternate_home = temp.path().join("alternate");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&alternate_home, "alternate");
+
+    let imported = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "profiles",
+            "import",
+            "codex",
+            "--nickname",
+            "live",
+        ],
+    );
+    let active_id = imported["data"]["id"]
+        .as_str()
+        .expect("active id")
+        .to_string();
+    let added = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "profiles",
+            "add",
+            "codex",
+            "--nickname",
+            "alternate",
+            "--agent-home",
+            alternate_home.to_string_lossy().as_ref(),
+        ],
+    );
+    let alternate_id = added["data"]["id"]
+        .as_str()
+        .expect("alternate id")
+        .to_string();
+
+    run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "usage", "refresh", "--enabled"],
+    );
+
+    let list = run_text(&relay_home, &live_codex_home, &["usage"]);
+    assert!(list.contains("usage loaded"));
+    assert!(list.contains("Profile"));
+    assert!(list.contains("Session"));
+    assert!(list.contains(&active_id));
+    assert!(list.contains(&alternate_id));
+
+    let detail = run_text(&relay_home, &live_codex_home, &["usage", "current"]);
+    assert!(detail.contains("current usage loaded"));
+    assert!(detail.contains("Session:"));
+    assert!(detail.contains("Weekly:"));
 }
 
 #[test]

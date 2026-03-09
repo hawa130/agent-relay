@@ -39,6 +39,7 @@ These items capture the current gaps against the latest Relay product/function g
 - [x] Add official remote usage probing for profiles with bound identities so non-current profiles can fetch true usage across the account pool.
 - [x] Replace the Codex-specific probe identity table shape with a generic provider envelope plus provider-specific credentials/metadata payloads.
 - [x] Remove remaining main-layer `codex_*` platform and diagnostics names so Codex-specific logic stays inside adapters and explicit agent selections.
+- [x] Make bare `relay usage` a per-profile usage list, add `relay usage current`, and align the macOS menu/profile UI around usage badges and list-first presentation.
 
 ## Phase 0: Foundation
 

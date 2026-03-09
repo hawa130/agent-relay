@@ -3,6 +3,20 @@ import XCTest
 @testable import RelayMacOSUI
 
 final class RelayCLIClientTests: XCTestCase {
+    func testFetchCurrentUsageAndUsageListUseNewCommands() async throws {
+        let fixture = try RelayCLIFixture.make()
+        defer { fixture.cleanup() }
+
+        let client = RelayCLIClient(relayCLIPathOverride: fixture.scriptPath, environment: [:])
+        let current = try await client.fetchCurrentUsage()
+        let usageList = try await client.fetchUsageList()
+
+        XCTAssertEqual(current.profileId, "p_active")
+        XCTAssertEqual(current.source, .local)
+        XCTAssertEqual(usageList.count, 2)
+        XCTAssertEqual(usageList[1].profileId, "p_alt")
+    }
+
     func testFetchStatusUsesJSONAndDecodesCurrentFields() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
@@ -121,6 +135,16 @@ case "$cmd" in
   "--json status")
     cat <<'EOF'
 {"success":true,"error_code":null,"message":"status loaded","data":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600}}}
+EOF
+    ;;
+  "--json usage current")
+    cat <<'EOF'
+{"success":true,"error_code":null,"message":"current usage loaded","data":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}
+EOF
+    ;;
+  "--json usage list")
+    cat <<'EOF'
+{"success":true,"error_code":null,"message":"usage list loaded","data":[{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"},{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}]}
 EOF
     ;;
   "--json usage refresh --input-json -")

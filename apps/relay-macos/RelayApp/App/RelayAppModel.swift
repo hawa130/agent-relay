@@ -102,7 +102,6 @@ public final class RelayAppModel: ObservableObject {
 
         do {
             async let statusTask = client.fetchStatus()
-            async let usageTask = client.fetchUsage()
             async let usageListTask = client.fetchUsageList()
             async let doctorTask = client.fetchDoctor()
             async let profilesTask = client.fetchProfiles()
@@ -110,13 +109,13 @@ public final class RelayAppModel: ObservableObject {
             async let logsTask = client.fetchLogs(lines: 25)
 
             status = try await statusTask
-            usage = try await usageTask
             usageSnapshots = try await usageListTask
             doctor = try await doctorTask
             profiles = try await profilesTask
             events = try await eventsTask
             logTail = try await logsTask
             normalizeSelection()
+            synchronizeActiveUsage()
             resetAutoSwitchConflictSuppressionIfNeeded()
             lastRefresh = Date()
             lastErrorMessage = nil
@@ -394,6 +393,14 @@ public final class RelayAppModel: ObservableObject {
         if snapshot.profileId == activeProfileId {
             usage = snapshot
         }
+    }
+
+    private func synchronizeActiveUsage() {
+        guard let activeProfileId else {
+            usage = nil
+            return
+        }
+        usage = usageSnapshot(for: activeProfileId)
     }
 
     private func attemptAutoSwitchIfNeeded() async {
