@@ -444,7 +444,7 @@ private final class RelayInteractiveMenuHostingView<Content: View>: NSHostingVie
     func measuredHeight(width: CGFloat) -> CGFloat {
         let controller = NSHostingController(rootView: rootView)
         let measured = controller.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude))
-        return max(1, ceil(measured.height + 7))
+        return max(1, ceil(measured.height))
     }
 
     func setHighlighted(_ highlighted: Bool) {

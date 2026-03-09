@@ -67,7 +67,7 @@ public struct ProfilesSettingsPaneView: View {
             }
 
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
+                LazyVStack(alignment: .leading, spacing: 10) {
                     ForEach(model.profiles) { profile in
                         Button {
                             model.selectProfile(profile.id)
@@ -302,15 +302,50 @@ private struct ProfileListRow: View {
         VStack(alignment: .leading, spacing: 5) {
             ProfileListAgentLabel(agent: profile.agent)
 
-            Text(profile.nickname)
-                .font(.system(size: 13, weight: .semibold, design: .rounded))
+            HStack(alignment: .top, spacing: 8) {
+                if let usage {
+                    MultiRingProgressView(
+                        items: usage.ringProgressItems,
+                        size: .mini
+                    ) { _ in
+                        EmptyView()
+                    }
+                    .frame(width: 26, height: 26)
+                    .padding(.vertical, 6)
+                }
 
-            Text(subtitle)
-                .font(NativePreferencesTheme.Typography.detail)
-                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(profile.nickname)
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
 
-            if let usage {
-                UsageBadgeRow(usage: usage)
+                    if let usage {
+                        ProfileListUsageLine(
+                            title: "Session",
+                            value: usage.session.menuBarDisplayValue,
+                            resetText: usage.session.resetAt.map { "Resets \(preciseResetDescription(for: $0))" }
+                        )
+
+                        ProfileListUsageLine(
+                            title: "Weekly",
+                            value: usage.weekly.menuBarDisplayValue,
+                            resetText: usage.weekly.resetAt.map { "Resets \(preciseResetDescription(for: $0))" }
+                        )
+
+                        HStack {
+                            Spacer(minLength: 0)
+
+                            Text(updatedText(for: usage))
+                                .font(.system(size: 10))
+                                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                        }
+                    } else {
+                        Text("Waiting for refresh")
+                            .font(NativePreferencesTheme.Typography.detail)
+                            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                    }
+                }
+
+                Spacer(minLength: 0)
             }
         }
         .padding(.horizontal, 10)
@@ -331,21 +366,34 @@ private struct ProfileListRow: View {
         .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
-    private var subtitle: String {
-        if let usage {
-            var parts: [String] = []
+    private func updatedText(for usage: UsageSnapshot) -> String {
+        let relativeFormatter = RelativeDateTimeFormatter()
+        relativeFormatter.unitsStyle = .short
+        return "Updated \(relativeFormatter.localizedString(for: usage.lastRefreshedAt, relativeTo: Date()))"
+    }
 
-            let relativeFormatter = RelativeDateTimeFormatter()
-            relativeFormatter.unitsStyle = .short
-            parts.append("Updated \(relativeFormatter.localizedString(for: usage.lastRefreshedAt, relativeTo: Date()))")
+    private func preciseResetDescription(for date: Date) -> String {
+        let interval = date.timeIntervalSinceNow
 
-            if let resetAt = usage.nextResetAt {
-                parts.append("Resets \(relativeFormatter.localizedString(for: resetAt, relativeTo: Date()))")
-            }
-
-            return parts.joined(separator: " • ")
+        if interval <= 0 {
+            return "now"
         }
-        return "Waiting for refresh"
+
+        let totalMinutes = max(1, Int(ceil(interval / 60)))
+        let days = totalMinutes / (24 * 60)
+        let hours = (totalMinutes % (24 * 60)) / 60
+        let minutes = totalMinutes % 60
+
+        var parts: [String] = []
+        if days > 0 {
+            parts.append("\(days)d")
+        }
+        if hours > 0 || !parts.isEmpty {
+            parts.append("\(hours)h")
+        }
+        parts.append("\(minutes)m")
+
+        return "in \(parts.joined(separator: " "))"
     }
 
     private var rowBackground: Color {
@@ -360,6 +408,29 @@ private struct ProfileListRow: View {
             return Color.accentColor.opacity(0.28)
         }
         return NativePreferencesTheme.Colors.sectionBorder.opacity(0.55)
+    }
+}
+
+private struct ProfileListUsageLine: View {
+    let title: String
+    let value: String
+    let resetText: String?
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text("\(title) \(value)")
+                .font(.system(size: 10))
+                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+
+            Spacer(minLength: 8)
+
+            if let resetText {
+                Text(resetText)
+                    .font(.system(size: 10))
+                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
