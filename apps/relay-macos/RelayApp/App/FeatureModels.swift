@@ -108,7 +108,7 @@ public final class ProfilesPaneModel: ObservableObject {
         await session.refreshUsage(profileId: profileId)
     }
 
-    func refreshIfStale() async {
+    public func refreshIfStale() async {
         await session.refreshIfStale(maxAge: 30)
     }
 
