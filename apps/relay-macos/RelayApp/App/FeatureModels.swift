@@ -66,6 +66,7 @@ public final class ProfilesPaneModel: ObservableObject {
     var lastErrorMessage: String? { session.lastErrorMessage }
     var isSwitching: Bool { session.isSwitching }
     var isMutatingProfiles: Bool { session.isMutatingProfiles }
+    func isRefreshingUsage(profileId: String) -> Bool { session.isRefreshingUsage(profileId: profileId) }
 
     func usageSnapshot(for profileId: String) -> UsageSnapshot? {
         session.usageSnapshot(for: profileId)

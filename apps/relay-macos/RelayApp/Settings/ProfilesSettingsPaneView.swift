@@ -222,6 +222,7 @@ public struct ProfilesSettingsPaneView: View {
                 }
                 .labelStyle(.iconOnly)
                 .buttonStyle(.bordered)
+                .disabled(model.isRefreshingUsage(profileId: profile.id))
                 .help("Refresh Usage")
             )
         ) {

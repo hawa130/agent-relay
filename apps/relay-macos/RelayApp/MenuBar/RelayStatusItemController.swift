@@ -45,6 +45,9 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
 
         menuIsOpen = true
         rebuildMenu()
+        Task { [weak self] in
+            await self?.model.refreshForMenuOpen()
+        }
     }
 
     public func menuDidClose(_ menu: NSMenu) {
@@ -161,12 +164,6 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func addActionItems(to menu: NSMenu) {
-        menu.addItem(makeActionItem(
-            title: "Refresh",
-            systemImage: "arrow.clockwise",
-            action: #selector(refreshAll)
-        ))
-
         menu.addItem(makeActionItem(
             title: "Settings...",
             systemImage: "gearshape",
@@ -331,12 +328,6 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         }
     }
 
-    @objc private func refreshAll() {
-        Task {
-            await model.refreshEnabledUsage()
-        }
-    }
-
     @objc private func showSettings() {
         openSettings()
     }
@@ -453,7 +444,7 @@ private final class RelayInteractiveMenuHostingView<Content: View>: NSHostingVie
     func measuredHeight(width: CGFloat) -> CGFloat {
         let controller = NSHostingController(rootView: rootView)
         let measured = controller.sizeThatFits(in: CGSize(width: width, height: .greatestFiniteMagnitude))
-        return max(1, ceil(measured.height))
+        return max(1, ceil(measured.height + 7))
     }
 
     func setHighlighted(_ highlighted: Bool) {

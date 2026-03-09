@@ -18,6 +18,8 @@ public final class RelayAppModel: ObservableObject {
     @Published private(set) var isSwitching = false
     @Published private(set) var isAutoSwitching = false
     @Published private(set) var isMutatingProfiles = false
+    @Published private(set) var isRefreshingEnabledUsage = false
+    @Published private(set) var refreshingUsageProfileIds: Set<String> = []
     @Published var selectedProfileId: String?
     @Published var lastErrorMessage: String?
     private let client = RelayCLIClient()
@@ -75,6 +77,10 @@ public final class RelayAppModel: ObservableObject {
 
     func usageSnapshot(for profileId: String) -> UsageSnapshot? {
         usageSnapshots.first { $0.profileId == profileId }
+    }
+
+    func isRefreshingUsage(profileId: String) -> Bool {
+        refreshingUsageProfileIds.contains(profileId)
     }
 
     func selectProfile(_ profileId: String?) {
@@ -191,22 +197,38 @@ public final class RelayAppModel: ObservableObject {
     }
 
     func refreshUsage(profileId: String) async {
+        guard refreshingUsageProfileIds.insert(profileId).inserted else {
+            return
+        }
+        defer {
+            refreshingUsageProfileIds.remove(profileId)
+        }
+
         do {
             let snapshot = try await client.refreshUsage(profileId: profileId)
             mergeUsageSnapshot(snapshot)
-            await refresh()
+            finalizeUsageRefresh()
         } catch {
             lastErrorMessage = error.localizedDescription
         }
     }
 
     func refreshEnabledUsage() async {
+        guard !isRefreshingEnabledUsage else {
+            return
+        }
+
+        isRefreshingEnabledUsage = true
+        defer {
+            isRefreshingEnabledUsage = false
+        }
+
         do {
             let snapshots = try await client.refreshEnabledUsage()
             for snapshot in snapshots {
                 mergeUsageSnapshot(snapshot)
             }
-            await refresh()
+            finalizeUsageRefresh()
             await attemptAutoSwitchIfNeeded()
         } catch {
             lastErrorMessage = error.localizedDescription
@@ -350,6 +372,13 @@ public final class RelayAppModel: ObservableObject {
             return
         }
         usage = usageSnapshot(for: activeProfileId)
+    }
+
+    private func finalizeUsageRefresh() {
+        synchronizeActiveUsage()
+        resetAutoSwitchConflictSuppressionIfNeeded()
+        lastRefresh = Date()
+        lastErrorMessage = nil
     }
 
     private func attemptAutoSwitchIfNeeded() async {
