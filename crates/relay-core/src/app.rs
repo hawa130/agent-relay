@@ -1,8 +1,9 @@
 use crate::adapters::AdapterRegistry;
 use crate::models::{
     AgentKind, AgentLinkResult, AppSettings, DiagnosticsExport, DoctorReport, FailureEvent,
-    LogTail, Profile, ProfileProbeIdentity, RelayError, StatusReport, SwitchReport, UsageSnapshot,
-    UsageSourceMode,
+    FailureReason, LogTail, Profile, ProfileDetail, ProfileListItem, ProfileProbeIdentity,
+    RelayError, StatusReport, SwitchReport, SystemStatusReport, UsageSnapshot, UsageSourceMode,
+    UsageStatus,
 };
 use crate::platform::RelayPaths;
 use crate::services::{
@@ -73,6 +74,18 @@ pub struct UsageSettingsUpdateRequest {
     pub background_refresh_interval_seconds: Option<i64>,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct SystemSettingsUpdateRequest {
+    pub auto_switch_enabled: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ActivityEventsQuery {
+    pub limit: usize,
+    pub profile_id: Option<String>,
+    pub reason: Option<FailureReason>,
+}
+
 impl RelayApp {
     pub fn bootstrap() -> Result<Self, RelayError> {
         Self::bootstrap_with_mode(BootstrapMode::ReadWrite)
@@ -124,12 +137,69 @@ impl RelayApp {
         )
     }
 
+    pub fn system_status(&self) -> Result<SystemStatusReport, RelayError> {
+        let status = self.status_report()?;
+        Ok(SystemStatusReport {
+            relay_home: status.relay_home,
+            live_agent_home: status.live_agent_home,
+            profile_count: status.profile_count,
+            active_state: status.active_state,
+            settings: status.settings,
+        })
+    }
+
     pub fn settings(&self) -> Result<AppSettings, RelayError> {
         self.store.get_settings()
     }
 
     pub fn list_profiles(&self) -> Result<Vec<Profile>, RelayError> {
         self.store.list_profiles()
+    }
+
+    pub fn list_profiles_with_usage(&self) -> Result<Vec<ProfileListItem>, RelayError> {
+        let profiles = self.store.list_profiles()?;
+        let active_state = self.state_store.load()?;
+        let snapshots = usage_service::list_profile_snapshots(&self.usage_store, &profiles)?;
+        let items = profiles
+            .into_iter()
+            .zip(snapshots)
+            .map(|(profile, usage_summary)| ProfileListItem {
+                is_active: active_state.active_profile_id.as_deref() == Some(profile.id.as_str()),
+                profile,
+                usage_summary: Some(usage_summary),
+            })
+            .collect();
+        Ok(items)
+    }
+
+    pub fn profile_detail(&self, id: &str) -> Result<ProfileDetail, RelayError> {
+        let profile = self.store.get_profile(id)?;
+        let active_state = self.state_store.load()?;
+        let usage = self.usage_store.load_profile(id)?;
+        let last_failure_event = self
+            .store
+            .list_failure_events(200)?
+            .into_iter()
+            .find(|event| event.profile_id.as_deref() == Some(id));
+        let (switch_eligible, switch_ineligibility_reason) =
+            profile_switch_eligibility(&profile, usage.as_ref());
+
+        Ok(ProfileDetail {
+            is_active: active_state.active_profile_id.as_deref() == Some(id),
+            profile,
+            usage,
+            last_failure_event,
+            switch_eligible,
+            switch_ineligibility_reason,
+        })
+    }
+
+    pub fn current_profile_detail(&self) -> Result<ProfileDetail, RelayError> {
+        let active_state = self.state_store.load()?;
+        let active_profile_id = active_state
+            .active_profile_id
+            .ok_or_else(|| RelayError::NotFound("no active profile".into()))?;
+        self.profile_detail(&active_profile_id)
     }
 
     pub fn add_profile(&self, request: AddProfileRequest) -> Result<Profile, RelayError> {
@@ -296,8 +366,33 @@ impl RelayApp {
         Ok(settings)
     }
 
+    pub fn update_system_settings(
+        &self,
+        request: SystemSettingsUpdateRequest,
+    ) -> Result<AppSettings, RelayError> {
+        if let Some(enabled) = request.auto_switch_enabled {
+            return self.set_auto_switch_enabled(enabled);
+        }
+        self.store.get_settings()
+    }
+
     pub fn list_failure_events(&self, limit: usize) -> Result<Vec<FailureEvent>, RelayError> {
         events_service::list_failure_events(&self.store, limit)
+    }
+
+    pub fn list_activity_events(
+        &self,
+        query: ActivityEventsQuery,
+    ) -> Result<Vec<FailureEvent>, RelayError> {
+        let mut events = self.store.list_failure_events(query.limit.max(200))?;
+        if let Some(profile_id) = query.profile_id.as_deref() {
+            events.retain(|event| event.profile_id.as_deref() == Some(profile_id));
+        }
+        if let Some(reason) = query.reason.as_ref() {
+            events.retain(|event| &event.reason == reason);
+        }
+        events.truncate(query.limit);
+        Ok(events)
     }
 
     pub fn usage_report(&self) -> Result<UsageSnapshot, RelayError> {
@@ -430,4 +525,33 @@ impl RelayApp {
             &usage,
         )
     }
+}
+
+fn profile_switch_eligibility(
+    profile: &Profile,
+    usage: Option<&UsageSnapshot>,
+) -> (bool, Option<String>) {
+    if !profile.enabled {
+        return (false, Some("profile is disabled".into()));
+    }
+
+    let Some(snapshot) = usage else {
+        return (true, None);
+    };
+
+    if snapshot.stale {
+        return (false, Some("usage snapshot is stale".into()));
+    }
+
+    if snapshot.session.status == UsageStatus::Exhausted
+        || snapshot.weekly.status == UsageStatus::Exhausted
+        || snapshot.auto_switch_reason.is_some()
+    {
+        return (
+            false,
+            Some("usage is exhausted or unavailable for activation".into()),
+        );
+    }
+
+    (true, None)
 }

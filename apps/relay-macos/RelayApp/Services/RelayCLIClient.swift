@@ -20,62 +20,64 @@ struct RelayCLIClient {
         try await run(["status"], as: StatusReport.self)
     }
 
+    func fetchProfileList() async throws -> [ProfileListItem] {
+        try await run(["list"], as: [ProfileListItem].self)
+    }
+
     func fetchCurrentUsage() async throws -> UsageSnapshot {
-        try await run(["usage", "current"], as: UsageSnapshot.self)
+        let detail = try await run(["show"], as: ProfileDetail.self)
+        guard let usage = detail.usage else {
+            throw RelayCLIClientError.invalidResponse("missing usage in current profile detail")
+        }
+        return usage
     }
 
     func fetchUsage(profileId: String) async throws -> UsageSnapshot {
+        let detail = try await run(["show", profileId], as: ProfileDetail.self)
+        guard let usage = detail.usage else {
+            throw RelayCLIClientError.invalidResponse("missing usage in profile detail")
+        }
+        return usage
+    }
+
+    func fetchUsageList() async throws -> [UsageSnapshot] {
+        let items = try await fetchProfileList()
+        return items.compactMap(\.usageSummary)
+    }
+
+    func refreshUsage(profileId: String) async throws -> UsageSnapshot {
         try await run(
-            ["usage", "profile", "--input-json", "-"],
+            ["refresh", "--input-json", "-"],
             input: ProfileIdPayload(id: profileId),
             as: UsageSnapshot.self
         )
     }
 
-    func fetchUsageList() async throws -> [UsageSnapshot] {
-        try await run(["usage", "list"], as: [UsageSnapshot].self)
-    }
-
-    func refreshUsage(profileId: String) async throws -> UsageSnapshot {
-        try await run(
-            ["usage", "refresh", "--input-json", "-"],
-            input: UsageRefreshPayload(id: profileId, enabled: false, all: false),
-            as: UsageSnapshot.self
-        )
-    }
-
     func refreshEnabledUsage() async throws -> [UsageSnapshot] {
-        try await run(
-            ["usage", "refresh", "--input-json", "-"],
-            input: UsageRefreshPayload(id: nil, enabled: true, all: false),
-            as: [UsageSnapshot].self
-        )
+        try await run(["refresh"], as: [UsageSnapshot].self)
     }
 
     func refreshAllUsage() async throws -> [UsageSnapshot] {
-        try await run(
-            ["usage", "refresh", "--input-json", "-"],
-            input: UsageRefreshPayload(id: nil, enabled: false, all: true),
-            as: [UsageSnapshot].self
-        )
+        try await run(["refresh", "--all"], as: [UsageSnapshot].self)
     }
 
     func setUsageSettings(_ draft: UsageSettingsDraft) async throws -> AppSettings {
         try await run(
-            ["usage", "config", "set", "--input-json", "-"],
+            ["settings", "set", "--input-json", "-"],
             input: draft,
             as: AppSettings.self
         )
     }
 
     func fetchProfiles() async throws -> [Profile] {
-        try await run(["profiles", "list"], as: [Profile].self)
+        let items = try await fetchProfileList()
+        return items.map(\.profile)
     }
 
     func editProfile(profileId: String, draft: ProfileDraft) async throws -> Profile {
         let payload = EditProfilePayload(profileId: profileId, draft: draft)
         return try await run(
-            ["profiles", "edit", "--input-json", "-"],
+            ["edit", "--input-json", "-"],
             input: payload,
             as: Profile.self
         )
@@ -83,7 +85,7 @@ struct RelayCLIClient {
 
     func removeProfile(profileId: String) async throws -> Profile {
         try await run(
-            ["profiles", "remove", "--input-json", "-"],
+            ["remove", "--input-json", "-"],
             input: ProfileIdPayload(id: profileId),
             as: Profile.self
         )
@@ -91,16 +93,16 @@ struct RelayCLIClient {
 
     func importProfile(agent: AgentKind, nickname: String?, priority: Int) async throws -> Profile {
         try await run(
-            ["profiles", "import", "--input-json", "-"],
-            input: ImportProfilePayload(agent: agent.cliArgument, nickname: nickname, priority: priority),
+            agentCommandPrefix(agent) + ["import", "--input-json", "-"],
+            input: ImportProfilePayload(nickname: nickname, priority: priority),
             as: Profile.self
         )
     }
 
     func loginProfile(agent: AgentKind, nickname: String?, priority: Int) async throws -> AgentLinkResult {
         try await run(
-            ["profiles", "login", "--input-json", "-"],
-            input: LoginProfilePayload(agent: agent.cliArgument, nickname: nickname, priority: priority),
+            agentCommandPrefix(agent) + ["login", "--input-json", "-"],
+            input: LoginProfilePayload(nickname: nickname, priority: priority),
             as: AgentLinkResult.self
         )
     }
@@ -108,26 +110,22 @@ struct RelayCLIClient {
     func switchToProfile(_ profileId: String) async throws -> SwitchReport {
         try await run(
             ["switch", "--input-json", "-"],
-            input: SwitchPayload(target: profileId),
+            input: ProfileIdPayload(id: profileId),
             as: SwitchReport.self
         )
     }
 
     func switchToNextProfile() async throws -> SwitchReport {
-        try await run(["switch", "next"], as: SwitchReport.self)
+        try await run(["switch"], as: SwitchReport.self)
     }
 
     func setAutoSwitch(enabled: Bool) async throws -> AppSettings {
-        try await run(
-            ["auto-switch", "set", "--input-json", "-"],
-            input: AutoSwitchPayload(enabled: enabled),
-            as: AppSettings.self
-        )
+        try await run(["autoswitch", enabled ? "enable" : "disable"], as: AppSettings.self)
     }
 
     func setProfileEnabled(profileId: String, enabled: Bool) async throws -> Profile {
         try await run(
-            ["profiles", enabled ? "enable" : "disable", "--input-json", "-"],
+            [enabled ? "enable" : "disable", "--input-json", "-"],
             input: ProfileIdPayload(id: profileId),
             as: Profile.self
         )
@@ -135,7 +133,7 @@ struct RelayCLIClient {
 
     func fetchEvents(limit: Int) async throws -> [FailureEvent] {
         try await run(
-            ["events", "list", "--input-json", "-"],
+            ["activity", "events", "list", "--input-json", "-"],
             input: EventsListPayload(limit: limit),
             as: [FailureEvent].self
         )
@@ -143,14 +141,21 @@ struct RelayCLIClient {
 
     func fetchLogs(lines: Int) async throws -> LogTail {
         try await run(
-            ["logs", "tail", "--input-json", "-"],
+            ["activity", "logs", "tail", "--input-json", "-"],
             input: LogsTailPayload(lines: lines),
             as: LogTail.self
         )
     }
 
     func exportDiagnostics() async throws -> DiagnosticsExport {
-        try await run(["diagnostics", "export"], as: DiagnosticsExport.self)
+        try await run(["activity", "diagnostics", "export"], as: DiagnosticsExport.self)
+    }
+
+    private func agentCommandPrefix(_ agent: AgentKind) -> [String] {
+        switch agent {
+        case .codex:
+            return ["codex"]
+        }
     }
 
     private func run<Response: Decodable & Sendable>(
@@ -382,6 +387,7 @@ enum RelayCLIClientError: LocalizedError {
     case launchFailed(String)
     case emptyOutput(String)
     case decodeFailed(String)
+    case invalidResponse(String)
     case commandFailed(code: String?, message: String)
 
     var errorDescription: String? {
@@ -397,6 +403,8 @@ enum RelayCLIClientError: LocalizedError {
             return message.isEmpty ? "Relay CLI returned no output." : message
         case let .decodeFailed(message):
             return "Failed to decode relay JSON: \(message)"
+        case let .invalidResponse(message):
+            return "Relay CLI returned an unexpected payload: \(message)"
         case let .commandFailed(code, message):
             if let code {
                 return "\(code): \(message)"

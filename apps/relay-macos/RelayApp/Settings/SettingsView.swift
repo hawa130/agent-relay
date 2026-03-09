@@ -317,7 +317,7 @@ public struct SettingsView: View {
                         .disabled(model.isMutatingProfiles)
 
                         HStack {
-                            Button("Switch") {
+                            Button("Activate") {
                                 Task {
                                     await model.switchToProfile(profile.id)
                                 }

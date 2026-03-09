@@ -102,16 +102,16 @@ public final class RelayAppModel: ObservableObject {
 
         do {
             async let statusTask = client.fetchStatus()
-            async let usageListTask = client.fetchUsageList()
+            async let profileListTask = client.fetchProfileList()
             async let doctorTask = client.fetchDoctor()
-            async let profilesTask = client.fetchProfiles()
             async let eventsTask = client.fetchEvents(limit: 10)
             async let logsTask = client.fetchLogs(lines: 25)
 
             status = try await statusTask
-            usageSnapshots = try await usageListTask
+            let profileItems = try await profileListTask
+            profiles = profileItems.map(\.profile)
+            usageSnapshots = profileItems.compactMap(\.usageSummary)
             doctor = try await doctorTask
-            profiles = try await profilesTask
             events = try await eventsTask
             logTail = try await logsTask
             normalizeSelection()
