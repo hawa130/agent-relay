@@ -206,26 +206,34 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private func usageCard(_ profile: Profile) -> some View {
-        SettingsSurfaceCard("Usage") {
+        SettingsSurfaceCard(
+            "Usage",
+            headerAccessory: AnyView(
+                Button {
+                    Task {
+                        await model.refreshUsage(profileId: profile.id)
+                    }
+                } label: {
+                    Label("Refresh Usage", systemImage: "arrow.clockwise")
+                }
+                .labelStyle(.iconOnly)
+                .buttonStyle(.bordered)
+                .help("Refresh Usage")
+            )
+        ) {
             if let usage = model.usageSnapshot(for: profile.id) {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(alignment: .center) {
-                        Spacer()
+                VStack(alignment: .leading, spacing: 12) {
+                    UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
+                    UsageMetricRow(title: "Weekly", window: usage.weekly, stale: usage.stale)
 
-                        Button("Refresh Usage") {
-                            Task {
-                                await model.refreshUsage(profileId: profile.id)
-                            }
+                    VStack(alignment: .leading, spacing: 8) {
+                        NativeDetailRow(title: "Source", value: usage.source.displayName)
+                        NativeDetailRow(title: "Updated", value: usage.lastRefreshedAt.formatted())
+                        if let resetAt = usage.nextResetAt {
+                            NativeDetailRow(title: "Next Reset", value: resetAt.formatted())
                         }
                     }
 
-                    UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
-                    UsageMetricRow(title: "Weekly", window: usage.weekly, stale: usage.stale)
-                    NativeDetailRow(title: "Source", value: usage.source.displayName)
-                    NativeDetailRow(title: "Updated", value: usage.lastRefreshedAt.formatted())
-                    if let resetAt = usage.nextResetAt {
-                        NativeDetailRow(title: "Next Reset", value: resetAt.formatted())
-                    }
                     if let note = usage.userFacingNote {
                         Text(note)
                             .font(NativePreferencesTheme.Typography.detail)
