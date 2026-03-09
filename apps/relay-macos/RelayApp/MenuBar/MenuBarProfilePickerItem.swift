@@ -13,24 +13,24 @@ struct MenuBarProfilePickerItem: View {
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: symbolName)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
-                .frame(width: 14, height: 14)
+                .frame(width: 13, height: 13)
                 .padding(.top, 2)
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(profileName)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 12.5, weight: .semibold))
                         .lineLimit(1)
                         .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
 
                     Spacer(minLength: 8)
 
                     Text(statusText)
-                        .font(.system(size: 10.5, weight: .medium))
+                        .font(.system(size: 10, weight: .medium))
                         .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                         .lineLimit(1)
                 }
@@ -45,14 +45,14 @@ struct MenuBarProfilePickerItem: View {
 
                 if let footerText {
                     Text(footerText)
-                        .font(.system(size: 10.5))
+                        .font(.system(size: 10))
                         .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                         .lineLimit(1)
                 }
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
         .opacity(isDimmed && !isHighlighted ? 0.72 : 1)
     }
 
@@ -60,7 +60,7 @@ struct MenuBarProfilePickerItem: View {
     private func usageLine(left: String, right: String?) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(left)
-                .font(.system(size: 10.5, weight: .medium))
+                .font(.system(size: 10, weight: .medium))
                 .monospacedDigit()
                 .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                 .lineLimit(1)
@@ -69,7 +69,7 @@ struct MenuBarProfilePickerItem: View {
 
             if let right {
                 Text(right)
-                    .font(.system(size: 10.5))
+                    .font(.system(size: 10))
                     .monospacedDigit()
                     .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                     .lineLimit(1)

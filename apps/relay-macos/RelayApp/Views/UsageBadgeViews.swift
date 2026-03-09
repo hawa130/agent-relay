@@ -4,7 +4,7 @@ struct UsageBadgeRow: View {
     let usage: UsageSnapshot
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             UsageBadge(title: "S", window: usage.session, stale: usage.stale)
             UsageBadge(title: "W", window: usage.weekly, stale: usage.stale)
         }
@@ -18,10 +18,10 @@ struct UsageBadge: View {
 
     var body: some View {
         Text("\(title) \(label)")
-            .font(.caption2.monospacedDigit().weight(.semibold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(tint.opacity(stale ? 0.18 : 0.28), in: Capsule())
+            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2.5)
+            .background(tint.opacity(stale ? 0.14 : 0.2), in: Capsule())
             .foregroundStyle(stale ? .secondary : tint)
     }
 

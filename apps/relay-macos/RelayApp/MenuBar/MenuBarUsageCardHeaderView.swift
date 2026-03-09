@@ -5,18 +5,17 @@ struct MenuBarUsageCardHeaderView: View {
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline) {
                 Text(model.providerName)
-                    .font(.headline)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
                     .lineLimit(1)
 
                 Spacer()
 
                 Text(model.email)
-                    .font(.subheadline)
+                    .font(.system(size: 11))
                     .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -25,7 +24,7 @@ struct MenuBarUsageCardHeaderView: View {
 
             HStack(alignment: .firstTextBaseline) {
                 Text(model.subtitleText)
-                    .font(.footnote)
+                    .font(.system(size: 10.5))
                     .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                     .lineLimit(1)
                     .layoutPriority(1)
@@ -34,7 +33,7 @@ struct MenuBarUsageCardHeaderView: View {
 
                 if let planText = model.planText, !planText.isEmpty {
                     Text(planText)
-                        .font(.footnote)
+                        .font(.system(size: 10.5))
                         .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                         .lineLimit(1)
                 }

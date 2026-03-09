@@ -1,43 +1,44 @@
 import SwiftUI
 
 struct ActivityView: View {
-    @ObservedObject var model: RelayAppModel
+    @ObservedObject var model: ActivityPaneModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            toolbar
-            HStack(alignment: .top, spacing: 16) {
-                eventsPanel
-                logsPanel
-            }
-            diagnosticsPanel
-        }
-        .padding(20)
-        .task {
-            await model.refresh()
-        }
-    }
+        NativePaneScrollView {
+            VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
+                paneHeader(
+                    title: "Activity",
+                    subtitle: "Inspect recent events, logs, and diagnostics exports."
+                )
 
-    private var toolbar: some View {
-        HStack {
-            Text("Activity")
-                .font(.title2)
-            Spacer()
-            Button("Refresh") {
-                Task {
-                    await model.refresh()
+                SettingsSurfaceCard("Controls") {
+                    HStack {
+                        Button("Refresh") {
+                            Task {
+                                await model.refresh()
+                            }
+                        }
+
+                        Button("Export Diagnostics") {
+                            Task {
+                                await model.exportDiagnostics()
+                            }
+                        }
+                    }
                 }
-            }
-            Button("Export Diagnostics") {
-                Task {
-                    await model.exportDiagnostics()
+
+                HStack(alignment: .top, spacing: 12) {
+                    eventsPanel
+                    logsPanel
                 }
+
+                diagnosticsPanel
             }
         }
     }
 
     private var eventsPanel: some View {
-        GroupBox("Recent Events") {
+        SettingsSurfaceCard("Recent Events") {
             ScrollView {
                 VStack(alignment: .leading, spacing: 10) {
                     if model.events.isEmpty {
@@ -62,7 +63,7 @@ struct ActivityView: View {
     }
 
     private var logsPanel: some View {
-        GroupBox("Recent Logs") {
+        SettingsSurfaceCard("Recent Logs") {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     if let lines = model.logTail?.lines, !lines.isEmpty {
@@ -83,15 +84,15 @@ struct ActivityView: View {
     }
 
     private var diagnosticsPanel: some View {
-        GroupBox("Diagnostics") {
+        SettingsSurfaceCard("Diagnostics") {
             VStack(alignment: .leading, spacing: 8) {
                 Text(model.diagnosticsExport?.archivePath ?? "No diagnostics export generated yet.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(NativePreferencesTheme.Typography.detail)
+                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
 
                 if let error = model.lastErrorMessage {
                     Text(error)
-                        .font(.caption)
+                        .font(NativePreferencesTheme.Typography.detail)
                         .foregroundStyle(.red)
                 }
             }
