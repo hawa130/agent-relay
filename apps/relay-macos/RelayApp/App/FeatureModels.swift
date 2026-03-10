@@ -72,20 +72,37 @@ public final class ProfilesPaneModel: ObservableObject {
     private var cancellables: Set<AnyCancellable> = []
     @Published var isPresentingAddSheet = false
     @Published var editingProfile: Profile?
+    @Published private(set) var selectedFilter: ProfilesSidebarFilter
 
     public init(session: RelayAppModel) {
         self.session = session
+        self.selectedFilter = .all
         bindSession()
     }
 
     var profiles: [Profile] { session.profiles }
+    var filteredProfiles: [Profile] {
+        switch selectedFilter {
+        case .all:
+            return session.profiles
+        case .codex:
+            return session.profiles.filter { $0.agent == .codex }
+        }
+    }
     var agents: [AgentSettingsDescriptor] { AgentSettingsCatalog.supportedAgents }
     var selectedProfileId: String? { session.selectedProfileId }
     var activeProfileId: String? { session.activeProfileId }
-    var selectedProfile: Profile? { session.selectedProfile }
+    var selectedProfile: Profile? {
+        guard let selectedProfileId else {
+            return filteredProfiles.first
+        }
+        return filteredProfiles.first { $0.id == selectedProfileId }
+    }
     var lastErrorMessage: String? { session.lastErrorMessage }
     var isSwitching: Bool { session.isSwitching }
     var isMutatingProfiles: Bool { session.isMutatingProfiles }
+    var selectedFilterProfileCount: Int { filteredProfiles.count }
+    var selectedFilterEmptyStateDescription: String { selectedFilter.emptyStateDescription }
     func isRefreshingUsage(profileId: String) -> Bool { session.isRefreshingUsage(profileId: profileId) }
 
     func usageSnapshot(for profileId: String) -> UsageSnapshot? {
@@ -100,8 +117,27 @@ public final class ProfilesPaneModel: ObservableObject {
         session.events.first { $0.profileId == profileId }
     }
 
+    func selectFilter(_ filter: ProfilesSidebarFilter) {
+        guard selectedFilter != filter else {
+            return
+        }
+
+        selectedFilter = filter
+        normalizeSelection()
+    }
+
     func selectProfile(_ profileId: String?) {
         session.selectProfile(profileId)
+        normalizeSelection()
+    }
+
+    func profileCount(for filter: ProfilesSidebarFilter) -> Int {
+        switch filter {
+        case .all:
+            return session.profiles.count
+        case .codex:
+            return session.profiles.filter { $0.agent == .codex }.count
+        }
     }
 
     public func presentAddSheet() {
@@ -159,12 +195,42 @@ public final class ProfilesPaneModel: ObservableObject {
     }
 
     private func bindSession() {
+        session.$profiles
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.normalizeSelection()
+            }
+            .store(in: &cancellables)
+
+        session.$selectedProfileId
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.normalizeSelection()
+            }
+            .store(in: &cancellables)
+
         session.objectWillChange
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
             }
             .store(in: &cancellables)
+    }
+
+    private func normalizeSelection() {
+        guard !filteredProfiles.isEmpty else {
+            if session.selectedProfileId != nil {
+                session.selectProfile(nil)
+            }
+            return
+        }
+
+        if let selectedProfileId = session.selectedProfileId,
+           filteredProfiles.contains(where: { $0.id == selectedProfileId }) {
+            return
+        }
+
+        session.selectProfile(filteredProfiles.first?.id)
     }
 }
 

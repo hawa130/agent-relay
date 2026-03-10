@@ -1,34 +1,8 @@
 import SwiftUI
 
 public struct ProfilesSettingsPaneView: View {
-    private enum SidebarItem: String, CaseIterable, Hashable, Identifiable {
-        case all
-        case codex
-
-        var id: String { rawValue }
-
-        var title: String {
-            switch self {
-            case .all:
-                return "All"
-            case .codex:
-                return "Codex"
-            }
-        }
-
-        var icon: String {
-            switch self {
-            case .all:
-                return "square.grid.2x2"
-            case .codex:
-                return "command.square"
-            }
-        }
-    }
-
     @ObservedObject var model: ProfilesPaneModel
     @State private var deletingProfile: Profile?
-    @State private var selectedSidebarItem: SidebarItem? = .all
 
     public init(model: ProfilesPaneModel) {
         self.model = model
@@ -43,15 +17,6 @@ public struct ProfilesSettingsPaneView: View {
             detail
         }
         .navigationSplitViewStyle(.balanced)
-        .onAppear {
-            reconcileSelection()
-        }
-        .onChange(of: selectedSidebarItem) {
-            reconcileSelection()
-        }
-        .onChange(of: filteredProfileIDs) {
-            reconcileSelection()
-        }
         .sheet(
             isPresented: Binding(
                 get: { model.isPresentingAddSheet },
@@ -110,15 +75,10 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private var sidebar: some View {
-        List(selection: $selectedSidebarItem) {
-            ForEach(SidebarItem.allCases) { item in
-                SidebarFilterRow(
-                    title: item.title,
-                    icon: item.icon,
-                    count: profileCount(for: item)
-                )
-                .tag(Optional(item))
-            }
+        List(ProfilesSidebarFilter.allCases, selection: selectedFilterBinding) { item in
+            Label(item.title, systemImage: item.icon)
+                .badge(profileCount(for: item))
+                .tag(item)
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 240)
@@ -126,7 +86,7 @@ public struct ProfilesSettingsPaneView: View {
 
     private var contentColumn: some View {
         List(selection: selectedProfileBinding) {
-            ForEach(filteredProfiles) { profile in
+            ForEach(model.filteredProfiles) { profile in
                 ProfileListRow(
                     profile: profile,
                     usage: model.usageSnapshot(for: profile.id),
@@ -135,7 +95,7 @@ public struct ProfilesSettingsPaneView: View {
                 .tag(Optional(profile.id))
             }
 
-            if filteredProfiles.isEmpty {
+            if model.filteredProfiles.isEmpty {
                 ContentUnavailableView(
                     "No Profiles",
                     systemImage: "person.crop.square",
@@ -149,7 +109,7 @@ public struct ProfilesSettingsPaneView: View {
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(selectedSidebarItem?.title ?? SidebarItem.all.title)
+                    Text(model.selectedFilter.title)
                         .font(.headline)
 
                     Text(profileCountSummary)
@@ -175,7 +135,7 @@ public struct ProfilesSettingsPaneView: View {
         Binding(
             get: {
                 guard let selectedProfileId = model.selectedProfileId,
-                      filteredProfiles.contains(where: { $0.id == selectedProfileId })
+                      model.filteredProfiles.contains(where: { $0.id == selectedProfileId })
                 else {
                     return nil
                 }
@@ -183,6 +143,17 @@ public struct ProfilesSettingsPaneView: View {
             },
             set: { profileId in
                 model.selectProfile(profileId)
+            }
+        )
+    }
+
+    private var selectedFilterBinding: Binding<ProfilesSidebarFilter?> {
+        Binding(
+            get: { model.selectedFilter },
+            set: { filter in
+                if let filter {
+                    model.selectFilter(filter)
+                }
             }
         )
     }
@@ -230,31 +201,13 @@ public struct ProfilesSettingsPaneView: View {
         }
     }
 
-    private var filteredProfiles: [Profile] {
-        switch selectedSidebarItem ?? .all {
-        case .all:
-            return model.profiles
-        case .codex:
-            return model.profiles.filter { $0.agent == .codex }
-        }
-    }
-
-    private var filteredProfileIDs: [String] {
-        filteredProfiles.map(\.id)
-    }
-
     private var profileCountSummary: String {
-        let count = filteredProfiles.count
+        let count = model.selectedFilterProfileCount
         return count == 1 ? "1 profile" : "\(count) profiles"
     }
 
     private var emptyStateDescription: String {
-        switch selectedSidebarItem ?? .all {
-        case .all:
-            return "Add an account from the toolbar to create your first profile."
-        case .codex:
-            return "No Codex profiles are available in this view yet."
-        }
+        model.selectedFilterEmptyStateDescription
     }
 
     private func profileHero(_ profile: Profile) -> some View {
@@ -381,10 +334,7 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private var selectedProfile: Profile? {
-        guard let selectedProfileId = model.selectedProfileId else {
-            return nil
-        }
-        return filteredProfiles.first { $0.id == selectedProfileId }
+        model.selectedProfile
     }
 
     private var selectedFailureEvent: FailureEvent? {
@@ -394,29 +344,8 @@ public struct ProfilesSettingsPaneView: View {
         return model.recentFailureEvent(for: profileId)
     }
 
-    private func profileCount(for item: SidebarItem) -> Int {
-        switch item {
-        case .all:
-            return model.profiles.count
-        case .codex:
-            return model.profiles.filter { $0.agent == .codex }.count
-        }
-    }
-
-    private func reconcileSelection() {
-        guard !filteredProfiles.isEmpty else {
-            if model.selectedProfileId != nil {
-                model.selectProfile(nil)
-            }
-            return
-        }
-
-        if let selectedProfileId = model.selectedProfileId,
-           filteredProfiles.contains(where: { $0.id == selectedProfileId }) {
-            return
-        }
-
-        model.selectProfile(filteredProfiles.first?.id)
+    private func profileCount(for item: ProfilesSidebarFilter) -> Int {
+        model.profileCount(for: item)
     }
 }
 
@@ -544,29 +473,6 @@ private struct ProfileListRow: View {
         parts.append("\(minutes)m")
 
         return "in \(parts.joined(separator: " "))"
-    }
-}
-
-private struct SidebarFilterRow: View {
-    let title: String
-    let icon: String
-    let count: Int
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: icon)
-                .foregroundStyle(Color.accentColor)
-                .frame(width: 16)
-
-            Text(title)
-
-            Spacer()
-
-            Text("\(count)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 3)
     }
 }
 
