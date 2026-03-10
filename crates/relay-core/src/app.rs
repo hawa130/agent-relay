@@ -24,6 +24,12 @@ pub enum BootstrapMode {
     ReadWrite,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentLoginMode {
+    Browser,
+    DeviceAuth,
+}
+
 #[derive(Debug, Clone)]
 pub struct AddProfileRequest {
     pub agent: AgentKind,
@@ -58,6 +64,7 @@ pub struct AgentLoginRequest {
     pub agent: AgentKind,
     pub nickname: Option<String>,
     pub priority: i32,
+    pub mode: AgentLoginMode,
 }
 
 #[derive(Debug, Clone)]
@@ -259,6 +266,7 @@ impl RelayApp {
             &self.paths.profiles_dir,
             request.nickname,
             request.priority,
+            request.mode,
         )?;
         let _ = self.refresh_usage_profile(&result.profile.id);
         self.log_store.append(

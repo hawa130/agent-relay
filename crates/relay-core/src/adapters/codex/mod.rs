@@ -4,6 +4,7 @@ mod settings;
 mod usage;
 
 use crate::adapters::{AgentAdapter, UsageProvider};
+use crate::app::AgentLoginMode;
 use crate::models::{
     AgentKind, AgentLinkResult, Profile, ProfileProbeIdentity, RelayError, SwitchCheckpoint,
     UsageSnapshot,
@@ -302,8 +303,9 @@ impl AgentAdapter for CodexAdapter {
         profiles_dir: &Path,
         nickname: Option<String>,
         priority: i32,
+        mode: AgentLoginMode,
     ) -> Result<AgentLinkResult, RelayError> {
-        login::login_profile(self, store, profiles_dir, nickname, priority)
+        login::login_profile(self, store, profiles_dir, nickname, priority, mode)
     }
 
     fn relink_profile(

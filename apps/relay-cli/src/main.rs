@@ -7,7 +7,7 @@ use comfy_table::{
 use relay_core::models::JsonResponse;
 use relay_core::{
     ActiveState, ActivityEventsQuery, AddProfileRequest, AgentKind, AgentLinkResult,
-    AgentLoginRequest, AppSettings, AuthMode, BootstrapMode, CodexSettings,
+    AgentLoginMode, AgentLoginRequest, AppSettings, AuthMode, BootstrapMode, CodexSettings,
     CodexSettingsUpdateRequest, DiagnosticsExport, DoctorReport, EditProfileRequest, FailureEvent,
     FailureReason, ImportProfileRequest, LogTail, ProbeProvider, Profile, ProfileDetail,
     ProfileProbeIdentity, RelayApp, RelayError, SwitchOutcome, SwitchReport,
@@ -212,6 +212,12 @@ struct CodexLoginArgs {
     nickname: Option<String>,
     #[arg(long)]
     priority: Option<i32>,
+    #[arg(
+        long,
+        visible_alias = "headless",
+        help = "Use device code auth instead of opening a browser"
+    )]
+    device_auth: bool,
     #[arg(long)]
     input_json: Option<PathBuf>,
 }
@@ -1557,13 +1563,22 @@ fn codex_login_request_from_args(args: CodexLoginArgs) -> Result<AgentLoginReque
     if let Some(input_json) = args.input_json.as_ref() {
         ensure_json_input_is_exclusive(
             input_json,
-            &[args.nickname.is_some(), args.priority.is_some()],
+            &[
+                args.nickname.is_some(),
+                args.priority.is_some(),
+                args.device_auth,
+            ],
         )?;
         let payload: LoginProfileInput = read_json_input(input_json)?;
         return Ok(AgentLoginRequest {
             agent: AgentKind::Codex,
             nickname: payload.nickname,
             priority: payload.priority,
+            mode: if payload.device_auth {
+                AgentLoginMode::DeviceAuth
+            } else {
+                AgentLoginMode::Browser
+            },
         });
     }
 
@@ -1571,6 +1586,11 @@ fn codex_login_request_from_args(args: CodexLoginArgs) -> Result<AgentLoginReque
         agent: AgentKind::Codex,
         nickname: args.nickname,
         priority: args.priority.unwrap_or(100),
+        mode: if args.device_auth {
+            AgentLoginMode::DeviceAuth
+        } else {
+            AgentLoginMode::Browser
+        },
     })
 }
 
@@ -1840,6 +1860,8 @@ struct LoginProfileInput {
     nickname: Option<String>,
     #[serde(default = "default_priority")]
     priority: i32,
+    #[serde(default)]
+    device_auth: bool,
 }
 
 fn deserialize_usage_source_mode_option<'de, D>(
