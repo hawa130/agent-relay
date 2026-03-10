@@ -44,22 +44,27 @@ public struct SettingsPaneView: View {
 
     private var detail: some View {
         Group {
-            switch model.selectedItem {
-            case .general:
-                GeneralSettingsDetailView(model: model)
-            case let .agent(agent):
-                if let descriptor = AgentSettingsCatalog.descriptor(for: agent) {
-                    AgentSettingsDetailView(descriptor: descriptor, model: model)
-                } else {
-                    ContentUnavailableView(
-                        "Settings Unavailable",
-                        systemImage: "slider.horizontal.3",
-                        description: Text("This agent does not expose configurable settings yet.")
-                    )
-                }
-            }
+            detailView(for: model.selectedItem)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder
+    private func detailView(for selection: SettingsSidebarSelection) -> some View {
+        switch selection {
+        case .general:
+            GeneralSettingsDetailView(model: model)
+        case let .agent(agent):
+            if let descriptor = AgentSettingsCatalog.descriptor(for: agent) {
+                AgentSettingsDetailView(descriptor: descriptor, model: model)
+            } else {
+                ContentUnavailableView(
+                    "Settings Unavailable",
+                    systemImage: "slider.horizontal.3",
+                    description: Text("This agent does not expose configurable settings yet.")
+                )
+            }
+        }
     }
 
     private var selectedItemBinding: Binding<SettingsSidebarSelection?> {
