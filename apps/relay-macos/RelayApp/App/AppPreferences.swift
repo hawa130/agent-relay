@@ -4,7 +4,7 @@ extension Defaults.Keys {
     static let selectedProfileId = Key<String?>("selectedProfileId", default: nil)
 }
 
-public enum SettingsPaneID: String, CaseIterable, Identifiable, Sendable {
+public enum RelayWindowID: String, CaseIterable, Identifiable, Sendable {
     case settings
     case profiles
 

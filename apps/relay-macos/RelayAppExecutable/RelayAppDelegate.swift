@@ -1,6 +1,6 @@
 import AppKit
-@preconcurrency import Settings
 import RelayMacOSUI
+import SwiftUI
 
 @MainActor
 final class RelayAppDelegate: NSObject, NSApplicationDelegate {
@@ -8,35 +8,22 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settingsPaneModel = SettingsPaneModel(session: model)
     private lazy var profilesPaneModel = ProfilesPaneModel(session: model)
     private var statusItemController: RelayStatusItemController?
-    private lazy var settingsWindowController = SettingsWindowController(
-        panes: [
-            Settings.Pane(
-                identifier: .relayProfiles,
-                title: SettingsPaneID.profiles.title,
-                toolbarIcon: Self.toolbarIcon(SettingsPaneID.profiles.symbol, description: SettingsPaneID.profiles.title)
-            ) {
-                ProfilesSettingsPaneView(model: self.profilesPaneModel)
-                    .frame(
-                        width: NativePreferencesTheme.Metrics.windowWidth,
-                        height: NativePreferencesTheme.Metrics.windowHeight,
-                        alignment: .topLeading
-                    )
-            },
-            Settings.Pane(
-                identifier: .relaySettings,
-                title: SettingsPaneID.settings.title,
-                toolbarIcon: Self.toolbarIcon(SettingsPaneID.settings.symbol, description: SettingsPaneID.settings.title)
-            ) {
-                SettingsPaneView(model: self.settingsPaneModel)
-                    .frame(
-                        width: NativePreferencesTheme.Metrics.windowWidth,
-                        height: NativePreferencesTheme.Metrics.windowHeight,
-                        alignment: .topLeading
-                    )
-            },
-        ],
-        style: .toolbarItems,
-        animated: false
+    private lazy var profilesWindowController = ProfilesWindowController(
+        title: RelayWindowID.profiles.title,
+        rootView: AnyView(
+            ProfilesSettingsPaneView(model: self.profilesPaneModel)
+        ),
+        onAddProfile: { [weak self] in
+            self?.profilesPaneModel.presentAddSheet()
+        }
+    )
+    private lazy var settingsWindowController = RelayWindowController(
+        windowID: .settings,
+        title: RelayWindowID.settings.title,
+        style: .settings,
+        rootView: AnyView(
+            SettingsPaneView(model: self.settingsPaneModel)
+        )
     )
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -45,8 +32,8 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
         model.start()
         statusItemController = RelayStatusItemController(
             model: model,
-            openPreferencesPane: { [weak self] pane in
-                self?.openSettingsWindow(pane: pane)
+            openWindow: { [weak self] windowID in
+                self?.openWindow(windowID)
             }
         )
     }
@@ -56,17 +43,16 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
-    private func openSettingsWindow(pane: SettingsPaneID) {
-        NSApp.activate(ignoringOtherApps: true)
-        switch pane {
+    private func openWindow(_ windowID: RelayWindowID) {
+        switch windowID {
         case .profiles:
-            settingsWindowController.show(pane: .relayProfiles)
+            profilesWindowController.presentAndActivate()
         case .settings:
-            settingsWindowController.show(pane: .relaySettings)
+            settingsWindowController.presentAndActivate()
         }
 
         Task { [weak self] in
-            switch pane {
+            switch windowID {
             case .profiles:
                 await self?.profilesPaneModel.refreshIfStale()
             case .settings:
@@ -74,16 +60,4 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
-
-    private static func toolbarIcon(_ symbolName: String, description: String) -> NSImage {
-        NSImage(systemSymbolName: symbolName, accessibilityDescription: description)
-            ?? NSImage(named: NSImage.preferencesGeneralName)
-            ?? NSImage()
-    }
-}
-
-@MainActor
-private extension Settings.PaneIdentifier {
-    static let relaySettings = Self("settings")
-    static let relayProfiles = Self("profiles")
 }
