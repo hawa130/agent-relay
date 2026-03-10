@@ -1333,6 +1333,9 @@ fn usage_text_output_renders_table_and_detail_views() {
     assert!(list.contains("Session"));
     assert!(list.contains(&active_id));
     assert!(list.contains(&alternate_id));
+    assert!(list.contains("% · "));
+    assert!(!list.contains("Source"));
+    assert!(!list.contains("Auth"));
     assert!(!list.contains("Notes"));
     assert!(!list.contains("Healthy ("));
 

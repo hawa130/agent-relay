@@ -1,5 +1,5 @@
 use super::common::*;
-use super::usage::usage_fields;
+use super::usage::{list_window_label, usage_fields};
 use super::*;
 
 pub(crate) fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> String {
@@ -13,8 +13,6 @@ pub(crate) fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> Str
         "Status",
         "Session",
         "Weekly",
-        "Source",
-        "Auth",
     ]);
 
     for item in items {
@@ -47,7 +45,7 @@ pub(crate) fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> Str
             ),
             styled_cell(
                 usage
-                    .map(|value| session_cell_label(value))
+                    .map(|value| list_window_label(&value.session, false))
                     .unwrap_or_else(|| "-".into()),
                 usage
                     .map(|value| status_tone(value.session.status.clone()))
@@ -55,18 +53,12 @@ pub(crate) fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> Str
             ),
             styled_cell(
                 usage
-                    .map(|value| weekly_cell_label(value))
+                    .map(|value| list_window_label(&value.weekly, true))
                     .unwrap_or_else(|| "-".into()),
                 usage
                     .map(|value| status_tone(value.weekly.status.clone()))
                     .unwrap_or(CellTone::Muted),
             ),
-            Cell::new(
-                usage
-                    .map(|value| usage_source_label(&value.source).to_string())
-                    .unwrap_or_else(|| "-".into()),
-            ),
-            Cell::new(auth_mode_label(&profile.auth_mode)),
         ]));
     }
 
@@ -235,20 +227,4 @@ fn skipped_profile_field(profile: &relay_core::SkippedRecoveredProfile) -> (&'st
         "Skipped",
         format!("{} ({})", profile.source_dir, profile.reason),
     )
-}
-
-fn session_cell_label(snapshot: &UsageSnapshot) -> String {
-    snapshot
-        .session
-        .used_percent
-        .map(|value| format!("{value:.0}%"))
-        .unwrap_or_else(|| "-".into())
-}
-
-fn weekly_cell_label(snapshot: &UsageSnapshot) -> String {
-    snapshot
-        .weekly
-        .used_percent
-        .map(|value| format!("{value:.0}%"))
-        .unwrap_or_else(|| "-".into())
 }
