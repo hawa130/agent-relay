@@ -3,19 +3,19 @@ import SwiftUI
 
 public enum NativePreferencesTheme {
     public enum Metrics {
-        public static let windowWidth: CGFloat = 940
-        public static let windowHeight: CGFloat = 660
-        public static let paneHorizontalPadding: CGFloat = 22
-        public static let paneVerticalPadding: CGFloat = 18
-        public static let sectionSpacing: CGFloat = 18
-        public static let sectionContentSpacing: CGFloat = 10
-        public static let groupedPadding: CGFloat = 14
-        public static let controlSpacing: CGFloat = 8
+        public static let windowWidth: CGFloat = 840
+        public static let windowHeight: CGFloat = 600
+        public static let paneHorizontalPadding: CGFloat = 18
+        public static let paneVerticalPadding: CGFloat = 14
+        public static let sectionSpacing: CGFloat = 14
+        public static let sectionContentSpacing: CGFloat = 8
+        public static let groupedPadding: CGFloat = 12
+        public static let controlSpacing: CGFloat = 6
         public static let sectionCornerRadius: CGFloat = 10
-        public static let sidebarWidth: CGFloat = 300
+        public static let sidebarWidth: CGFloat = 268
         public static let rowCornerRadius: CGFloat = 9
         public static let usageBarHeight: CGFloat = 7
-        public static let detailLabelWidth: CGFloat = 82
+        public static let detailLabelWidth: CGFloat = 74
     }
 
     public enum Typography {

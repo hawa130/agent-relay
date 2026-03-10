@@ -50,8 +50,8 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
                 Button("Add Account") {
                     showingLoginSheet = true
                 }
@@ -67,7 +67,7 @@ public struct ProfilesSettingsPaneView: View {
             }
 
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 10) {
+                LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(model.profiles) { profile in
                         Button {
                             model.selectProfile(profile.id)
@@ -85,12 +85,12 @@ public struct ProfilesSettingsPaneView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .frame(
             minWidth: NativePreferencesTheme.Metrics.sidebarWidth,
             idealWidth: NativePreferencesTheme.Metrics.sidebarWidth,
-            maxWidth: NativePreferencesTheme.Metrics.sidebarWidth + 20,
+            maxWidth: NativePreferencesTheme.Metrics.sidebarWidth + 12,
             maxHeight: .infinity,
             alignment: .topLeading
         )
@@ -116,7 +116,7 @@ public struct ProfilesSettingsPaneView: View {
                         systemImage: "person.crop.square",
                         description: Text("Choose a profile on the left to inspect its details and actions.")
                     )
-                    .frame(maxWidth: .infinity, minHeight: 520)
+                    .frame(maxWidth: .infinity, minHeight: 420)
                 }
             }
         }
@@ -125,8 +125,8 @@ public struct ProfilesSettingsPaneView: View {
 
     private func profileHero(_ profile: Profile) -> some View {
         SettingsSurfaceCard(nil) {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
                     ProfileHeroAgentIcon(agent: profile.agent)
 
                     VStack(alignment: .leading, spacing: 0) {
@@ -151,7 +151,7 @@ public struct ProfilesSettingsPaneView: View {
                         .padding(.top, 4)
                     }
 
-                    Spacer(minLength: 20)
+                    Spacer(minLength: 16)
 
                     VStack(alignment: .trailing, spacing: 8) {
                         Toggle(
@@ -171,14 +171,14 @@ public struct ProfilesSettingsPaneView: View {
                     }
                 }
 
-                Grid(alignment: .leading, horizontalSpacing: 18, verticalSpacing: 8) {
+                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
                     GridRow {
                         NativeDetailRow(title: "Priority", value: "\(profile.priority)")
                         NativeDetailRow(title: "Auth Mode", value: profile.authMode.displayName)
                     }
                 }
 
-                HStack(alignment: .center, spacing: 12) {
+                HStack(alignment: .center, spacing: 10) {
                     Button(model.activeProfileId == profile.id ? "Activated" : "Activate") {
                         Task {
                             await model.switchToProfile(profile.id)
@@ -227,11 +227,11 @@ public struct ProfilesSettingsPaneView: View {
             )
         ) {
             if let usage = model.usageSnapshot(for: profile.id) {
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 10) {
                     UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
                     UsageMetricRow(title: "Weekly", window: usage.weekly, stale: usage.stale)
 
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
                         NativeDetailRow(title: "Source", value: usage.source.displayName)
                         NativeDetailRow(title: "Updated", value: usage.lastRefreshedAt.formatted())
                     }
@@ -299,7 +299,7 @@ private struct ProfileListRow: View {
     let isSelected: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             ProfileListAgentLabel(agent: profile.agent)
 
             HStack(alignment: .top, spacing: 8) {
@@ -314,7 +314,7 @@ private struct ProfileListRow: View {
                     .padding(.vertical, 6)
                 }
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(profile.nickname)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
 
@@ -348,8 +348,8 @@ private struct ProfileListRow: View {
                 Spacer(minLength: 0)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(rowBackground, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay(
@@ -359,8 +359,8 @@ private struct ProfileListRow: View {
         .overlay(alignment: .topTrailing) {
             if isActive {
                 ProfileStateBadge(title: "Current", kind: .info)
-                    .padding(.top, 9)
-                    .padding(.trailing, 10)
+                    .padding(.top, 7)
+                    .padding(.trailing, 8)
             }
         }
         .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
@@ -417,12 +417,12 @@ private struct ProfileListUsageLine: View {
     let resetText: String?
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text("\(title) \(value)")
                 .font(.system(size: 10))
                 .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 6)
 
             if let resetText {
                 Text(resetText)
@@ -462,7 +462,7 @@ private struct UsageMetricRow: View {
     let stale: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(title)
                     .font(.system(size: 13, weight: .semibold))
@@ -522,8 +522,8 @@ private struct ProfileStateBadge: View {
         Text(title)
             .font(.system(size: 10, weight: .semibold))
             .foregroundStyle(NativePreferencesTheme.Badge.text(kind))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
             .background(NativePreferencesTheme.Badge.fill(kind), in: Capsule())
     }
 }
@@ -553,11 +553,11 @@ private struct ProfileEditorSheet: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 14) {
             Text(title)
                 .font(.title3.weight(.semibold))
-                .padding(.horizontal, 18)
-                .padding(.top, 18)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
 
             Form {
                 Section {
@@ -598,10 +598,10 @@ private struct ProfileEditorSheet: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(draft.nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .padding(.horizontal, 18)
-            .padding(.bottom, 16)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 14)
         }
-        .frame(width: 560)
+        .frame(width: 500)
     }
 
     private var normalizedDraft: ProfileDraft {
@@ -634,19 +634,19 @@ private struct AddAccountSheet: View {
     @State private var didStartLogin = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 14) {
             Text("Add Account")
                 .font(.title3.weight(.semibold))
-                .padding(.horizontal, 18)
-                .padding(.top, 18)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
 
             statusCard
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 16)
 
             Text(flowState.bodyText)
                 .font(.body)
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 16)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack {
@@ -668,10 +668,10 @@ private struct AddAccountSheet: View {
                     .disabled(isBusy || flowState.isRequesting)
                 }
             }
-            .padding(.horizontal, 18)
-            .padding(.bottom, 16)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 14)
         }
-        .frame(width: 420)
+        .frame(width: 380)
         .interactiveDismissDisabled(flowState.isRequesting)
         .onAppear {
             startLogin()
@@ -683,7 +683,7 @@ private struct AddAccountSheet: View {
     }
 
     private var statusCard: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 10) {
             Group {
                 if flowState.isRequesting {
                     ProgressView()
@@ -715,7 +715,7 @@ private struct AddAccountSheet: View {
 
             Spacer(minLength: 0)
         }
-        .padding(14)
+        .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .fill(flowState.backgroundColor)

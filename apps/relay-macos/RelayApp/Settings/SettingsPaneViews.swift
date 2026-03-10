@@ -18,9 +18,9 @@ public struct SettingsPaneView: View {
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 14) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 12) {
                     VStack(alignment: .leading, spacing: 6) {
                         Button {
                             model.selectItem(.general)
@@ -42,7 +42,7 @@ public struct SettingsPaneView: View {
                     }
 
                     if !model.agents.isEmpty {
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text("Agents")
                                 .font(NativePreferencesTheme.Typography.sectionLabel)
                                 .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
@@ -78,12 +78,12 @@ public struct SettingsPaneView: View {
                 .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .frame(
             minWidth: NativePreferencesTheme.Metrics.sidebarWidth,
             idealWidth: NativePreferencesTheme.Metrics.sidebarWidth,
-            maxWidth: NativePreferencesTheme.Metrics.sidebarWidth + 20,
+            maxWidth: NativePreferencesTheme.Metrics.sidebarWidth + 12,
             maxHeight: .infinity,
             alignment: .topLeading
         )
@@ -258,7 +258,7 @@ private struct SettingsDetailHeader<Accessory: View>: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 14) {
+        HStack(alignment: .top, spacing: 12) {
             accessory
 
             VStack(alignment: .leading, spacing: 4) {
@@ -270,7 +270,7 @@ private struct SettingsDetailHeader<Accessory: View>: View {
                     .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
             }
 
-            Spacer(minLength: 16)
+            Spacer(minLength: 12)
         }
     }
 }
@@ -291,17 +291,17 @@ private struct SettingsSidebarRow<Leading: View>: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: 8) {
             leading
-                .frame(width: 28, height: 28)
+                .frame(width: 26, height: 26)
 
             Text(title)
                 .font(.system(size: 13, weight: .regular, design: .rounded))
 
-            Spacer(minLength: 10)
+            Spacer(minLength: 8)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 9)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(rowBackground, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay(
@@ -339,11 +339,11 @@ private struct SettingsSidebarIconTile<Content: View>: View {
         ZStack {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.12))
-                .frame(width: 28, height: 28)
+                .frame(width: 26, height: 26)
 
             content
         }
-        .frame(width: 28, height: 28)
+        .frame(width: 26, height: 26)
     }
 }
 
@@ -402,7 +402,7 @@ struct SettingsSurfaceCard<Content: View>: View {
             }
             .font(NativePreferencesTheme.Typography.body)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
+            .padding(.vertical, 4)
         }
         .padding(.horizontal, 2)
     }
@@ -431,7 +431,7 @@ struct NativeDetailRow: View {
     let value: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(title)
                 .font(NativePreferencesTheme.Typography.detail.weight(.medium))
                 .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
@@ -452,7 +452,7 @@ struct NativeStepperRow: View {
     var step: Int = 1
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Text(title)
             Spacer()
             Text(valueText)
