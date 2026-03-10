@@ -75,17 +75,17 @@ final class MultiRingProgressViewTests: XCTestCase {
 
         let items = snapshot.ringProgressItems
 
-        XCTAssertEqual(items.map(\.id), ["weekly", "session"])
-        XCTAssertEqual(items[0].label, "Weekly")
-        XCTAssertEqual(items[0].valueText, "?")
-        XCTAssertEqual(items[0].tone, .neutral)
+        XCTAssertEqual(items.map(\.id), ["session", "weekly"])
+        XCTAssertEqual(items[0].label, "Session")
+        XCTAssertEqual(items[0].valueText, "54%")
+        XCTAssertEqual(items[0].tone, .positive)
         XCTAssertTrue(items[0].isDimmed)
-        XCTAssertEqual(items[0].progress, 0, accuracy: 0.0001)
+        XCTAssertEqual(items[0].progress, 0.54, accuracy: 0.0001)
+        XCTAssertTrue(items[0].detailText?.hasPrefix("Resets ") ?? false)
 
-        XCTAssertEqual(items[1].label, "Session")
-        XCTAssertEqual(items[1].valueText, "54%")
-        XCTAssertEqual(items[1].tone, .positive)
-        XCTAssertEqual(items[1].progress, 0.54, accuracy: 0.0001)
-        XCTAssertTrue(items[1].detailText?.hasPrefix("Resets ") ?? false)
+        XCTAssertEqual(items[1].label, "Weekly")
+        XCTAssertEqual(items[1].valueText, "?")
+        XCTAssertEqual(items[1].tone, .neutral)
+        XCTAssertEqual(items[1].progress, 0, accuracy: 0.0001)
     }
 }

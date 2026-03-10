@@ -50,16 +50,6 @@ extension UsageSnapshot {
     var ringProgressItems: [RingProgressItem] {
         [
             RingProgressItem(
-                id: "weekly",
-                label: "Weekly",
-                shortLabel: "W",
-                progress: weekly.ringProgress,
-                tone: weekly.status.ringTone,
-                isDimmed: stale,
-                valueText: weekly.ringValueText,
-                detailText: weekly.resetBadgeText
-            ),
-            RingProgressItem(
                 id: "session",
                 label: "Session",
                 shortLabel: "S",
@@ -68,6 +58,16 @@ extension UsageSnapshot {
                 isDimmed: stale,
                 valueText: session.ringValueText,
                 detailText: session.resetBadgeText
+            ),
+            RingProgressItem(
+                id: "weekly",
+                label: "Weekly",
+                shortLabel: "W",
+                progress: weekly.ringProgress,
+                tone: weekly.status.ringTone,
+                isDimmed: stale,
+                valueText: weekly.ringValueText,
+                detailText: weekly.resetBadgeText
             ),
         ]
     }
