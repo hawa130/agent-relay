@@ -38,30 +38,38 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    Doctor,
+    #[command(about = "Show current relay state and active profile")]
     Status,
-    Settings(SettingsCommand),
+    #[command(about = "List managed profiles with usage summaries")]
     List,
+    #[command(about = "Inspect one profile, or the current profile when omitted")]
     Show(ShowCommand),
-    Edit(EditProfileArgs),
-    Remove(ProfileIdArgs),
-    Enable(ProfileIdArgs),
-    Disable(ProfileIdArgs),
+    #[command(about = "Activate a profile, or switch to the next eligible one")]
     Switch(SwitchCommand),
+    #[command(about = "Refresh usage data for one or more profiles")]
     Refresh(RefreshCommand),
-    Autoswitch(AutoswitchCommand),
-    Activity(ActivityCommand),
+    #[command(about = "Manage Codex profiles, login flows, and settings")]
     Codex(CodexCommand),
+    #[command(about = "Inspect relay events, logs, and diagnostics")]
+    Activity(ActivityCommand),
+    #[command(about = "Inspect relay environment, paths, and binary health")]
+    Doctor,
+    #[command(about = "Inspect relay settings")]
+    Settings(SettingsCommand),
+    #[command(about = "Inspect or change automatic switching behavior")]
+    Autoswitch(AutoswitchCommand),
+    #[command(about = "Update profile metadata or managed paths")]
+    Edit(EditProfileArgs),
+    #[command(about = "Enable a profile for switching and usage refresh")]
+    Enable(ProfileIdArgs),
+    #[command(about = "Disable a profile from switching and usage refresh")]
+    Disable(ProfileIdArgs),
+    #[command(about = "Remove a managed profile")]
+    Remove(ProfileIdArgs),
 }
 
 #[derive(Debug, Args)]
-struct ProfileIdArgs {
-    id: Option<String>,
-    #[arg(long)]
-    input_json: Option<PathBuf>,
-}
-
-#[derive(Debug, Args)]
+#[command(about = "Inspect relay settings")]
 struct SettingsCommand {
     #[command(subcommand)]
     command: Option<SettingsSubcommand>,
@@ -69,31 +77,36 @@ struct SettingsCommand {
 
 #[derive(Debug, Subcommand)]
 enum SettingsSubcommand {
+    #[command(about = "Show current relay settings")]
     Show,
 }
 
 #[derive(Debug, Args)]
 struct ShowCommand {
+    #[arg(help = "Profile ID to inspect. Uses the current profile when omitted")]
     target: Option<String>,
 }
 
 #[derive(Debug, Args)]
 struct SwitchCommand {
+    #[arg(help = "Profile ID to activate. Uses the next eligible profile when omitted")]
     target: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 struct RefreshCommand {
+    #[arg(help = "Profile ID to refresh. Refreshes enabled profiles when omitted")]
     target: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Refresh every profile, including disabled ones")]
     all: bool,
-    #[arg(long)]
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
+#[command(about = "Inspect or change automatic switching behavior")]
 struct AutoswitchCommand {
     #[command(subcommand)]
     command: Option<AutoswitchSubcommand>,
@@ -101,21 +114,34 @@ struct AutoswitchCommand {
 
 #[derive(Debug, Subcommand)]
 enum AutoswitchSubcommand {
+    #[command(about = "Show current automatic switching settings")]
     Show,
+    #[command(about = "Turn automatic switching on")]
     Enable,
+    #[command(about = "Turn automatic switching off")]
     Disable,
+    #[command(about = "Set automatic switching explicitly with a boolean value")]
     Set(AutoswitchSetArgs),
 }
 
 #[derive(Debug, Args)]
-struct AutoswitchSetArgs {
-    #[arg(long)]
-    enabled: Option<bool>,
-    #[arg(long)]
+struct ProfileIdArgs {
+    #[arg(help = "Profile ID to operate on")]
+    id: Option<String>,
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
+struct AutoswitchSetArgs {
+    #[arg(long, help = "Enable or disable automatic switching")]
+    enabled: Option<bool>,
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
+    input_json: Option<PathBuf>,
+}
+
+#[derive(Debug, Args)]
+#[command(about = "Inspect relay events, logs, and diagnostics")]
 struct ActivityCommand {
     #[command(subcommand)]
     command: ActivitySubcommand,
@@ -123,12 +149,16 @@ struct ActivityCommand {
 
 #[derive(Debug, Subcommand)]
 enum ActivitySubcommand {
+    #[command(about = "Inspect recorded switch failures and cooldowns")]
     Events(ActivityEventsCommand),
+    #[command(about = "Read relay log output")]
     Logs(LogsCommand),
+    #[command(about = "Export a diagnostic bundle for debugging")]
     Diagnostics(DiagnosticsCommand),
 }
 
 #[derive(Debug, Args)]
+#[command(about = "Inspect recorded switch failures and cooldowns")]
 struct ActivityEventsCommand {
     #[command(subcommand)]
     command: ActivityEventsSubcommand,
@@ -136,16 +166,19 @@ struct ActivityEventsCommand {
 
 #[derive(Debug, Subcommand)]
 enum ActivityEventsSubcommand {
+    #[command(about = "List recent failure events")]
     List(ActivityEventsListArgs),
 }
 
 #[derive(Debug, Args)]
+#[command(about = "Read relay log output")]
 struct LogsCommand {
     #[command(subcommand)]
     command: LogsSubcommand,
 }
 
 #[derive(Debug, Args)]
+#[command(about = "Manage Codex profiles, login flows, and settings")]
 struct CodexCommand {
     #[command(subcommand)]
     command: CodexSubcommand,
@@ -153,14 +186,20 @@ struct CodexCommand {
 
 #[derive(Debug, Subcommand)]
 enum CodexSubcommand {
-    Add(CodexAddArgs),
-    Import(CodexImportArgs),
+    #[command(about = "Create a new profile by signing in with Codex")]
     Login(CodexLoginArgs),
+    #[command(about = "Import the current live Codex home as a managed profile")]
+    Import(CodexImportArgs),
+    #[command(about = "Register an existing Codex home or config as a profile")]
+    Add(CodexAddArgs),
+    #[command(about = "Refresh a profile's linked Codex identity from the live home")]
     Relink(ProfileIdArgs),
+    #[command(about = "Inspect or update Codex-wide settings")]
     Settings(CodexSettingsCommand),
 }
 
 #[derive(Debug, Args)]
+#[command(about = "Inspect or update Codex-wide settings")]
 struct CodexSettingsCommand {
     #[command(subcommand)]
     command: Option<CodexSettingsSubcommand>,
@@ -168,49 +207,51 @@ struct CodexSettingsCommand {
 
 #[derive(Debug, Subcommand)]
 enum CodexSettingsSubcommand {
+    #[command(about = "Show current Codex settings")]
     Show,
+    #[command(about = "Update Codex settings")]
     Set(CodexSettingsSetArgs),
 }
 
 #[derive(Debug, Args)]
 struct CodexSettingsSetArgs {
-    #[arg(long)]
+    #[arg(long, help = "Usage source mode for Codex profiles")]
     source_mode: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 struct CodexAddArgs {
-    #[arg(long)]
+    #[arg(long, help = "Display name for the new profile")]
     nickname: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Lower numbers are preferred during switching")]
     priority: Option<i32>,
-    #[arg(long)]
+    #[arg(long, help = "Path to the Codex config file to manage")]
     config_path: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "Path to the Codex home directory to manage")]
     agent_home: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "Authentication storage mode for the profile")]
     auth_mode: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 struct CodexImportArgs {
-    #[arg(long)]
+    #[arg(long, help = "Display name for the imported profile")]
     nickname: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Lower numbers are preferred during switching")]
     priority: Option<i32>,
-    #[arg(long)]
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 struct CodexLoginArgs {
-    #[arg(long)]
+    #[arg(long, help = "Display name for the new profile")]
     nickname: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Lower numbers are preferred during switching")]
     priority: Option<i32>,
     #[arg(
         long,
@@ -218,16 +259,18 @@ struct CodexLoginArgs {
         help = "Use device code auth instead of opening a browser"
     )]
     device_auth: bool,
-    #[arg(long)]
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Subcommand)]
 enum LogsSubcommand {
+    #[command(about = "Show the latest log lines")]
     Tail(TailArgs),
 }
 
 #[derive(Debug, Args)]
+#[command(about = "Export a diagnostic bundle for debugging")]
 struct DiagnosticsCommand {
     #[command(subcommand)]
     command: DiagnosticsSubcommand,
@@ -235,47 +278,49 @@ struct DiagnosticsCommand {
 
 #[derive(Debug, Subcommand)]
 enum DiagnosticsSubcommand {
+    #[command(about = "Create a diagnostics archive")]
     Export,
 }
 
 #[derive(Debug, Args)]
 struct EditProfileArgs {
+    #[arg(help = "Profile ID to edit")]
     id: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "New display name for the profile")]
     nickname: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Lower numbers are preferred during switching")]
     priority: Option<i32>,
-    #[arg(long)]
+    #[arg(long, help = "New path to the managed Codex config file")]
     config_path: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "Clear the saved config path")]
     clear_config_path: bool,
-    #[arg(long)]
+    #[arg(long, help = "New path to the managed Codex home directory")]
     agent_home: Option<PathBuf>,
-    #[arg(long)]
+    #[arg(long, help = "Clear the saved agent home path")]
     clear_agent_home: bool,
-    #[arg(long)]
+    #[arg(long, help = "New authentication storage mode for the profile")]
     auth_mode: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 struct ActivityEventsListArgs {
-    #[arg(long)]
+    #[arg(long, help = "Maximum number of events to return")]
     limit: Option<usize>,
-    #[arg(long)]
+    #[arg(long, help = "Filter events to a specific profile ID")]
     profile_id: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Filter events to a failure reason")]
     reason: Option<String>,
-    #[arg(long)]
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
 struct TailArgs {
-    #[arg(long)]
+    #[arg(long, help = "Number of log lines to show")]
     lines: Option<usize>,
-    #[arg(long)]
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
 }
 
