@@ -17,10 +17,8 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
             self?.profilesPaneModel.presentAddSheet()
         }
     )
-    private lazy var settingsWindowController = RelayWindowController(
-        windowID: .settings,
+    private lazy var settingsWindowController = SettingsWindowController(
         title: RelayWindowID.settings.title,
-        style: .settings,
         rootView: AnyView(
             SettingsPaneView(model: self.settingsPaneModel)
         )

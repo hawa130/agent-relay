@@ -23,9 +23,9 @@ enum RelayWindowStyle {
     var minSize: NSSize {
         switch self {
         case .manager:
-            return NSSize(width: 900, height: 620)
+            return NSSize(width: 720, height: 540)
         case .settings:
-            return NSSize(width: 680, height: 560)
+            return NSSize(width: 660, height: 520)
         }
     }
 
@@ -37,16 +37,29 @@ enum RelayWindowStyle {
             return .unifiedCompact
         }
     }
+
+    var usesSidebarTitlebarChrome: Bool {
+        switch self {
+        case .manager:
+            return false
+        case .settings:
+            return true
+        }
+    }
 }
 
 @MainActor
 class RelayWindowController: NSWindowController, NSWindowDelegate {
+    private let style: RelayWindowStyle
+    private var hasPresentedWindow = false
+
     init(
         windowID: RelayWindowID,
         title: String,
         style: RelayWindowStyle,
         rootView: AnyView
     ) {
+        self.style = style
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: style.contentSize),
@@ -57,8 +70,14 @@ class RelayWindowController: NSWindowController, NSWindowDelegate {
 
         window.contentViewController = hostingController
         window.title = title
-        window.minSize = style.minSize
+        window.contentMinSize = style.minSize
         window.toolbarStyle = style.toolbarStyle
+        if style.usesSidebarTitlebarChrome {
+            window.styleMask.insert(.fullSizeContentView)
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.isMovableByWindowBackground = true
+        }
         window.identifier = NSUserInterfaceItemIdentifier("relay.\(windowID.rawValue)")
         window.isReleasedWhenClosed = false
         window.center()
@@ -74,6 +93,11 @@ class RelayWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func presentAndActivate() {
+        if let window, !hasPresentedWindow {
+            window.setContentSize(style.contentSize)
+            window.center()
+            hasPresentedWindow = true
+        }
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
@@ -146,5 +170,37 @@ final class ProfilesWindowController: RelayWindowController, NSToolbarDelegate {
 
     @objc private func handleAddProfile() {
         onAddProfile()
+    }
+}
+
+@MainActor
+final class SettingsWindowController: RelayWindowController, NSToolbarDelegate {
+    init(
+        title: String,
+        rootView: AnyView
+    ) {
+        super.init(
+            windowID: .settings,
+            title: title,
+            style: .settings,
+            rootView: rootView
+        )
+
+        let toolbar = NSToolbar(identifier: "relay.settings.toolbar")
+        toolbar.delegate = self
+        toolbar.displayMode = .iconOnly
+        toolbar.allowsUserCustomization = false
+        toolbar.autosavesConfiguration = false
+        window?.toolbar = toolbar
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        _ = toolbar
+        return []
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        _ = toolbar
+        return []
     }
 }

@@ -372,9 +372,6 @@ impl DaemonService {
                 self.publish_switch_completed(report.clone(), trigger)
                     .await
                     .map_err(|e| rpc_internal_error(e.to_string()))?;
-                self.refresh_and_maybe_auto_switch(UsageUpdateTrigger::PostSwitch)
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
                 self.publish_active_state_updated()
                     .await
                     .map_err(|e| rpc_internal_error(e.to_string()))?;
