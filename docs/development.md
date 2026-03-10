@@ -24,6 +24,26 @@ cargo fmt --all
 cargo test
 ```
 
+Build helpers with `just`:
+
+```bash
+just fmt
+just test
+just test-rust
+just test-macos
+just release
+just macos
+just linux
+just all
+just app
+```
+
+`just linux` and `just all` assume the Linux Rust target and a compatible
+cross-linker are already installed locally.
+
+`just test-macos` runs Swift tests with an isolated home and module cache under
+`apps/relay-macos`.
+
 Run the CLI directly from source:
 
 ```bash
