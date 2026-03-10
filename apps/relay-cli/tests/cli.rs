@@ -1,9 +1,9 @@
 use sea_orm::{ConnectionTrait, Database};
 use serde_json::Value;
 use std::fs;
-use std::io::Write;
+use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 use tempfile::tempdir;
 
 fn relay_bin() -> &'static str {
@@ -1561,4 +1561,201 @@ async fn legacy_database_returns_schema_incompatible_error() {
             .expect("message")
             .contains("remove the existing database")
     );
+}
+
+struct DaemonHarness {
+    child: Child,
+    stdin: ChildStdin,
+    stdout: BufReader<ChildStdout>,
+}
+
+impl DaemonHarness {
+    fn spawn(relay_home: &Path, codex_home: &Path) -> Self {
+        let mut child = Command::new(relay_bin())
+            .args(["daemon", "--stdio"])
+            .env("RELAY_HOME", relay_home)
+            .env("CODEX_HOME", codex_home)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("spawn daemon");
+        let stdin = child.stdin.take().expect("daemon stdin");
+        let stdout = BufReader::new(child.stdout.take().expect("daemon stdout"));
+        Self {
+            child,
+            stdin,
+            stdout,
+        }
+    }
+
+    fn send_request(&mut self, id: &str, method: &str, params: Value) {
+        let payload = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": method,
+            "params": params,
+        });
+        self.send_raw(&payload.to_string());
+    }
+
+    fn send_raw(&mut self, line: &str) {
+        self.stdin
+            .write_all(line.as_bytes())
+            .expect("write daemon stdin");
+        self.stdin.write_all(b"\n").expect("write newline");
+        self.stdin.flush().expect("flush daemon stdin");
+    }
+
+    fn read_message(&mut self) -> Value {
+        let mut line = String::new();
+        let read = self.stdout.read_line(&mut line).expect("read daemon stdout");
+        assert!(read > 0, "daemon stdout closed unexpectedly");
+        serde_json::from_str(line.trim()).expect("daemon json")
+    }
+
+    fn shutdown(mut self) {
+        self.send_request("shutdown", "shutdown", serde_json::json!({}));
+        let response = self.read_message();
+        assert_eq!(response["id"], "shutdown");
+        assert_eq!(response["result"]["accepted"], true);
+        let status = self.child.wait().expect("wait daemon");
+        assert!(status.success(), "daemon exit status: {status}");
+    }
+}
+
+#[test]
+fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let profile_home = temp.path().join("profile-home");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&profile_home, "profile");
+
+    let add_payload = format!(
+        "{{\"nickname\":\"daemon-profile\",\"priority\":50,\"agent_home\":\"{}\",\"auth_mode\":\"ConfigFilesystem\"}}",
+        profile_home.to_string_lossy()
+    );
+    let add = run_json_with_stdin(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "codex", "add", "--input-json", "-"],
+        &add_payload,
+    );
+    assert_eq!(add["data"]["nickname"], "daemon-profile");
+
+    let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
+    daemon.send_request(
+        "1",
+        "initialize",
+        serde_json::json!({
+            "protocol_version": "1",
+            "client_info": { "name": "relay-cli-test", "version": "1.0.0" },
+            "capabilities": {
+                "supports_subscriptions": true,
+                "supports_health_updates": true
+            }
+        }),
+    );
+    let initialize = daemon.read_message();
+    assert_eq!(initialize["id"], "1");
+    assert_eq!(initialize["result"]["protocol_version"], "1");
+    assert_eq!(initialize["result"]["initial_state"]["status"]["profile_count"], 1);
+
+    daemon.send_request(
+        "2",
+        "session/subscribe",
+        serde_json::json!({
+            "topics": ["usage.updated", "active_state.updated", "health.updated"]
+        }),
+    );
+    let subscribe = daemon.read_message();
+    assert_eq!(subscribe["id"], "2");
+    assert_eq!(
+        subscribe["result"]["subscribed_topics"].as_array().expect("topics").len(),
+        3
+    );
+    let health_update = daemon.read_message();
+    assert_eq!(health_update["method"], "session/update");
+    assert_eq!(health_update["params"]["topic"], "health.updated");
+    assert_eq!(health_update["params"]["payload"]["state"], "Ready");
+
+    daemon.send_request(
+        "3",
+        "relay/usage/refresh",
+        serde_json::json!({ "include_disabled": false }),
+    );
+    let refresh = daemon.read_message();
+    assert_eq!(refresh["id"], "3");
+    assert_eq!(
+        refresh["result"]["snapshots"].as_array().expect("snapshots").len(),
+        1
+    );
+    let usage_update = daemon.read_message();
+    assert_eq!(usage_update["params"]["topic"], "usage.updated");
+    assert_eq!(usage_update["params"]["payload"]["trigger"], "Manual");
+    let active_state_update = daemon.read_message();
+    assert_eq!(active_state_update["params"]["topic"], "active_state.updated");
+
+    daemon.shutdown();
+}
+
+#[test]
+fn daemon_stdio_settings_update_persists_refresh_interval() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+
+    let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
+    daemon.send_request(
+        "1",
+        "initialize",
+        serde_json::json!({
+            "protocol_version": "1",
+            "client_info": { "name": "relay-cli-test", "version": "1.0.0" },
+            "capabilities": {
+                "supports_subscriptions": false,
+                "supports_health_updates": false
+            }
+        }),
+    );
+    let _ = daemon.read_message();
+
+    daemon.send_request(
+        "2",
+        "relay/settings/update",
+        serde_json::json!({
+            "app": {
+                "refresh_interval_seconds": 120
+            }
+        }),
+    );
+    let updated = daemon.read_message();
+    assert_eq!(updated["id"], "2");
+    assert_eq!(updated["result"]["app"]["refresh_interval_seconds"], 120);
+
+    daemon.send_request("3", "relay/settings/get", serde_json::json!({}));
+    let loaded = daemon.read_message();
+    assert_eq!(loaded["id"], "3");
+    assert_eq!(loaded["result"]["app"]["refresh_interval_seconds"], 120);
+
+    daemon.shutdown();
+}
+
+#[test]
+fn daemon_stdio_rejects_malformed_json_requests() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+
+    let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
+    daemon.send_raw("{not-json");
+    let error = daemon.read_message();
+    assert!(error.get("id").is_none() || error["id"].is_null());
+    assert_eq!(error["error"]["code"], -32600);
+
+    daemon.shutdown();
 }
