@@ -105,13 +105,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func statusButtonImage() -> NSImage? {
-        guard let image = NSImage(systemSymbolName: presenter.symbolName, accessibilityDescription: nil) else {
-            return nil
-        }
-
-        image.isTemplate = true
-        image.size = NSSize(width: 14, height: 14)
-        return image
+        MenuBarUsageIconRenderer.makeImage(usage: model.usage)
     }
 
     private func rebuildMenu() {

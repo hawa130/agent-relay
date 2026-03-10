@@ -35,17 +35,6 @@ public final class RelayAppModel: ObservableObject {
         activeProfile?.nickname ?? "Relay"
     }
 
-    public var menuBarSymbol: String {
-        switch status?.activeState.lastSwitchResult {
-        case .success:
-            return "bolt.circle.fill"
-        case .failed:
-            return "exclamationmark.triangle.fill"
-        case .notRun, .none:
-            return "bolt.circle"
-        }
-    }
-
     var activeProfileId: String? {
         status?.activeState.activeProfileId
     }

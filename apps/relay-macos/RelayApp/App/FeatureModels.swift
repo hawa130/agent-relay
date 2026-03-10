@@ -137,10 +137,6 @@ struct MenuBarPresenter {
         session.menuBarTitle
     }
 
-    var symbolName: String {
-        session.menuBarSymbol
-    }
-
     var currentCardSubtitle: String {
         if session.isRefreshing {
             return "Refreshing…"
