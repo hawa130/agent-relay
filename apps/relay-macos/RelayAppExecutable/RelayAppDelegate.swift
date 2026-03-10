@@ -16,8 +16,10 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
             ProfilesSettingsPaneView(model: self.profilesPaneModel)
         )
     )
-    private lazy var settingsWindowController = SettingsWindowController(
+    private lazy var settingsWindowController = RelayWindowController(
+        windowID: .settings,
         title: RelayWindowID.settings.title,
+        style: .settings,
         rootView: AnyView(
             SettingsPaneView(model: self.settingsPaneModel)
         )

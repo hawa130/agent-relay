@@ -123,35 +123,3 @@ class RelayWindowController: NSWindowController, NSWindowDelegate {
         _ = notification
     }
 }
-
-@MainActor
-final class SettingsWindowController: RelayWindowController, NSToolbarDelegate {
-    init(
-        title: String,
-        rootView: AnyView
-    ) {
-        super.init(
-            windowID: .settings,
-            title: title,
-            style: .settings,
-            rootView: rootView
-        )
-
-        let toolbar = NSToolbar(identifier: "relay.settings.toolbar")
-        toolbar.delegate = self
-        toolbar.displayMode = .iconOnly
-        toolbar.allowsUserCustomization = false
-        toolbar.autosavesConfiguration = false
-        window?.toolbar = toolbar
-    }
-
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        _ = toolbar
-        return []
-    }
-
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        _ = toolbar
-        return []
-    }
-}

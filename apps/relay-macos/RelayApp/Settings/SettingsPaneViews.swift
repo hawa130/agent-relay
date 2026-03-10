@@ -16,6 +16,7 @@ public struct SettingsPaneView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .navigationTitle(titleText)
+        .toolbar(removing: .sidebarToggle)
     }
 
     private var sidebar: some View {
