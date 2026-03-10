@@ -54,6 +54,7 @@ The command surface is intentionally shallow:
 ### Store
 
 - SQLite stores durable relational state such as profiles, settings, switch history, failure events, and linked provider identities.
+- `relay-core::store` uses SeaORM entities and embedded migrations for durable schema management.
 - File-backed caches store active state and usage snapshots for low-latency reads and reduced migration overhead.
 - Snapshot directories store rollback assets for switch transactions.
 
@@ -92,7 +93,7 @@ Use SQLite for durable truth and keep file-backed state limited to caches or ope
 
 1. Resolve paths from environment or home directory.
 2. Ensure the Relay home layout exists.
-3. Open stores and run schema migration bootstrap.
+3. Open stores and run embedded SeaORM migration bootstrap.
 4. Execute the requested use-case.
 
 ### Profile Mutation
@@ -124,7 +125,7 @@ Use SQLite for durable truth and keep file-backed state limited to caches or ope
 ## Testing Strategy
 
 - `relay-core::models`: serde round-trip and protocol tests
-- `relay-core::store`: SQLite migration/repository tests and state-file tests
+- `relay-core::store`: SeaORM migration/repository tests and state-file tests
 - `relay-core::services`: service-level tests with temp stores and fake adapters
 - `relay-cli`: command parsing, JSON contract, and integration smoke tests
 - `relay-macos`: Swift decoding and CLI client integration tests

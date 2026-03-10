@@ -8,7 +8,7 @@ use chrono::{DateTime, Duration, Utc};
 
 const SNAPSHOT_STALE_AFTER_MINUTES: i64 = 15;
 
-pub fn build_active(
+pub async fn build_active(
     store: &SqliteStore,
     usage_store: &FileUsageStore,
     provider: &dyn UsageProvider,
@@ -25,9 +25,10 @@ pub fn build_active(
         source_mode,
         allow_cache_writes,
     )
+    .await
 }
 
-pub fn refresh_profile(
+pub async fn refresh_profile(
     store: &SqliteStore,
     usage_store: &FileUsageStore,
     provider: &dyn UsageProvider,
@@ -41,8 +42,8 @@ pub fn refresh_profile(
     for current in providers {
         let snapshot = match current {
             Provider::Local => provider.collect_local_usage(target_profile, active_profile)?,
-            Provider::WebEnhanced => provider.collect_remote_usage(store, target_profile)?,
-            Provider::Fallback => collect_fallback_snapshot(store, target_profile)?,
+            Provider::WebEnhanced => provider.collect_remote_usage(store, target_profile).await?,
+            Provider::Fallback => collect_fallback_snapshot(store, target_profile).await?,
         };
 
         if let Some(mut snapshot) = snapshot {
@@ -155,14 +156,14 @@ fn maybe_note_fallback(snapshot: &mut UsageSnapshot, source_mode: UsageSourceMod
     }
 }
 
-fn collect_fallback_snapshot(
+async fn collect_fallback_snapshot(
     store: &SqliteStore,
     profile: Option<&Profile>,
 ) -> Result<Option<UsageSnapshot>, RelayError> {
     let Some(profile) = profile else {
         return Ok(None);
     };
-    let mut events = store.list_failure_events(100)?;
+    let mut events = store.list_failure_events(100).await?;
     events.retain(|event| event.profile_id.as_deref() == Some(profile.id.as_str()));
     let Some(event) = events.into_iter().max_by_key(|event| event.created_at) else {
         return Ok(None);
@@ -324,6 +325,7 @@ mod tests {
         remote: Option<UsageSnapshot>,
     }
 
+    #[async_trait::async_trait(?Send)]
     impl UsageProvider for FakeUsageProvider {
         fn collect_local_usage(
             &self,
@@ -333,7 +335,7 @@ mod tests {
             Ok(self.local.clone())
         }
 
-        fn collect_remote_usage(
+        async fn collect_remote_usage(
             &self,
             _store: &SqliteStore,
             _target_profile: Option<&crate::models::Profile>,
@@ -371,11 +373,11 @@ mod tests {
         }
     }
 
-    #[test]
-    fn builds_local_usage_snapshot_from_profile_home() {
+    #[tokio::test]
+    async fn builds_local_usage_snapshot_from_profile_home() {
         let temp = tempdir().expect("tempdir");
         let relay_db = temp.path().join("relay.db");
-        let store = SqliteStore::new(&relay_db).expect("store");
+        let store = SqliteStore::new(&relay_db).await.expect("store");
         let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
         let inactive_home = temp.path().join("inactive");
         make_home(&inactive_home, "inactive", 0);
@@ -391,6 +393,7 @@ mod tests {
             UsageSourceMode::Local,
             true,
         )
+        .await
         .expect("usage");
 
         assert_eq!(snapshot.source, UsageSource::Local);
@@ -399,11 +402,11 @@ mod tests {
         assert_eq!(snapshot.weekly.used_percent, Some(12.0));
     }
 
-    #[test]
-    fn auto_mode_prefers_web_enhanced_usage_when_available() {
+    #[tokio::test]
+    async fn auto_mode_prefers_web_enhanced_usage_when_available() {
         let temp = tempdir().expect("tempdir");
         let relay_db = temp.path().join("relay.db");
-        let store = SqliteStore::new(&relay_db).expect("store");
+        let store = SqliteStore::new(&relay_db).await.expect("store");
         let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
         let home = temp.path().join("home");
         make_home(&home, "home", 0);
@@ -422,17 +425,18 @@ mod tests {
             UsageSourceMode::Auto,
             true,
         )
+        .await
         .expect("snapshot");
 
         assert_eq!(snapshot.source, UsageSource::WebEnhanced);
         assert_eq!(snapshot.message, None);
     }
 
-    #[test]
-    fn auto_mode_notes_when_web_enhanced_falls_back_to_local() {
+    #[tokio::test]
+    async fn auto_mode_notes_when_web_enhanced_falls_back_to_local() {
         let temp = tempdir().expect("tempdir");
         let relay_db = temp.path().join("relay.db");
-        let store = SqliteStore::new(&relay_db).expect("store");
+        let store = SqliteStore::new(&relay_db).await.expect("store");
         let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
         let home = temp.path().join("home");
         make_home(&home, "home", 0);
@@ -451,6 +455,7 @@ mod tests {
             UsageSourceMode::Auto,
             true,
         )
+        .await
         .expect("snapshot");
 
         assert_eq!(snapshot.source, UsageSource::Local);
@@ -460,11 +465,11 @@ mod tests {
         );
     }
 
-    #[test]
-    fn auto_mode_skips_stale_web_snapshot_and_uses_local() {
+    #[tokio::test]
+    async fn auto_mode_skips_stale_web_snapshot_and_uses_local() {
         let temp = tempdir().expect("tempdir");
         let relay_db = temp.path().join("relay.db");
-        let store = SqliteStore::new(&relay_db).expect("store");
+        let store = SqliteStore::new(&relay_db).await.expect("store");
         let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
         let home = temp.path().join("home");
         make_home(&home, "home", 0);
@@ -489,6 +494,7 @@ mod tests {
             UsageSourceMode::Auto,
             true,
         )
+        .await
         .expect("snapshot");
 
         assert_eq!(snapshot.source, UsageSource::Local);
@@ -516,11 +522,11 @@ mod tests {
         );
     }
 
-    #[test]
-    fn falls_back_to_failure_events_without_auto_switch() {
+    #[tokio::test]
+    async fn falls_back_to_failure_events_without_auto_switch() {
         let temp = tempdir().expect("tempdir");
         let relay_db = temp.path().join("relay.db");
-        let store = SqliteStore::new(&relay_db).expect("store");
+        let store = SqliteStore::new(&relay_db).await.expect("store");
         let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
         let home = temp.path().join("fallback");
         fs::create_dir_all(&home).expect("home");
@@ -533,6 +539,7 @@ mod tests {
                 FailureReason::SessionExhausted,
                 "session exhausted",
             )
+            .await
             .expect("failure event");
 
         let snapshot = refresh_profile(
@@ -544,6 +551,7 @@ mod tests {
             UsageSourceMode::Local,
             true,
         )
+        .await
         .expect("snapshot");
 
         assert_eq!(snapshot.source, UsageSource::Fallback);
@@ -551,11 +559,11 @@ mod tests {
         assert!(!snapshot.can_auto_switch);
     }
 
-    #[test]
-    fn lists_snapshots_for_all_profiles() {
+    #[tokio::test]
+    async fn lists_snapshots_for_all_profiles() {
         let temp = tempdir().expect("tempdir");
         let relay_db = temp.path().join("relay.db");
-        let store = SqliteStore::new(&relay_db).expect("store");
+        let store = SqliteStore::new(&relay_db).await.expect("store");
         let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
         let active_home = temp.path().join("active");
         let inactive_home = temp.path().join("inactive");
@@ -573,6 +581,7 @@ mod tests {
             UsageSourceMode::Local,
             true,
         )
+        .await
         .expect("active usage");
         let _ = refresh_profile(
             &store,
@@ -583,6 +592,7 @@ mod tests {
             UsageSourceMode::Local,
             true,
         )
+        .await
         .expect("inactive usage");
 
         let snapshots = list_profile_snapshots(
@@ -604,11 +614,11 @@ mod tests {
         );
     }
 
-    #[test]
-    fn persists_unavailable_snapshot_for_profile_refresh() {
+    #[tokio::test]
+    async fn persists_unavailable_snapshot_for_profile_refresh() {
         let temp = tempdir().expect("tempdir");
         let relay_db = temp.path().join("relay.db");
-        let store = SqliteStore::new(&relay_db).expect("store");
+        let store = SqliteStore::new(&relay_db).await.expect("store");
         let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
         let home = temp.path().join("missing-usage");
         fs::create_dir_all(&home).expect("home");
@@ -625,6 +635,7 @@ mod tests {
             UsageSourceMode::Local,
             true,
         )
+        .await
         .expect("refresh");
         let cached = load_profile_snapshot(&usage_store, &profile).expect("cached");
 
@@ -636,11 +647,11 @@ mod tests {
         assert_eq!(cached.message, refreshed.message);
     }
 
-    #[test]
-    fn inactive_profile_without_agent_home_does_not_read_active_live_usage() {
+    #[tokio::test]
+    async fn inactive_profile_without_agent_home_does_not_read_active_live_usage() {
         let temp = tempdir().expect("tempdir");
         let relay_db = temp.path().join("relay.db");
-        let store = SqliteStore::new(&relay_db).expect("store");
+        let store = SqliteStore::new(&relay_db).await.expect("store");
         let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
         let active_home = temp.path().join("active");
         make_home(&active_home, "active", 0);
@@ -674,6 +685,7 @@ mod tests {
             UsageSourceMode::Local,
             true,
         )
+        .await
         .expect("refresh");
 
         assert_eq!(snapshot.profile_id.as_deref(), Some("p_inactive"));

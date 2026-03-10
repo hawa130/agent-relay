@@ -3,14 +3,14 @@ use crate::models::{ActiveState, AppSettings, RelayError, StatusReport};
 use crate::platform::RelayPaths;
 use crate::store::SqliteStore;
 
-pub fn build(
+pub async fn build(
     paths: &RelayPaths,
     store: &SqliteStore,
     active_state: ActiveState,
     settings: AppSettings,
     adapter: &dyn AgentAdapter,
 ) -> Result<StatusReport, RelayError> {
-    let profiles = store.list_profiles()?;
+    let profiles = store.list_profiles().await?;
 
     Ok(StatusReport {
         relay_home: paths.relay_home.to_string_lossy().into_owned(),

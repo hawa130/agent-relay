@@ -20,7 +20,7 @@ use std::time::{Duration, Instant};
 const CODEX_LOGIN_TIMEOUT_SECS: u64 = 300;
 const CODEX_LOGIN_POLL_MILLIS: u64 = 250;
 
-pub(crate) fn import_profile(
+pub(crate) async fn import_profile(
     adapter: &CodexAdapter,
     store: &SqliteStore,
     paths: &RelayPaths,
@@ -46,19 +46,21 @@ pub(crate) fn import_profile(
         agent_home: Some(snapshot_dir),
         auth_mode: AuthMode::ConfigFilesystem,
     };
-    let profile = profile_service::add_profile(store, adapter, record)?;
+    let profile = profile_service::add_profile(store, adapter, record).await?;
 
     if let Some(identity) = live_identity {
-        let _ = store.upsert_probe_identity(&ProfileProbeIdentity {
-            profile_id: profile.id.clone(),
-            ..identity
-        });
+        let _ = store
+            .upsert_probe_identity(&ProfileProbeIdentity {
+                profile_id: profile.id.clone(),
+                ..identity
+            })
+            .await;
     }
 
     Ok(profile)
 }
 
-pub(crate) fn login_profile(
+pub(crate) async fn login_profile(
     adapter: &CodexAdapter,
     store: &SqliteStore,
     profiles_dir: &Path,
@@ -74,24 +76,28 @@ pub(crate) fn login_profile(
     adapter.import_live_profile(&snapshot_dir)?;
     copy_login_auth(&login_home, &snapshot_dir)?;
 
-    let profile = store.add_profile(AddProfileRecord {
-        agent: AgentKind::Codex,
-        nickname: nickname.unwrap_or_else(|| {
-            identity
-                .email()
-                .map(ToOwned::to_owned)
-                .unwrap_or_else(|| format!("Codex {}", Utc::now().format("%Y%m%d-%H%M%S")))
-        }),
-        priority,
-        config_path: Some(snapshot_dir.join("config.toml")),
-        agent_home: Some(snapshot_dir),
-        auth_mode: AuthMode::ConfigFilesystem,
-    })?;
+    let profile = store
+        .add_profile(AddProfileRecord {
+            agent: AgentKind::Codex,
+            nickname: nickname.unwrap_or_else(|| {
+                identity
+                    .email()
+                    .map(ToOwned::to_owned)
+                    .unwrap_or_else(|| format!("Codex {}", Utc::now().format("%Y%m%d-%H%M%S")))
+            }),
+            priority,
+            config_path: Some(snapshot_dir.join("config.toml")),
+            agent_home: Some(snapshot_dir),
+            auth_mode: AuthMode::ConfigFilesystem,
+        })
+        .await?;
 
-    let probe_identity = store.upsert_probe_identity(&ProfileProbeIdentity {
-        profile_id: profile.id.clone(),
-        ..identity
-    })?;
+    let probe_identity = store
+        .upsert_probe_identity(&ProfileProbeIdentity {
+            profile_id: profile.id.clone(),
+            ..identity
+        })
+        .await?;
 
     Ok(AgentLinkResult {
         profile,
@@ -100,7 +106,7 @@ pub(crate) fn login_profile(
     })
 }
 
-pub(crate) fn relink_profile(
+pub(crate) async fn relink_profile(
     adapter: &CodexAdapter,
     store: &SqliteStore,
     profile: &Profile,
@@ -110,7 +116,7 @@ pub(crate) fn relink_profile(
         copy_login_auth(live_home, Path::new(agent_home))?;
     }
     let identity = load_probe_identity_from_home(&profile.id, live_home)?;
-    store.upsert_probe_identity(&identity)
+    store.upsert_probe_identity(&identity).await
 }
 
 fn prepare_login_home() -> Result<PathBuf, RelayError> {

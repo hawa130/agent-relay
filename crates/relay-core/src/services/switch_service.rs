@@ -4,7 +4,7 @@ use crate::platform::RelayPaths;
 use crate::store::{FileLogStore, FileStateStore, SqliteStore, SwitchHistoryRecord};
 use chrono::{Duration, Utc};
 
-pub fn switch_to_profile(
+pub async fn switch_to_profile(
     store: &SqliteStore,
     state_store: &FileStateStore,
     log_store: &FileLogStore,
@@ -42,14 +42,17 @@ pub fn switch_to_profile(
                 last_error: None,
             };
             state_store.save(&next_state)?;
-            if let Err(error) = store.record_switch(SwitchHistoryRecord {
-                profile_id: Some(profile.id.clone()),
-                previous_profile_id: previous_profile_id.clone(),
-                outcome: SwitchOutcome::Success,
-                reason: Some("manual".into()),
-                checkpoint_id: Some(checkpoint.checkpoint_id.clone()),
-                rollback_performed: false,
-            }) {
+            if let Err(error) = store
+                .record_switch(SwitchHistoryRecord {
+                    profile_id: Some(profile.id.clone()),
+                    previous_profile_id: previous_profile_id.clone(),
+                    outcome: SwitchOutcome::Success,
+                    reason: Some("manual".into()),
+                    checkpoint_id: Some(checkpoint.checkpoint_id.clone()),
+                    rollback_performed: false,
+                })
+                .await
+            {
                 rollback_success_persistence(
                     adapter,
                     paths,
@@ -71,7 +74,7 @@ pub fn switch_to_profile(
             })
         }
         Err(error) => {
-            let settings = store.get_settings()?;
+            let settings = store.get_settings().await?;
             let now = Utc::now();
             let next_state = ActiveState {
                 active_profile_id: previous_profile_id.clone(),
@@ -81,19 +84,22 @@ pub fn switch_to_profile(
                 last_error: Some(error.to_string()),
             };
             state_store.save(&next_state)?;
-            if let Err(persist_error) = store.record_switch_failure(
-                SwitchHistoryRecord {
-                    profile_id: Some(profile.id.clone()),
-                    previous_profile_id,
-                    outcome: SwitchOutcome::Failed,
-                    reason: Some(error.to_string()),
-                    checkpoint_id: None,
-                    rollback_performed: true,
-                },
-                classify_failure_reason(&error),
-                error.to_string(),
-                Some(now + Duration::seconds(settings.cooldown_seconds)),
-            ) {
+            if let Err(persist_error) = store
+                .record_switch_failure(
+                    SwitchHistoryRecord {
+                        profile_id: Some(profile.id.clone()),
+                        previous_profile_id,
+                        outcome: SwitchOutcome::Failed,
+                        reason: Some(error.to_string()),
+                        checkpoint_id: None,
+                        rollback_performed: true,
+                    },
+                    classify_failure_reason(&error),
+                    error.to_string(),
+                    Some(now + Duration::seconds(settings.cooldown_seconds)),
+                )
+                .await
+            {
                 state_store.save(&current_state)?;
                 return Err(persist_error);
             }
@@ -136,15 +142,12 @@ mod tests {
     use crate::platform::RelayPaths;
     use crate::store::{FileLogStore, FileStateStore};
     use chrono::Utc;
+    use sea_orm::{ConnectionTrait, Database, DbBackend, Statement};
     use std::fs;
     use tempfile::tempdir;
 
-    #[cfg(unix)]
-    use std::os::unix::fs::PermissionsExt;
-
-    #[cfg(unix)]
-    #[test]
-    fn restores_live_files_and_state_when_switch_persistence_fails() {
+    #[tokio::test]
+    async fn restores_live_files_and_state_when_switch_persistence_fails() {
         let temp = tempdir().expect("tempdir");
         let relay_root = temp.path().join("relay");
         let live_home = temp.path().join("live");
@@ -158,7 +161,7 @@ mod tests {
 
         let paths = RelayPaths::from_root(relay_root);
         paths.ensure_layout().expect("layout");
-        let store = SqliteStore::new(&paths.db_path).expect("store");
+        let store = SqliteStore::new(&paths.db_path).await.expect("store");
         let state_store = FileStateStore::new(&paths.state_path);
         let log_store = FileLogStore::new(&paths.log_file);
         let adapter = crate::adapters::CodexAdapter::with_live_home(&live_home);
@@ -166,11 +169,20 @@ mod tests {
         let previous_state = ActiveState::default();
         state_store.save(&previous_state).expect("save state");
 
-        let mut permissions = fs::metadata(&paths.db_path)
-            .expect("db metadata")
-            .permissions();
-        permissions.set_mode(0o444);
-        fs::set_permissions(&paths.db_path, permissions).expect("readonly db");
+        let breaker = Database::connect(format!(
+            "sqlite://{}?mode=rwc",
+            paths.db_path.to_string_lossy()
+        ))
+        .await
+        .expect("open breaker db");
+        breaker
+            .execute(Statement::from_string(
+                DbBackend::Sqlite,
+                "DROP TABLE switch_history".to_string(),
+            ))
+            .await
+            .expect("drop switch_history");
+        drop(breaker);
 
         let profile = Profile {
             id: "p_new".into(),
@@ -192,7 +204,8 @@ mod tests {
         };
 
         let error = switch_to_profile(&store, &state_store, &log_store, &adapter, &paths, &profile)
-            .expect_err("switch should fail on readonly db");
+            .await
+            .expect_err("switch should fail when switch history persistence breaks");
         assert!(matches!(error, RelayError::Store(_)));
 
         let restored_state = state_store.load().expect("load state");

@@ -8,7 +8,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
-pub fn export_bundle(
+pub async fn export_bundle(
     paths: &RelayPaths,
     store: &SqliteStore,
     log_store: &FileLogStore,
@@ -28,14 +28,17 @@ pub fn export_bundle(
     write_json(&bundle_dir.join("status.json"), status)?;
     write_json(&bundle_dir.join("active_state.json"), active_state)?;
     write_json(&bundle_dir.join("usage.json"), usage)?;
-    write_json(&bundle_dir.join("profiles.json"), &store.list_profiles()?)?;
+    write_json(
+        &bundle_dir.join("profiles.json"),
+        &store.list_profiles().await?,
+    )?;
     write_json(
         &bundle_dir.join("events.json"),
-        &store.list_failure_events(100)?,
+        &store.list_failure_events(100).await?,
     )?;
     write_json(
         &bundle_dir.join("switch_history.json"),
-        &store.list_switch_history(100)?,
+        &store.list_switch_history(100).await?,
     )?;
     write_json(
         &bundle_dir.join("build.json"),

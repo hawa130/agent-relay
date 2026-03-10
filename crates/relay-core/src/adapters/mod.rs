@@ -7,11 +7,13 @@ use crate::models::{
 };
 use crate::platform::RelayPaths;
 use crate::store::SqliteStore;
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 pub use codex::CodexAdapter;
 
+#[async_trait(?Send)]
 pub trait AgentAdapter {
     fn kind(&self) -> AgentKind;
     fn binary_name(&self) -> &'static str;
@@ -21,14 +23,14 @@ pub trait AgentAdapter {
     fn managed_files(&self) -> Vec<String>;
     fn validate_profile(&self, profile: &Profile) -> Result<(), RelayError>;
     fn import_live_profile(&self, destination: &Path) -> Result<Vec<String>, RelayError>;
-    fn import_profile(
+    async fn import_profile(
         &self,
         store: &SqliteStore,
         paths: &RelayPaths,
         nickname: Option<String>,
         priority: i32,
     ) -> Result<Profile, RelayError>;
-    fn login_profile(
+    async fn login_profile(
         &self,
         store: &SqliteStore,
         profiles_dir: &Path,
@@ -36,7 +38,7 @@ pub trait AgentAdapter {
         priority: i32,
         mode: AgentLoginMode,
     ) -> Result<AgentLinkResult, RelayError>;
-    fn relink_profile(
+    async fn relink_profile(
         &self,
         store: &SqliteStore,
         profile: &Profile,
@@ -53,13 +55,14 @@ pub trait AgentAdapter {
     ) -> Result<(), RelayError>;
 }
 
+#[async_trait(?Send)]
 pub trait UsageProvider {
     fn collect_local_usage(
         &self,
         target_profile: Option<&Profile>,
         active_profile: Option<&Profile>,
     ) -> Result<Option<UsageSnapshot>, RelayError>;
-    fn collect_remote_usage(
+    async fn collect_remote_usage(
         &self,
         store: &SqliteStore,
         target_profile: Option<&Profile>,
