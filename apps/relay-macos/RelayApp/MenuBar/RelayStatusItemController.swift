@@ -250,7 +250,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
             title: title,
             percent: window.menuBarProgressPercent,
             percentLabel: "\(window.menuBarDisplayValue) used",
-            resetText: window.resetAt.map { "Resets \(preciseResetDescription(for: $0))" },
+            resetText: window.resetAt.map { "Resets \(preciseResetDescription(for: $0, roundsToHourWhenDaysPresent: id == "weekly"))" },
             detailLeftText: nil,
             detailRightText: nil,
             tint: window.status.menuBarTint
@@ -269,7 +269,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
                 sessionText: usageText(title: "Session", window: usage?.session),
                 sessionResetText: usage?.session.resetAt.map { "Resets \(preciseResetDescription(for: $0))" },
                 weeklyText: usageText(title: "Weekly", window: usage?.weekly),
-                weeklyResetText: usage?.weekly.resetAt.map { "Resets \(preciseResetDescription(for: $0))" },
+                weeklyResetText: usage?.weekly.resetAt.map { "Resets \(preciseResetDescription(for: $0, roundsToHourWhenDaysPresent: true))" },
                 footerText: presenter.profileFooterText(profile: profile, usage: usage),
                 symbolName: presenter.profileSymbolName(profile: profile, usage: usage, isActive: isActive),
                 isDimmed: !profile.enabled
@@ -302,7 +302,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         return "\(title) \(window.menuBarDisplayValue)"
     }
 
-    private func preciseResetDescription(for date: Date) -> String {
+    private func preciseResetDescription(for date: Date, roundsToHourWhenDaysPresent: Bool = false) -> String {
         let interval = date.timeIntervalSinceNow
 
         if interval <= 0 {
@@ -310,6 +310,19 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         }
 
         let totalMinutes = max(1, Int(ceil(interval / 60)))
+
+        if roundsToHourWhenDaysPresent && totalMinutes >= (24 * 60) {
+            let totalHours = (totalMinutes + 59) / 60
+            let days = totalHours / 24
+            let hours = totalHours % 24
+
+            if hours > 0 {
+                return "in \(days)d \(hours)h"
+            }
+
+            return "in \(days)d"
+        }
+
         let days = totalMinutes / (24 * 60)
         let hours = (totalMinutes % (24 * 60)) / 60
         let minutes = totalMinutes % 60
