@@ -38,7 +38,7 @@ public struct SettingsPaneView: View {
             }
         }
         .listStyle(.sidebar)
-        .frame(minWidth: 220, idealWidth: 260, maxWidth: 300, maxHeight: .infinity)
+        .frame(width: 200)
         .toolbar(removing: .sidebarToggle)
     }
 
@@ -46,7 +46,7 @@ public struct SettingsPaneView: View {
         Group {
             detailView(for: model.selectedItem)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .navigationSplitViewColumnWidth(500)
     }
 
     @ViewBuilder
