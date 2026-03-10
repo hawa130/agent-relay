@@ -159,11 +159,13 @@ public final class RelayAppModel: ObservableObject {
         do {
             let report = try await daemonClient.switchToProfile(profileId)
             selectProfile(profileId)
-            await refresh()
             await notificationService.post(
                 title: "Relay switched profile",
                 body: report.message
             )
+            Task { [weak self] in
+                await self?.refresh()
+            }
         } catch {
             lastErrorMessage = error.localizedDescription
             await notificationService.post(

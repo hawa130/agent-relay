@@ -9,85 +9,36 @@ public struct SettingsPaneView: View {
     }
 
     public var body: some View {
-        HStack(spacing: 0) {
+        NavigationSplitView {
             sidebar
-            Divider()
+        } detail: {
             detail
         }
-        .background(NativePreferencesTheme.Colors.paneBackground)
+        .navigationSplitViewStyle(.balanced)
+        .navigationTitle(titleText)
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Button {
-                            model.selectItem(.general)
-                        } label: {
-                            SettingsSidebarRow(
-                                title: "General",
-                                isSelected: model.selectedItem == .general
-                            ) {
-                                SettingsSidebarIconTile(isSelected: model.selectedItem == .general) {
-                                    Image(systemName: "gearshape")
-                                        .font(.system(size: 14, weight: .medium))
-                                        .foregroundStyle(
-                                            model.selectedItem == .general ? .white : .secondary
-                                        )
-                                }
-                            }
-                        }
-                        .buttonStyle(.plain)
-                    }
+        List(selection: selectedItemBinding) {
+            Label("General", systemImage: "gearshape")
+                .tag(SettingsSidebarSelection.general)
 
-                    if !model.agents.isEmpty {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Agents")
-                                .font(NativePreferencesTheme.Typography.sectionLabel)
-                                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-                                .textCase(.uppercase)
-                                .padding(.horizontal, 4)
-
-                            ForEach(model.agents) { descriptor in
-                                Button {
-                                    model.selectItem(.agent(descriptor.agent))
-                                } label: {
-                                    SettingsSidebarRow(
-                                        title: descriptor.title,
-                                        isSelected: model.selectedItem == .agent(descriptor.agent)
-                                    ) {
-                                        SettingsSidebarIconTile(
-                                            isSelected: model.selectedItem == .agent(descriptor.agent)
-                                        ) {
-                                            AgentBrandIcon(
-                                                descriptor: descriptor,
-                                                size: 16,
-                                                tint: model.selectedItem == .agent(descriptor.agent)
-                                                    ? .white
-                                                    : .secondary
-                                            )
-                                        }
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                            }
+            if !model.agents.isEmpty {
+                Section("Agents") {
+                    ForEach(model.agents) { descriptor in
+                        Label {
+                            Text(descriptor.title)
+                        } icon: {
+                            AgentBrandIcon(descriptor: descriptor, size: 16, tint: .secondary)
+                                .frame(width: 18, height: 18)
                         }
+                        .tag(SettingsSidebarSelection.agent(descriptor.agent))
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .topLeading)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(
-            minWidth: NativePreferencesTheme.Metrics.sidebarWidth,
-            idealWidth: NativePreferencesTheme.Metrics.sidebarWidth,
-            maxWidth: NativePreferencesTheme.Metrics.sidebarWidth + 12,
-            maxHeight: .infinity,
-            alignment: .topLeading
-        )
-        .background(NativePreferencesTheme.Colors.paneBackground)
+        .listStyle(.sidebar)
+        .frame(minWidth: 220, idealWidth: 260, maxWidth: 300, maxHeight: .infinity)
     }
 
     private var detail: some View {
@@ -108,7 +59,26 @@ public struct SettingsPaneView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(NativePreferencesTheme.Colors.paneBackground)
+    }
+
+    private var selectedItemBinding: Binding<SettingsSidebarSelection?> {
+        Binding(
+            get: { model.selectedItem },
+            set: { selection in
+                if let selection {
+                    model.selectItem(selection)
+                }
+            }
+        )
+    }
+
+    private var titleText: String {
+        switch model.selectedItem {
+        case .general:
+            return "General"
+        case let .agent(agent):
+            return AgentSettingsCatalog.descriptor(for: agent)?.title ?? "Settings"
+        }
     }
 }
 
@@ -192,8 +162,6 @@ private struct GeneralSettingsDetailView: View {
             }
         }
         .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .background(NativePreferencesTheme.Colors.paneBackground)
     }
 
     private var appVersion: String {
@@ -277,8 +245,6 @@ private struct AgentSettingsDetailView: View {
             }
         }
         .formStyle(.grouped)
-        .scrollContentBackground(.hidden)
-        .background(NativePreferencesTheme.Colors.paneBackground)
     }
 }
 
@@ -312,78 +278,6 @@ private struct SettingsDetailHeader<Accessory: View>: View {
 
             Spacer(minLength: 12)
         }
-    }
-}
-
-private struct SettingsSidebarRow<Leading: View>: View {
-    let title: String
-    let isSelected: Bool
-    let leading: Leading
-
-    init(
-        title: String,
-        isSelected: Bool,
-        @ViewBuilder leading: () -> Leading
-    ) {
-        self.title = title
-        self.isSelected = isSelected
-        self.leading = leading()
-    }
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 8) {
-            leading
-                .frame(width: 26, height: 26)
-
-            Text(title)
-                .font(.system(size: 13, weight: .regular, design: .rounded))
-
-            Spacer(minLength: 8)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(rowBackground, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .strokeBorder(rowBorder, lineWidth: isSelected ? 1 : 0.5)
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
-    }
-
-    private var rowBackground: Color {
-        if isSelected {
-            return Color.accentColor.opacity(0.14)
-        }
-        return NativePreferencesTheme.Colors.groupedBackground.opacity(0.55)
-    }
-
-    private var rowBorder: Color {
-        if isSelected {
-            return Color.accentColor.opacity(0.28)
-        }
-        return NativePreferencesTheme.Colors.sectionBorder.opacity(0.55)
-    }
-}
-
-private struct SettingsSidebarIconTile<Content: View>: View {
-    let isSelected: Bool
-    let content: Content
-
-    init(isSelected: Bool = false, @ViewBuilder content: () -> Content) {
-        self.isSelected = isSelected
-        self.content = content()
-    }
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isSelected ? Color.accentColor : Color.secondary.opacity(0.12))
-                .frame(width: 26, height: 26)
-
-            content
-        }
-        .frame(width: 26, height: 26)
     }
 }
 
