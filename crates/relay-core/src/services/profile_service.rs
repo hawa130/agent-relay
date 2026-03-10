@@ -4,7 +4,7 @@ use crate::models::RelayError;
 use crate::store::{AddProfileRecord, ProfileUpdateRecord, SqliteStore};
 use chrono::Utc;
 
-pub fn add_profile(
+pub async fn add_profile(
     store: &SqliteStore,
     adapter: &dyn AgentAdapter,
     record: AddProfileRecord,
@@ -16,12 +16,12 @@ pub fn add_profile(
     let candidate = candidate_profile_from_add_record(&record);
     adapter.validate_profile(&candidate)?;
 
-    let profile = store.add_profile(record)?;
+    let profile = store.add_profile(record).await?;
     adapter.validate_profile(&profile)?;
     Ok(profile)
 }
 
-pub fn edit_profile(
+pub async fn edit_profile(
     store: &SqliteStore,
     adapter: &dyn AgentAdapter,
     id: &str,
@@ -36,7 +36,7 @@ pub fn edit_profile(
         validate_nickname(nickname)?;
     }
 
-    let current = store.get_profile(id)?;
+    let current = store.get_profile(id).await?;
     let candidate = Profile {
         id: current.id.clone(),
         nickname: update.nickname.clone().unwrap_or(current.nickname.clone()),
@@ -87,21 +87,21 @@ pub fn edit_profile(
     )?;
     adapter.validate_profile(&candidate)?;
 
-    let profile = store.update_profile(id, update)?;
+    let profile = store.update_profile(id, update).await?;
     adapter.validate_profile(&profile)?;
     Ok(profile)
 }
 
-pub fn remove_profile(store: &SqliteStore, id: &str) -> Result<Profile, RelayError> {
+pub async fn remove_profile(store: &SqliteStore, id: &str) -> Result<Profile, RelayError> {
     if id.trim().is_empty() {
         return Err(RelayError::InvalidInput(
             "profile id must not be empty".into(),
         ));
     }
-    store.remove_profile(id)
+    store.remove_profile(id).await
 }
 
-pub fn set_profile_enabled(
+pub async fn set_profile_enabled(
     store: &SqliteStore,
     id: &str,
     enabled: bool,
@@ -111,7 +111,7 @@ pub fn set_profile_enabled(
             "profile id must not be empty".into(),
         ));
     }
-    store.set_enabled(id, enabled)
+    store.set_enabled(id, enabled).await
 }
 
 fn validate_nickname(nickname: &str) -> Result<(), RelayError> {

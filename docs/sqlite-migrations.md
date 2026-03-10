@@ -1,44 +1,38 @@
-# SQLite Schema Versioning
+# SQLite Migrations
 
-Relay uses SQLite `PRAGMA user_version` as the single schema version marker for `relay.db`.
+Relay manages SQLite schema changes through embedded SeaORM migrations in `relay-core`.
 
 ## Current Policy
 
-- Schema changes are additive and versioned in a single ordered migration chain.
-- `relay-core` owns migrations; callers do not run ad hoc SQL.
-- `SqliteStore::new` performs automatic bootstrap and migration before any service logic runs.
-- A Relay binary must refuse to open a database whose `user_version` is newer than the binary supports.
-- The schema version applies to the whole database, not per-table revisions.
+- `relay-core` owns the database schema, entities, and migration execution.
+- `SqliteStore::new` opens the database and runs pending SeaORM migrations before any service logic proceeds.
+- Relay no longer treats `PRAGMA user_version` as the source of truth for schema state. Migration state is stored in SeaORM's migration metadata table.
+- A read-only bootstrap path may open an existing database without running migrations.
 
-## Current Version
+## Current Baseline
 
-- `user_version = 5`
-- Version 1 creates:
+- The baseline migration creates:
   - `profiles`
   - `app_settings`
   - `switch_history`
   - `failure_events`
-- Version 2 adds the first `profile_probe_identities` table for linked remote account state.
-- Version 3 replaces that probe identity table with the current provider-generic credentials and metadata envelope.
-- Version 4 rebuilds the main tables onto the current baseline schema used by the CLI and app.
-- Version 5 adds the `agent_settings` table and migrates legacy Codex settings into agent-scoped storage.
+  - `profile_probe_identities`
+  - `agent_settings`
+- Future schema changes should be added as new embedded SeaORM migrations under `crates/relay-core/src/store/migrations`.
 
 ## Migration Rules
 
-When introducing schema version `N + 1`:
+When introducing a new schema revision:
 
-1. Add a new migration step in `crates/relay-core/src/store/profile_store.rs`.
-2. Keep prior migrations intact; do not rewrite old steps after release.
-3. Prefer additive changes and explicit backfills inside one transaction.
-4. Update `CURRENT_SCHEMA_VERSION`.
+1. Add a new SeaORM migration module in `crates/relay-core/src/store/migrations`.
+2. Keep the migration embedded in `relay-core`; do not add a separate migration crate.
+3. Update or add the matching SeaORM entity definitions under `crates/relay-core/src/store/entities`.
+4. Run migrations transactionally during bootstrap and keep caller-visible failure behavior stable.
 5. Add or update tests for:
-   - bootstrap on a fresh database
-   - upgrade from the previous released schema
-   - refusal to open a newer unknown schema
-6. Document the change in release notes if the upgrade affects rollback, exports, or CLI compatibility.
+   - fresh bootstrap on an empty database
+   - refusal or safe handling of unsupported database states
 
 ## Operational Notes
 
-- Existing pre-versioned local databases are treated as legacy version 0 and are stamped to version 1 during bootstrap.
-- Relay does not currently provide a manual downgrade path.
-- If a migration fails, startup must fail before any user-visible mutation proceeds.
+- Relay assumes the current embedded migration baseline during development.
+- If migration bootstrap fails, startup must fail before any user-visible mutation proceeds.

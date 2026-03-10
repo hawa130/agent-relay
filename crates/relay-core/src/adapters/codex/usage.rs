@@ -5,8 +5,8 @@ use crate::models::{
 };
 use crate::store::SqliteStore;
 use chrono::{DateTime, Duration, TimeZone, Utc};
-use reqwest::blocking::{Client, ClientBuilder};
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
+use reqwest::{Client, ClientBuilder};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -46,17 +46,17 @@ pub(crate) fn collect_local(
     collect_session_snapshot(target_profile, &local_home)
 }
 
-pub(crate) fn collect_remote(
+pub(crate) async fn collect_remote(
     store: &SqliteStore,
     profile: Option<&Profile>,
 ) -> Result<Option<UsageSnapshot>, RelayError> {
     let Some(profile) = profile else {
         return Ok(None);
     };
-    let Some(identity) = store.get_probe_identity(&profile.id)? else {
+    let Some(identity) = store.get_probe_identity(&profile.id).await? else {
         return Ok(None);
     };
-    let snapshot = fetch_official_usage_snapshot(store, profile, identity)?;
+    let snapshot = fetch_official_usage_snapshot(store, profile, identity).await?;
     Ok(Some(snapshot))
 }
 
@@ -231,19 +231,19 @@ fn collect_session_snapshot(
     Ok(Some(snapshot))
 }
 
-fn fetch_official_usage_snapshot(
+async fn fetch_official_usage_snapshot(
     store: &SqliteStore,
     profile: &Profile,
     mut identity: ProfileProbeIdentity,
 ) -> Result<UsageSnapshot, RelayError> {
-    let mut response = official_usage_request(&identity)?;
+    let mut response = official_usage_request(&identity).await?;
     if should_refresh_official_response(&response)
         && identity
             .refresh_token()
             .is_some_and(|token| !token.is_empty())
     {
-        identity = refresh_probe_identity(store, &identity)?;
-        response = official_usage_request(&identity)?;
+        identity = refresh_probe_identity(store, &identity).await?;
+        response = official_usage_request(&identity).await?;
     }
     if response.http_code != 200 {
         return Ok(remote_error_snapshot(profile));
@@ -275,7 +275,7 @@ fn should_refresh_official_response(response: &HttpResponse) -> bool {
     matches!(response.http_code, 401 | 403)
 }
 
-fn refresh_probe_identity(
+async fn refresh_probe_identity(
     store: &SqliteStore,
     identity: &ProfileProbeIdentity,
 ) -> Result<ProfileProbeIdentity, RelayError> {
@@ -297,7 +297,8 @@ fn refresh_probe_identity(
         reqwest::Method::POST,
         headers,
         Some(body),
-    )?;
+    )
+    .await?;
     if response.http_code != 200 {
         return Err(RelayError::ExternalCommand(format!(
             "official refresh returned HTTP {}",
@@ -326,10 +327,12 @@ fn refresh_probe_identity(
         Utc::now().to_rfc3339(),
     );
 
-    store.upsert_probe_identity(&updated)
+    store.upsert_probe_identity(&updated).await
 }
 
-fn official_usage_request(identity: &ProfileProbeIdentity) -> Result<HttpResponse, RelayError> {
+async fn official_usage_request(
+    identity: &ProfileProbeIdentity,
+) -> Result<HttpResponse, RelayError> {
     let access_token = identity
         .access_token()
         .ok_or_else(|| RelayError::Validation("probe identity is missing access_token".into()))?;
@@ -347,10 +350,10 @@ fn official_usage_request(identity: &ProfileProbeIdentity) -> Result<HttpRespons
         header_value(account_id)?,
     );
 
-    run_http_json(&official_usage_url(), reqwest::Method::GET, headers, None)
+    run_http_json(&official_usage_url(), reqwest::Method::GET, headers, None).await
 }
 
-fn run_http_json(
+async fn run_http_json(
     url: &str,
     method: reqwest::Method,
     headers: HeaderMap,
@@ -372,10 +375,12 @@ fn run_http_json(
 
     let response = request
         .send()
+        .await
         .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
     let http_code = response.status().as_u16();
     let body = response
         .text()
+        .await
         .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
 
     Ok(HttpResponse { http_code, body })

@@ -11,6 +11,7 @@ use crate::models::{
 };
 use crate::platform::{RelayPaths, find_binary};
 use crate::store::SqliteStore;
+use async_trait::async_trait;
 use chrono::Utc;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -215,6 +216,7 @@ impl CodexAdapter {
     }
 }
 
+#[async_trait(?Send)]
 impl AgentAdapter for CodexAdapter {
     fn kind(&self) -> AgentKind {
         AgentKind::Codex
@@ -287,17 +289,17 @@ impl AgentAdapter for CodexAdapter {
         Ok(copied)
     }
 
-    fn import_profile(
+    async fn import_profile(
         &self,
         store: &SqliteStore,
         paths: &RelayPaths,
         nickname: Option<String>,
         priority: i32,
     ) -> Result<Profile, RelayError> {
-        login::import_profile(self, store, paths, nickname, priority)
+        login::import_profile(self, store, paths, nickname, priority).await
     }
 
-    fn login_profile(
+    async fn login_profile(
         &self,
         store: &SqliteStore,
         profiles_dir: &Path,
@@ -305,15 +307,15 @@ impl AgentAdapter for CodexAdapter {
         priority: i32,
         mode: AgentLoginMode,
     ) -> Result<AgentLinkResult, RelayError> {
-        login::login_profile(self, store, profiles_dir, nickname, priority, mode)
+        login::login_profile(self, store, profiles_dir, nickname, priority, mode).await
     }
 
-    fn relink_profile(
+    async fn relink_profile(
         &self,
         store: &SqliteStore,
         profile: &Profile,
     ) -> Result<ProfileProbeIdentity, RelayError> {
-        login::relink_profile(self, store, profile)
+        login::relink_profile(self, store, profile).await
     }
 
     fn activate(
@@ -344,6 +346,7 @@ fn live_codex_home() -> Option<PathBuf> {
         .or_else(default_codex_home)
 }
 
+#[async_trait(?Send)]
 impl UsageProvider for CodexAdapter {
     fn collect_local_usage(
         &self,
@@ -353,12 +356,12 @@ impl UsageProvider for CodexAdapter {
         usage::collect_local(self, target_profile, active_profile)
     }
 
-    fn collect_remote_usage(
+    async fn collect_remote_usage(
         &self,
         store: &SqliteStore,
         target_profile: Option<&Profile>,
     ) -> Result<Option<UsageSnapshot>, RelayError> {
-        usage::collect_remote(store, target_profile)
+        usage::collect_remote(store, target_profile).await
     }
 }
 

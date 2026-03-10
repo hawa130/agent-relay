@@ -57,11 +57,13 @@ RELAY_HOME=/tmp/relay-dev CODEX_HOME=/tmp/codex-dev \
   cargo run -p relay-cli --bin relay -- doctor --json
 ```
 
+`relay-cli` now runs on a Tokio entrypoint because `relay-core` uses SeaORM's async database API and reuses a single store connection per app bootstrap.
+
 ## Test Strategy
 
 Current coverage includes:
 
-- unit tests for store/state/adapters
+- unit tests for SeaORM store/state/adapters
 - integration tests for CLI profile CRUD
 - integration tests for import, switch, rollback, events, logs, and diagnostics
 

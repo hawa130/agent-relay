@@ -79,3 +79,9 @@ impl From<std::io::Error> for RelayError {
         Self::Io(value.to_string())
     }
 }
+
+impl From<sea_orm::DbErr> for RelayError {
+    fn from(value: sea_orm::DbErr) -> Self {
+        Self::Store(value.to_string())
+    }
+}
