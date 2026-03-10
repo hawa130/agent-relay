@@ -47,33 +47,52 @@ relay doctor --json
 relay status --json
 ```
 
+Settings:
+
+```bash
+relay settings show --json
+relay codex settings show --json
+relay codex settings set --json --input-json settings.json
+```
+
 Profile management:
 
 ```bash
-relay profiles list --json
-relay profiles add codex --nickname work --agent-home /path/to/codex-home --json
-relay profiles edit <id> --nickname updated --json
-relay profiles enable <id> --json
-relay profiles disable <id> --json
-relay profiles remove <id> --json
-relay profiles import codex --nickname imported-live --json
+relay list --json
+relay show --json
+relay show <id> --json
+relay edit <id> --json --input-json profile.json
+relay enable <id> --json
+relay disable <id> --json
+relay remove <id> --json
+
+relay codex add --json --input-json codex-profile.json
+relay codex import --nickname imported-live --json
+relay codex login --nickname work --json
+relay codex relink <id> --json
 ```
 
-Switching:
+Switching and usage:
 
 ```bash
+relay switch --json
 relay switch <id> --json
-relay switch next --json
-relay auto-switch enable --json
-relay auto-switch disable --json
+relay refresh --json
+relay refresh <id> --json
+relay refresh --all --json
+
+relay autoswitch show --json
+relay autoswitch enable --json
+relay autoswitch disable --json
+relay autoswitch set --json --input-json autoswitch.json
 ```
 
 Observability:
 
 ```bash
-relay events list --limit 20 --json
-relay logs tail --lines 50 --json
-relay diagnostics export --json
+relay activity events list --limit 20 --json
+relay activity logs tail --lines 50 --json
+relay activity diagnostics export --json
 ```
 
 ## Troubleshooting
@@ -85,9 +104,9 @@ If `relay doctor --json` reports no live Codex home:
 
 If switching fails:
 
-- inspect `relay logs tail --json`
-- inspect `relay events list --json`
-- export a bundle with `relay diagnostics export --json`
+- inspect `relay activity logs tail --json`
+- inspect `relay activity events list --json`
+- export a bundle with `relay activity diagnostics export --json`
 
 If you want deterministic test runs:
 

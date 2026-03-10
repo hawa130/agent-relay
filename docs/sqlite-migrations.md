@@ -12,12 +12,16 @@ Relay uses SQLite `PRAGMA user_version` as the single schema version marker for 
 
 ## Current Version
 
-- `user_version = 1`
+- `user_version = 5`
 - Version 1 creates:
   - `profiles`
   - `app_settings`
   - `switch_history`
   - `failure_events`
+- Version 2 adds the first `profile_probe_identities` table for linked remote account state.
+- Version 3 replaces that probe identity table with the current provider-generic credentials and metadata envelope.
+- Version 4 rebuilds the main tables onto the current baseline schema used by the CLI and app.
+- Version 5 adds the `agent_settings` table and migrates legacy Codex settings into agent-scoped storage.
 
 ## Migration Rules
 

@@ -1,133 +1,130 @@
-# Relay V1 Engineering Architecture
+# Relay Engineering Architecture
 
 ## Goals
 
-- Keep the CLI as the only execution engine for profile management, switching, validation, and diagnostics.
-- Design the codebase so future Agent adapters can be added without rewriting storage, protocol, or UI integration.
-- Make every state mutation explicit, testable, and recoverable.
+- Keep the CLI as the only execution engine for profile management, switching, validation, usage refresh, and diagnostics.
+- Support additional agent providers without rewriting storage, protocol, or UI integration boundaries.
+- Make every live-state mutation explicit, testable, and recoverable.
 
-## Monorepo Layout
+## Repository Layout
 
 ```text
 apps/
   relay-cli/        # User-facing CLI entrypoint
-  relay-macos/      # Future native menu bar app; CLI client only
+  relay-macos/      # Native macOS control plane built on top of relay CLI JSON
 crates/
-  relay-core/       # Core library with modules for models, services, store, adapters, platform
+  relay-core/       # Core library with models, services, store, adapters, and platform modules
 docs/
   architecture.md
-  todo.md
+  install.md
+  development.md
 ```
 
 ## Layering Rules
 
 1. `apps/*` can depend on `relay-core`.
-2. `relay-core` is split by modules, not by tiny crates.
-3. `relay-core::adapters` contains agent-specific behavior only. It must not know about CLI parsing or UI concerns.
-4. `relay-core::store` owns persistence details. It should expose repository-style interfaces and avoid business policy.
-5. `relay-core::models` contains shared contracts, error codes, and JSON protocol types.
+2. `relay-core` stays modular inside one crate; do not split it into tiny crates without a real packaging boundary.
+3. `relay-core::adapters` owns provider-specific behavior only. It must not know about CLI parsing or Swift UI concerns.
+4. `relay-core::store` owns persistence details and exposes repository-style interfaces, not business policy.
+5. `relay-core::models` owns shared contracts, stable error codes, and JSON protocol types.
 
 ## Runtime Boundaries
 
 ### CLI
 
-- Parse commands and flags with `clap`.
-- Produce either human-readable output or stable JSON envelopes.
-- Convert internal errors into stable error codes for UI and scripts.
+- Parse commands and JSON input with `clap` and request models.
+- Produce human-readable output and stable `--json` output.
+- Convert internal failures into stable project error codes.
+
+The command surface is intentionally shallow:
+
+- top-level runtime commands: `doctor`, `status`, `list`, `show`, `edit`, `remove`, `enable`, `disable`, `switch`, `refresh`
+- grouped commands: `settings`, `autoswitch`, `activity`, `codex`
 
 ### Core Services
 
-- `doctor_service`: environment checks, adapter discovery, config-path inspection.
-- `profile_service`: CRUD, validation, enable/disable.
-- `status_service`: read current cached state and summarize runtime health.
-- `usage_service`: choose a usage provider, apply fallback logic, and cache usage snapshots.
-- `switch_service`: transactional activation, validation, rollback.
-- `policy_service`: next-profile selection, cooldown, auto-switch policy.
-- `diagnostics_service`: export logs, environment, redacted state.
+- `doctor_service`: environment checks, adapter discovery, config-path inspection
+- `profile_service`: CRUD, validation, enable/disable, profile summaries
+- `status_service`: current cached state and runtime health summaries
+- `usage_service`: usage refresh, source selection, fallback behavior, snapshot caching
+- `switch_service`: transactional activation, validation, rollback, checkpoint handling
+- `policy_service`: next-profile selection, cooldown, autoswitch policy
+- `diagnostics_service`: logs, exports, redacted environment snapshots
 
 ### Store
 
-- SQLite for durable relational data: profiles, settings, event history.
-- JSON files for cached active state, usage snapshots, and low-latency UI reads.
-- Snapshot directory for switch checkpoints and rollback assets.
+- SQLite stores durable relational state such as profiles, settings, switch history, failure events, and linked provider identities.
+- File-backed caches store active state and usage snapshots for low-latency reads and reduced migration overhead.
+- Snapshot directories store rollback assets for switch transactions.
 
 ### Platform
 
-- Resolve `RELAY_HOME`, `~/.relay`, and shared runtime paths.
-- Provide filesystem helpers for atomic writes and process execution.
-- Keep macOS/Linux-specific code isolated behind small modules. Agent home discovery belongs in adapters, not the shared platform layer.
+- Resolve `RELAY_HOME`, default runtime paths, and platform-specific filesystem locations.
+- Provide atomic-write and process-execution helpers.
+- Keep macOS/Linux-specific details isolated behind small modules.
 
-## Package Strategy
+### macOS Control Plane
 
-- Keep the repo at two Rust package levels for V1: `relay-cli` and `relay-core`.
-- Prefer directory modules inside `relay-core` over creating new crates.
-- Only split out another crate when there is a real independent release/test boundary, not just a conceptual boundary.
+- The SwiftUI app shells out to `relay`, sends JSON when needed, and decodes JSON responses.
+- It is a control plane only. It must not directly mutate Codex files or duplicate switch logic.
 
-## Data Model
+## State Model
 
-### Profiles
+### Durable SQLite State
 
-- `Profile`: durable account/profile record.
-- `AuthMode`: describes whether the profile is filesystem-backed, environment-backed, or keychain-backed.
-- `AgentKind`: currently only `Codex`, but modeled as an enum for expansion.
+- profiles
+- app settings
+- switch history
+- failure events
+- provider-linked probe identities
 
-### Active State
+### File-Backed Runtime State
 
-- Current active profile id.
-- Last switch timestamp and result.
-- Auto-switch enabled flag.
-- Last known validation state.
+- active profile cache
+- usage snapshot cache
+- rollback checkpoints and exports
 
-### Events
+Use SQLite for durable truth and keep file-backed state limited to caches or operational artifacts that benefit from simple local reads.
 
-- Failure reason.
-- Trigger source: manual, health-check, command failure.
-- Cooldown metadata and timestamps.
-
-## Service Flow
+## Service Flows
 
 ### Boot
 
-1. Resolve paths from env or home directory.
-2. Ensure Relay home layout exists.
-3. Open stores.
-4. Run requested use-case.
+1. Resolve paths from environment or home directory.
+2. Ensure the Relay home layout exists.
+3. Open stores and run schema migration bootstrap.
+4. Execute the requested use-case.
 
 ### Profile Mutation
 
-1. Validate user input.
-2. Persist to SQLite in a single transaction.
-3. Return a stable response envelope.
+1. Validate request input.
+2. Persist the change in one SQLite transaction.
+3. Update related caches only when required by the use-case.
+4. Return a stable response envelope or human summary.
 
 ### Switch Transaction
 
-1. Load target profile and validate static prerequisites.
-2. Create checkpoint and backup current live config.
-3. Write candidate config to temp files.
-4. Atomically replace live config.
+1. Load the target profile and validate prerequisites.
+2. Create a checkpoint of the live managed file set.
+3. Write candidate files through temp paths.
+4. Atomically replace the live managed files.
 5. Run post-switch validation.
-6. Commit state on success or rollback on failure.
+6. Commit state on success or rollback and emit failure state on error.
 
 ## Engineering Conventions
 
-- Every external command supports `--json`.
-- The CLI surface stays shallow: top-level runtime commands (`doctor`, `status`, `list`, `show`, `switch`, `refresh`) plus grouped maintenance commands (`settings`, `autoswitch`, `activity`, `codex`).
+- Every user-visible command supports `--json`.
+- Parameterized integrations should prefer JSON request payloads instead of ad hoc flag assembly.
 - Every user-visible failure maps to a stable `ErrorCode`.
 - No adapter is allowed to mutate project-local `.codex/`.
 - File writes that affect live agent config must be atomic and recoverable.
-- Tests should prefer temp directories and deterministic fixtures.
+- Shared infrastructure should stay agent-neutral where practical; provider-specific auth and usage semantics belong in adapters.
+- Tests should use temp directories and deterministic fixtures.
 
 ## Testing Strategy
 
-- `relay-core::models`: serde round-trip and protocol tests.
-- `relay-core::store`: SQLite repository tests and atomic state-file tests.
-- `relay-core::services`: service-level tests with temp stores and fake adapters.
-- `relay-cli`: command parsing and JSON output smoke tests.
-- Future: integration tests covering switch rollback against fixture directories.
-
-## Release Strategy
-
-- First milestone: a usable CLI with `doctor`, `status`, and profile CRUD.
-- Second milestone: transactional switching and rollback.
-- Third milestone: auto-switch and diagnostics.
-- Fourth milestone: macOS menu bar app built strictly on top of CLI JSON.
+- `relay-core::models`: serde round-trip and protocol tests
+- `relay-core::store`: SQLite migration/repository tests and state-file tests
+- `relay-core::services`: service-level tests with temp stores and fake adapters
+- `relay-cli`: command parsing, JSON contract, and integration smoke tests
+- `relay-macos`: Swift decoding and CLI client integration tests
