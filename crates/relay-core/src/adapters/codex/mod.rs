@@ -1,13 +1,14 @@
 mod auth;
 mod login;
+mod recover;
 mod settings;
 mod usage;
 
 use crate::adapters::{AgentAdapter, UsageProvider};
 use crate::app::AgentLoginMode;
 use crate::models::{
-    AgentKind, AgentLinkResult, Profile, ProfileProbeIdentity, RelayError, SwitchCheckpoint,
-    UsageSnapshot,
+    AgentKind, AgentLinkResult, Profile, ProfileProbeIdentity, ProfileRecoveryReport, RelayError,
+    SwitchCheckpoint, UsageSnapshot,
 };
 use crate::platform::{RelayPaths, find_binary};
 use crate::store::SqliteStore;
@@ -316,6 +317,14 @@ impl AgentAdapter for CodexAdapter {
         profile: &Profile,
     ) -> Result<ProfileProbeIdentity, RelayError> {
         login::relink_profile(self, store, profile).await
+    }
+
+    async fn recover_profiles(
+        &self,
+        store: &SqliteStore,
+        paths: &RelayPaths,
+    ) -> Result<ProfileRecoveryReport, RelayError> {
+        recover::recover_profiles(self, store, paths).await
     }
 
     fn activate(

@@ -69,6 +69,7 @@ relay remove <id> --json
 relay codex add --json --input-json codex-profile.json
 relay codex import --nickname imported-live --json
 relay codex login --nickname work --json
+relay codex recover --json
 relay codex relink <id> --json
 ```
 
@@ -111,6 +112,10 @@ If switching fails:
 If you want deterministic test runs:
 
 - set both `RELAY_HOME` and `CODEX_HOME` to temp directories
+
+If `relay.db` is lost but `profiles/` still contains saved Codex homes:
+
+- run `relay codex recover --json` to rebuild database profile records from those snapshots
 
 ## Additional References
 

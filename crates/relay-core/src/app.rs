@@ -2,8 +2,8 @@ use crate::adapters::AdapterRegistry;
 use crate::models::{
     AgentKind, AgentLinkResult, AppSettings, DiagnosticsExport, DoctorReport, FailureEvent,
     FailureReason, LogTail, Profile, ProfileDetail, ProfileListItem, ProfileProbeIdentity,
-    RelayError, StatusReport, SwitchReport, SystemStatusReport, UsageSnapshot, UsageSourceMode,
-    UsageStatus,
+    ProfileRecoveryReport, RelayError, StatusReport, SwitchReport, SystemStatusReport,
+    UsageSnapshot, UsageSourceMode, UsageStatus,
 };
 use crate::platform::RelayPaths;
 use crate::services::{
@@ -310,6 +310,21 @@ impl RelayApp {
         Ok(identity)
     }
 
+    pub async fn recover_profiles(
+        &self,
+        agent: AgentKind,
+    ) -> Result<ProfileRecoveryReport, RelayError> {
+        let adapter = self.adapters.adapter(&agent);
+        let report = adapter.recover_profiles(&self.store, &self.paths).await?;
+        self.clear_stale_active_state().await?;
+        self.log_store.append(
+            "info",
+            "profile.recovered",
+            format!("agent={agent:?} recovered={}", report.recovered.len()),
+        )?;
+        Ok(report)
+    }
+
     pub async fn remove_profile(&self, id: &str) -> Result<Profile, RelayError> {
         let active_state = self.state_store.load()?;
         let removing_active = active_state.active_profile_id.as_deref() == Some(id);
@@ -554,6 +569,22 @@ impl RelayApp {
             .await?
             .into_iter()
             .find(|profile| profile.id != excluded_id))
+    }
+
+    async fn clear_stale_active_state(&self) -> Result<(), RelayError> {
+        let mut state = self.state_store.load()?;
+        let Some(active_profile_id) = state.active_profile_id.as_deref() else {
+            return Ok(());
+        };
+        if self.store.get_profile(active_profile_id).await.is_ok() {
+            return Ok(());
+        }
+
+        state.active_profile_id = None;
+        state.last_switch_result = crate::models::SwitchOutcome::NotRun;
+        state.last_error = None;
+        self.state_store.save(&state)?;
+        Ok(())
     }
 
     fn sync_active_profile(&self, profile: &Profile) -> Result<(), RelayError> {

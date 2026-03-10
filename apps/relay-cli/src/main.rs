@@ -10,9 +10,9 @@ use relay_core::{
     AgentLoginMode, AgentLoginRequest, AppSettings, AuthMode, BootstrapMode, CodexSettings,
     CodexSettingsUpdateRequest, DiagnosticsExport, DoctorReport, EditProfileRequest, FailureEvent,
     FailureReason, ImportProfileRequest, LogTail, ProbeProvider, Profile, ProfileDetail,
-    ProfileProbeIdentity, RelayApp, RelayError, SwitchOutcome, SwitchReport,
-    SystemSettingsUpdateRequest, SystemStatusReport, UsageSnapshot, UsageSourceMode, UsageStatus,
-    UsageWindow,
+    ProfileProbeIdentity, ProfileRecoveryReport, RecoveredProfile, RelayApp, RelayError,
+    SkippedRecoveredProfile, SwitchOutcome, SwitchReport, SystemSettingsUpdateRequest,
+    SystemStatusReport, UsageSnapshot, UsageSourceMode, UsageStatus, UsageWindow,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -192,6 +192,8 @@ enum CodexSubcommand {
     Import(CodexImportArgs),
     #[command(about = "Register an existing Codex home or config as a profile")]
     Add(CodexAddArgs),
+    #[command(about = "Recover saved Codex profile snapshots into the database")]
+    Recover,
     #[command(about = "Refresh a profile's linked Codex identity from the live home")]
     Relink(ProfileIdArgs),
     #[command(about = "Inspect or update Codex-wide settings")]
@@ -392,6 +394,7 @@ async fn execute(cli: Cli) -> Result<Output, RelayError> {
             | CodexSubcommand::Add(_)
             | CodexSubcommand::Import(_)
             | CodexSubcommand::Login(_)
+            | CodexSubcommand::Recover
             | CodexSubcommand::Relink(_) => BootstrapMode::ReadWrite,
         },
         Commands::Activity(command) => match &command.command {
@@ -635,6 +638,15 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                     "codex login profile created",
                     result.clone(),
                     render_agent_link_result(&result),
+                    cli.json,
+                ))
+            }
+            CodexSubcommand::Recover => {
+                let report = app.recover_profiles(AgentKind::Codex).await?;
+                Ok(Output::success_rendered(
+                    "codex profiles recovered",
+                    report.clone(),
+                    render_profile_recovery_report(&report),
                     cli.json,
                 ))
             }
@@ -1033,6 +1045,60 @@ fn render_agent_link_result(result: &AgentLinkResult) -> String {
 
 fn render_probe_identity(identity: &ProfileProbeIdentity) -> String {
     render_sections(vec![("Probe Identity", probe_identity_fields(identity))])
+}
+
+fn render_profile_recovery_report(report: &ProfileRecoveryReport) -> String {
+    let mut sections = vec![(
+        "Recovery",
+        vec![
+            ("Scanned Dirs", report.scanned_dirs.to_string()),
+            ("Recovered", report.recovered.len().to_string()),
+            ("Skipped", report.skipped.len().to_string()),
+        ],
+    )];
+
+    if !report.recovered.is_empty() {
+        sections.push((
+            "Recovered Profiles",
+            report
+                .recovered
+                .iter()
+                .map(recovered_profile_field)
+                .collect(),
+        ));
+    }
+
+    if !report.skipped.is_empty() {
+        sections.push((
+            "Skipped Profiles",
+            report.skipped.iter().map(skipped_profile_field).collect(),
+        ));
+    }
+
+    render_sections(sections)
+}
+
+fn recovered_profile_field(profile: &RecoveredProfile) -> (&'static str, String) {
+    (
+        "Recovered",
+        format!(
+            "{} ({}) [{}]",
+            profile.profile.nickname,
+            profile.profile.id,
+            if profile.probe_identity_restored {
+                "identity restored"
+            } else {
+                "identity unavailable"
+            }
+        ),
+    )
+}
+
+fn skipped_profile_field(profile: &SkippedRecoveredProfile) -> (&'static str, String) {
+    (
+        "Skipped",
+        format!("{} ({})", profile.source_dir, profile.reason),
+    )
 }
 
 fn render_switch_report(report: &SwitchReport) -> String {

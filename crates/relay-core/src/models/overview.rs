@@ -26,3 +26,23 @@ pub struct ProfileListItem {
     pub is_active: bool,
     pub usage_summary: Option<UsageSnapshot>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecoveredProfile {
+    pub source_dir: String,
+    pub profile: Profile,
+    pub probe_identity_restored: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkippedRecoveredProfile {
+    pub source_dir: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProfileRecoveryReport {
+    pub scanned_dirs: usize,
+    pub recovered: Vec<RecoveredProfile>,
+    pub skipped: Vec<SkippedRecoveredProfile>,
+}
