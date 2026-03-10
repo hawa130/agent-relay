@@ -6,14 +6,7 @@ pub(crate) fn render_usage_list(
     profiles: &[relay_core::ProfileListItem],
 ) -> String {
     let mut table = new_table();
-    table.set_header(vec![
-        "Profile",
-        "State",
-        "Source",
-        "Session",
-        "Weekly",
-        "Next Reset",
-    ]);
+    table.set_header(vec!["Profile", "State", "Session", "Weekly", "Next Reset"]);
 
     for snapshot in snapshots {
         let enabled = snapshot
@@ -28,13 +21,12 @@ pub(crate) fn render_usage_list(
                 profile_state_label(enabled, snapshot.stale),
                 usage_tone(snapshot),
             ),
-            styled_cell(usage_source_label(&snapshot.source), CellTone::Info),
             styled_cell(
-                list_window_label(&snapshot.session),
+                list_window_label(&snapshot.session, false),
                 status_tone(snapshot.session.status.clone()),
             ),
             styled_cell(
-                list_window_label(&snapshot.weekly),
+                list_window_label(&snapshot.weekly, true),
                 status_tone(snapshot.weekly.status.clone()),
             ),
             Cell::new(format_optional_datetime(snapshot.next_reset_at)),
@@ -124,17 +116,20 @@ fn window_label(window: &UsageWindow) -> String {
     }
 }
 
-fn list_window_label(window: &UsageWindow) -> String {
+pub(super) fn list_window_label(window: &UsageWindow, coarse_hours: bool) -> String {
     match (window.used_percent, window.reset_at) {
         (Some(percent), Some(reset_at)) => {
-            format!("{percent:.0}% · {}", compact_reset_label(reset_at))
+            format!(
+                "{percent:.0}% · {}",
+                compact_reset_label(reset_at, coarse_hours)
+            )
         }
         (Some(percent), None) => format!("{percent:.0}%"),
         (None, _) => "-".into(),
     }
 }
 
-fn compact_reset_label(reset_at: DateTime<Utc>) -> String {
+fn compact_reset_label(reset_at: DateTime<Utc>, coarse_hours: bool) -> String {
     let interval = reset_at.signed_duration_since(Utc::now());
     if interval.num_seconds() <= 0 {
         return "now".into();
@@ -148,13 +143,17 @@ fn compact_reset_label(reset_at: DateTime<Utc>) -> String {
     if days > 0 {
         parts.push(format!("{days}d"));
     }
-    if hours > 0 {
+    if hours > 0 || (coarse_hours && days == 0) {
         parts.push(format!("{hours}h"));
     }
-    if minutes > 0 || parts.is_empty() {
+    if !coarse_hours && (minutes > 0 || parts.is_empty()) {
         parts.push(format!("{minutes}m"));
     }
-    parts.join(" ")
+    if parts.is_empty() {
+        "1h".into()
+    } else {
+        parts.join("")
+    }
 }
 
 fn detail_window_line(window: &UsageWindow) -> String {
