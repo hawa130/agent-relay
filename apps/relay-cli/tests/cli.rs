@@ -163,6 +163,33 @@ fn run_failure_raw(relay_home: &Path, codex_home: &Path, args: &[&str]) -> std::
         .expect("command output")
 }
 
+fn run_help(args: &[&str]) -> String {
+    let output = Command::new(relay_bin())
+        .args(args)
+        .output()
+        .expect("help output");
+    assert!(
+        output.status.success(),
+        "help command failed: {}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).expect("utf8 help output")
+}
+
+fn assert_order(text: &str, first: &str, second: &str) {
+    let first_index = text
+        .find(first)
+        .unwrap_or_else(|| panic!("missing marker: {first}"));
+    let second_index = text
+        .find(second)
+        .unwrap_or_else(|| panic!("missing marker: {second}"));
+    assert!(
+        first_index < second_index,
+        "expected `{first}` before `{second}` in:\n{text}"
+    );
+}
+
 fn run_json_with_stdin(relay_home: &Path, codex_home: &Path, args: &[&str], stdin: &str) -> Value {
     run_json_with_stdin_env(relay_home, codex_home, args, stdin, &[])
 }
@@ -337,6 +364,57 @@ fn profile_crud_and_auto_switch_commands_work() {
     assert_eq!(items[0]["usage_summary"]["source"], "Fallback");
     assert_eq!(items[0]["usage_summary"]["session"]["status"], "Unknown");
     assert_eq!(items[0]["usage_summary"]["weekly"]["status"], "Unknown");
+}
+
+#[test]
+fn top_level_help_lists_common_commands_first_with_descriptions() {
+    let help = run_help(&["--help"]);
+
+    assert!(help.contains("status      Show current relay state and active profile"));
+    assert!(help.contains("list        List managed profiles with usage summaries"));
+    assert!(help.contains("show        Inspect one profile, or the current profile when omitted"));
+    assert!(help.contains("switch      Activate a profile, or switch to the next eligible one"));
+    assert!(help.contains("refresh     Refresh usage data for one or more profiles"));
+    assert!(help.contains("codex       Manage Codex profiles, login flows, and settings"));
+    assert!(help.contains("doctor      Inspect relay environment, paths, and binary health"));
+    assert!(help.contains("--json     Emit machine-readable JSON output"));
+
+    assert_order(&help, "status", "codex");
+    assert_order(&help, "codex", "doctor");
+    assert_order(&help, "doctor", "edit");
+    assert_order(&help, "edit", "remove");
+}
+
+#[test]
+fn nested_help_lists_subcommands_with_descriptions() {
+    let codex_help = run_help(&["codex", "--help"]);
+    assert!(codex_help.contains("login     Create a new profile by signing in with Codex"));
+    assert!(
+        codex_help.contains("import    Import the current live Codex home as a managed profile")
+    );
+    assert!(
+        codex_help.contains("add       Register an existing Codex home or config as a profile")
+    );
+    assert!(codex_help.contains("settings  Inspect or update Codex-wide settings"));
+    assert_order(&codex_help, "login", "import");
+    assert_order(&codex_help, "import", "add");
+    assert_order(&codex_help, "add", "relink");
+
+    let activity_help = run_help(&["activity", "--help"]);
+    assert!(activity_help.contains("events       Inspect recorded switch failures and cooldowns"));
+    assert!(activity_help.contains("logs         Read relay log output"));
+    assert!(activity_help.contains("diagnostics  Export a diagnostic bundle for debugging"));
+    assert_order(&activity_help, "events", "logs");
+    assert_order(&activity_help, "logs", "diagnostics");
+
+    let autoswitch_help = run_help(&["autoswitch", "--help"]);
+    assert!(autoswitch_help.contains("show     Show current automatic switching settings"));
+    assert!(autoswitch_help.contains("enable   Turn automatic switching on"));
+    assert!(autoswitch_help.contains("disable  Turn automatic switching off"));
+    assert!(
+        autoswitch_help
+            .contains("set      Set automatic switching explicitly with a boolean value")
+    );
 }
 
 #[test]
