@@ -2,8 +2,8 @@ pub mod codex;
 
 use crate::app::AgentLoginMode;
 use crate::models::{
-    AgentKind, AgentLinkResult, Profile, ProfileProbeIdentity, RelayError, SwitchCheckpoint,
-    UsageSnapshot,
+    AgentKind, AgentLinkResult, Profile, ProfileProbeIdentity, ProfileRecoveryReport, RelayError,
+    SwitchCheckpoint, UsageSnapshot,
 };
 use crate::platform::RelayPaths;
 use crate::store::SqliteStore;
@@ -43,6 +43,11 @@ pub trait AgentAdapter {
         store: &SqliteStore,
         profile: &Profile,
     ) -> Result<ProfileProbeIdentity, RelayError>;
+    async fn recover_profiles(
+        &self,
+        store: &SqliteStore,
+        paths: &RelayPaths,
+    ) -> Result<ProfileRecoveryReport, RelayError>;
     fn activate(
         &self,
         profile: &Profile,

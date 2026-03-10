@@ -52,6 +52,7 @@ relay activity diagnostics export
 relay codex add
 relay codex import
 relay codex login
+relay codex recover
 relay codex relink <id>
 ```
 
@@ -102,6 +103,12 @@ Import the currently live Codex profile into Relay-managed storage:
 
 ```bash
 relay codex import --nickname imported-live --json
+```
+
+Rebuild database profile records from saved Relay snapshots after `relay.db` loss:
+
+```bash
+relay codex recover --json
 ```
 
 Activate profiles:

@@ -406,10 +406,14 @@ fn nested_help_lists_subcommands_with_descriptions() {
     assert!(
         codex_help.contains("add       Register an existing Codex home or config as a profile")
     );
+    assert!(
+        codex_help.contains("recover   Recover saved Codex profile snapshots into the database")
+    );
     assert!(codex_help.contains("settings  Inspect or update Codex-wide settings"));
     assert_order(&codex_help, "login", "import");
     assert_order(&codex_help, "import", "add");
-    assert_order(&codex_help, "add", "relink");
+    assert_order(&codex_help, "add", "recover");
+    assert_order(&codex_help, "recover", "relink");
 
     let activity_help = run_help(&["activity", "--help"]);
     assert!(activity_help.contains("events       Inspect recorded switch failures and cooldowns"));
@@ -1453,6 +1457,87 @@ fn failed_add_does_not_persist_invalid_profile() {
 
     let list = run_json(&relay_home, &live_codex_home, &["--json", "list"]);
     assert_eq!(list["data"], serde_json::json!([]));
+}
+
+#[test]
+fn recover_rebuilds_profiles_from_saved_snapshots() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let recovered_home = relay_home.join("profiles").join("imported_1");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&recovered_home, "recovered");
+    write_oauth_auth(&recovered_home, "acct-restored", "imported@example.com");
+    fs::create_dir_all(&relay_home).expect("relay home");
+    fs::write(
+        relay_home.join("state.json"),
+        serde_json::json!({
+            "active_profile_id": "old-profile-id",
+            "last_switch_at": null,
+            "last_switch_result": "Success",
+            "auto_switch_enabled": true,
+            "last_error": "stale"
+        })
+        .to_string(),
+    )
+    .expect("stale state");
+
+    let recovery = run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "codex", "recover"],
+    );
+    assert_eq!(recovery["data"]["scanned_dirs"], 1);
+    assert_eq!(
+        recovery["data"]["recovered"]
+            .as_array()
+            .expect("recovered")
+            .len(),
+        1
+    );
+    assert_eq!(
+        recovery["data"]["skipped"]
+            .as_array()
+            .expect("skipped")
+            .len(),
+        0
+    );
+    assert_eq!(
+        recovery["data"]["recovered"][0]["profile"]["nickname"],
+        "imported@example.com"
+    );
+    assert_eq!(
+        recovery["data"]["recovered"][0]["probe_identity_restored"],
+        true
+    );
+
+    let profiles = run_json(&relay_home, &live_codex_home, &["--json", "list"]);
+    let items = profiles["data"].as_array().expect("profile list");
+    assert_eq!(items.len(), 1);
+    assert_eq!(items[0]["profile"]["nickname"], "imported@example.com");
+
+    let status = run_json(&relay_home, &live_codex_home, &["--json", "status"]);
+    assert_eq!(
+        status["data"]["active_state"]["active_profile_id"],
+        serde_json::Value::Null
+    );
+
+    let second = run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "codex", "recover"],
+    );
+    assert_eq!(
+        second["data"]["recovered"]
+            .as_array()
+            .expect("recovered")
+            .len(),
+        0
+    );
+    assert_eq!(
+        second["data"]["skipped"].as_array().expect("skipped").len(),
+        1
+    );
 }
 
 #[tokio::test]

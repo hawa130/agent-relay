@@ -17,7 +17,10 @@ pub use diagnostics::{DiagnosticsExport, LogTail};
 pub use doctor::DoctorReport;
 pub use errors::{ErrorCode, RelayError};
 pub use events::{FailureEvent, FailureReason};
-pub use overview::{ProfileDetail, ProfileListItem, SystemStatusReport};
+pub use overview::{
+    ProfileDetail, ProfileListItem, ProfileRecoveryReport, RecoveredProfile,
+    SkippedRecoveredProfile, SystemStatusReport,
+};
 pub use probe_identity::{ProbeProvider, ProfileProbeIdentity};
 pub use profile::{AgentKind, AuthMode, Profile};
 pub use protocol::JsonResponse;

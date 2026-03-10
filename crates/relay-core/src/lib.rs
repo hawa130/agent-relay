@@ -14,8 +14,8 @@ pub use app::{
 pub use models::{
     ActiveState, AgentKind, AgentLinkResult, AppSettings, AuthMode, DiagnosticsExport,
     DoctorReport, ErrorCode, FailureEvent, FailureReason, JsonResponse, LogTail, ProbeProvider,
-    Profile, ProfileDetail, ProfileListItem, ProfileProbeIdentity, RelayError, StatusReport,
-    SwitchCheckpoint, SwitchHistoryEntry, SwitchOutcome, SwitchReport, SystemStatusReport,
-    UsageCache, UsageConfidence, UsageSnapshot, UsageSource, UsageSourceMode, UsageStatus,
-    UsageWindow,
+    Profile, ProfileDetail, ProfileListItem, ProfileProbeIdentity, ProfileRecoveryReport,
+    RecoveredProfile, RelayError, SkippedRecoveredProfile, StatusReport, SwitchCheckpoint,
+    SwitchHistoryEntry, SwitchOutcome, SwitchReport, SystemStatusReport, UsageCache,
+    UsageConfidence, UsageSnapshot, UsageSource, UsageSourceMode, UsageStatus, UsageWindow,
 };
