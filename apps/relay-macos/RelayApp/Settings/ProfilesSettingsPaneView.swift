@@ -461,7 +461,7 @@ private struct ProfileListRow: View {
                         ProfileListUsageLine(
                             title: "Weekly",
                             value: usage.weekly.menuBarDisplayValue,
-                            resetText: usage.weekly.resetAt.map { "Resets \(preciseResetDescription(for: $0))" }
+                            resetText: usage.weekly.resetAt.map { "Resets \(preciseResetDescription(for: $0, roundsToHourWhenDaysPresent: true))" }
                         )
 
                         HStack {
@@ -481,8 +481,7 @@ private struct ProfileListRow: View {
                 Spacer(minLength: 0)
             }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 4)
+        .padding(4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .overlay(alignment: .topTrailing) {
             if isActive {
@@ -499,7 +498,7 @@ private struct ProfileListRow: View {
         return "Updated \(relativeFormatter.localizedString(for: usage.lastRefreshedAt, relativeTo: Date()))"
     }
 
-    private func preciseResetDescription(for date: Date) -> String {
+    private func preciseResetDescription(for date: Date, roundsToHourWhenDaysPresent: Bool = false) -> String {
         let interval = date.timeIntervalSinceNow
 
         if interval <= 0 {
@@ -507,6 +506,19 @@ private struct ProfileListRow: View {
         }
 
         let totalMinutes = max(1, Int(ceil(interval / 60)))
+
+        if roundsToHourWhenDaysPresent && totalMinutes >= (24 * 60) {
+            let totalHours = (totalMinutes + 59) / 60
+            let days = totalHours / 24
+            let hours = totalHours % 24
+
+            if hours > 0 {
+                return "in \(days)d \(hours)h"
+            }
+
+            return "in \(days)d"
+        }
+
         let days = totalMinutes / (24 * 60)
         let hours = (totalMinutes % (24 * 60)) / 60
         let minutes = totalMinutes % 60
@@ -535,7 +547,7 @@ private struct ProfileListUsageLine: View {
                 .font(.system(size: 10))
                 .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 2)
 
             if let resetText {
                 Text(resetText)
