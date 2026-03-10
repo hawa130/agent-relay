@@ -4,6 +4,70 @@ import XCTest
 
 @MainActor
 final class RelayAppModelTests: XCTestCase {
+    func testAddAccountReturnsNotSignedInWhenBrowserLoginIsCancelled() async throws {
+        let fixture = try RelayAppModelFixture.make(mode: .loginCancelled)
+        defer { fixture.cleanup() }
+        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+        let originalFixtureMode = getenv("RELAY_FIXTURE_MODE").map { String(cString: $0) }
+        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        setenv("RELAY_FIXTURE_MODE", "login_cancelled", 1)
+        defer {
+            if let originalRelayCLIPath {
+                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+            } else {
+                unsetenv("RELAY_CLI_PATH")
+            }
+            if let originalFixtureMode {
+                setenv("RELAY_FIXTURE_MODE", originalFixtureMode, 1)
+            } else {
+                unsetenv("RELAY_FIXTURE_MODE")
+            }
+        }
+
+        let model = RelayAppModel()
+        let result = await model.addAccount(agent: .codex, priority: 100)
+
+        XCTAssertEqual(
+            result,
+            .notSignedIn(detail: "Browser sign-in was cancelled or did not complete.")
+        )
+        XCTAssertEqual(
+            model.lastErrorMessage,
+            "Codex: Not signed in. Browser sign-in was cancelled or did not complete."
+        )
+        XCTAssertFalse(model.isMutatingProfiles)
+        XCTAssertEqual(try fixture.commands(), ["--json codex login --input-json -"])
+    }
+
+    func testAddAccountReturnsFailedForUnexpectedLoginError() async throws {
+        let fixture = try RelayAppModelFixture.make(mode: .loginFailed)
+        defer { fixture.cleanup() }
+        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+        let originalFixtureMode = getenv("RELAY_FIXTURE_MODE").map { String(cString: $0) }
+        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        setenv("RELAY_FIXTURE_MODE", "login_failed", 1)
+        defer {
+            if let originalRelayCLIPath {
+                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+            } else {
+                unsetenv("RELAY_CLI_PATH")
+            }
+            if let originalFixtureMode {
+                setenv("RELAY_FIXTURE_MODE", originalFixtureMode, 1)
+            } else {
+                unsetenv("RELAY_FIXTURE_MODE")
+            }
+        }
+
+        let model = RelayAppModel()
+        let result = await model.addAccount(agent: .codex, priority: 100)
+
+        XCTAssertEqual(result, .failed(detail: "RELAY_EXTERNAL_COMMAND: codex binary not found"))
+        XCTAssertEqual(model.lastErrorMessage, "RELAY_EXTERNAL_COMMAND: codex binary not found")
+        XCTAssertFalse(model.isMutatingProfiles)
+        XCTAssertEqual(try fixture.commands(), ["--json codex login --input-json -"])
+    }
+
     func testRefreshUsageOnlyRunsUsageRefreshCommand() async throws {
         let fixture = try RelayAppModelFixture.make()
         defer { fixture.cleanup() }
@@ -98,11 +162,17 @@ final class RelayAppModelTests: XCTestCase {
 }
 
 private struct RelayAppModelFixture {
+    enum Mode {
+        case refresh
+        case loginCancelled
+        case loginFailed
+    }
+
     let root: URL
     let scriptPath: String
     let commandsPath: URL
 
-    static func make() throws -> Self {
+    static func make(mode _: Mode = .refresh) throws -> Self {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
             "relay-app-model-tests-\(UUID().uuidString)",
             isDirectory: true
@@ -147,6 +217,26 @@ script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 printf '%s\n' "$*" >> "$script_dir/commands.log"
 
 case "$*" in
+  "--json codex login --input-json -")
+    cat >/dev/null
+    case "${RELAY_FIXTURE_MODE:-refresh}" in
+      "login_cancelled")
+        cat <<'EOF'
+{"success":false,"error_code":"RELAY_EXTERNAL_COMMAND","message":"codex login timed out waiting for browser sign-in","data":null}
+EOF
+        ;;
+      "login_failed")
+        cat <<'EOF'
+{"success":false,"error_code":"RELAY_EXTERNAL_COMMAND","message":"codex binary not found","data":null}
+EOF
+        ;;
+      *)
+        cat <<'EOF'
+{"success":false,"error_code":"BAD_COMMAND","message":"unexpected login mode","data":null}
+EOF
+        ;;
+    esac
+    ;;
   "--json refresh --input-json -")
     cat >/dev/null
     sleep 0.2

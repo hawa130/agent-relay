@@ -1,6 +1,13 @@
 import Combine
 import Foundation
 
+enum AddAccountResult: Sendable, Equatable {
+    case success
+    case cancelled
+    case notSignedIn(detail: String)
+    case failed(detail: String)
+}
+
 @MainActor
 public final class SettingsPaneModel: ObservableObject {
     private let session: RelayAppModel
@@ -80,7 +87,7 @@ public final class ProfilesPaneModel: ObservableObject {
         session.selectProfile(profileId)
     }
 
-    func addAccount(agent: AgentKind, priority: Int) async {
+    func addAccount(agent: AgentKind, priority: Int = 100) async -> AddAccountResult {
         await session.addAccount(agent: agent, priority: priority)
     }
 
