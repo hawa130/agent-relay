@@ -224,7 +224,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     private func currentCardModel(profile: Profile, usage: UsageSnapshot?) -> MenuBarCurrentCardModel {
         MenuBarCurrentCardModel(
             providerName: profile.agent.rawValue,
-            email: profile.nickname,
+            nickname: profile.nickname,
             subtitleText: presenter.currentCardSubtitle,
             planText: usage?.source.displayName,
             metrics: currentMetricRows(usage: usage),

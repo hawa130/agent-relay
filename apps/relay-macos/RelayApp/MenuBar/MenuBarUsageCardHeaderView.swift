@@ -14,7 +14,7 @@ struct MenuBarUsageCardHeaderView: View {
 
                 Spacer()
 
-                Text(model.email)
+                Text(model.nickname)
                     .font(.system(size: 11))
                     .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                     .lineLimit(1)

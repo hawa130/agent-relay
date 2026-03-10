@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MenuBarCurrentCardModel {
     let providerName: String
-    let email: String
+    let nickname: String
     let subtitleText: String
     let planText: String?
     let metrics: [MenuBarMetricRowModel]
