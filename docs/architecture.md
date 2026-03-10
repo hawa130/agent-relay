@@ -11,7 +11,7 @@
 ```text
 apps/
   relay-cli/        # User-facing CLI entrypoint
-  relay-macos/      # Native macOS control plane built on top of relay CLI JSON
+  relay-macos/      # Native macOS control plane that supervises relay daemon sessions
 crates/
   relay-core/       # Core library with models, services, store, adapters, and platform modules
 docs/
@@ -35,11 +35,21 @@ docs/
 - Parse commands and JSON input with `clap` and request models.
 - Produce human-readable output and stable `--json` output.
 - Convert internal failures into stable project error codes.
+- Host the stdio JSON-RPC daemon transport used by native control planes.
 
 The command surface is intentionally shallow:
 
 - top-level runtime commands: `doctor`, `status`, `list`, `show`, `edit`, `remove`, `enable`, `disable`, `switch`, `refresh`
 - grouped commands: `settings`, `autoswitch`, `activity`, `codex`
+- programmatic daemon transport: `relay daemon --stdio`
+
+### Daemon Session
+
+- `relay daemon --stdio` exposes a single-client stdio JSON-RPC 2.0 session.
+- The daemon owns background refresh, auto-switch evaluation, switch execution, and state-change notifications.
+- The transport is newline-delimited UTF-8 JSON on `stdin` and `stdout`.
+- `stdout` is reserved for protocol messages only. Logs and diagnostics go to `stderr`.
+- The current model is single-session and host-owned. It is not a detached system service and does not support multiple concurrent clients.
 
 ### Core Services
 
@@ -67,7 +77,8 @@ The command surface is intentionally shallow:
 
 ### macOS Control Plane
 
-- The SwiftUI app shells out to `relay`, sends JSON when needed, and decodes JSON responses.
+- The SwiftUI app is a long-lived menu bar host that starts and supervises `relay daemon --stdio`.
+- It sends JSON-RPC requests, subscribes to daemon notifications, and decodes stable protocol models from `relay-core::models`.
 - It is a control plane only. It must not directly mutate Codex files or duplicate switch logic.
 
 ## State Model
@@ -97,6 +108,13 @@ Use SQLite for durable truth and keep file-backed state limited to caches or ope
 3. Open stores, reject incompatible legacy schemas, and run SeaORM schema sync for write mode.
 4. Execute the requested use-case.
 
+### Daemon Boot
+
+1. The host program starts `relay daemon --stdio`.
+2. Relay boots the same core stores and services as synchronous CLI commands.
+3. The client sends `initialize` and optional subscription requests.
+4. The daemon returns initial state, performs startup refresh work, and begins interval-driven policy evaluation.
+
 ### Profile Mutation
 
 1. Validate request input.
@@ -118,6 +136,7 @@ Use SQLite for durable truth and keep file-backed state limited to caches or ope
 - Every user-visible command supports `--json`.
 - Parameterized integrations should prefer JSON request payloads instead of ad hoc flag assembly.
 - Every user-visible failure maps to a stable `ErrorCode`.
+- Daemon RPC contracts live in `relay-core::models` and must remain backward-compatible for the macOS control plane.
 - No adapter is allowed to mutate project-local `.codex/`.
 - File writes that affect live agent config must be atomic and recoverable.
 - Shared infrastructure should stay agent-neutral where practical; provider-specific auth and usage semantics belong in adapters.
@@ -129,4 +148,4 @@ Use SQLite for durable truth and keep file-backed state limited to caches or ope
 - `relay-core::store`: SeaORM migration/repository tests and state-file tests
 - `relay-core::services`: service-level tests with temp stores and fake adapters
 - `relay-cli`: command parsing, JSON contract, and integration smoke tests
-- `relay-macos`: Swift decoding and CLI client integration tests
+- `relay-macos`: Swift decoding, daemon client, and supervisor integration tests

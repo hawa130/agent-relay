@@ -1,5 +1,5 @@
 use super::{ActivityEventsQuery, RelayApp, SystemSettingsUpdateRequest};
-use crate::models::{AppSettings, FailureEvent, RelayError, SwitchReport};
+use crate::models::{AppSettings, FailureEvent, RelayError, SwitchReport, SwitchTrigger};
 use crate::services::{events_service, policy_service, switch_service};
 
 impl RelayApp {
@@ -13,6 +13,7 @@ impl RelayApp {
             adapter,
             &self.paths,
             &profile,
+            SwitchTrigger::Manual,
         )
         .await
     }
@@ -36,6 +37,7 @@ impl RelayApp {
             adapter,
             &self.paths,
             &next,
+            SwitchTrigger::Auto,
         )
         .await
     }
@@ -50,12 +52,43 @@ impl RelayApp {
         Ok(settings)
     }
 
+    pub async fn set_cooldown_seconds(&self, value: i64) -> Result<AppSettings, RelayError> {
+        let settings = self.store.set_cooldown_seconds(value).await?;
+        self.log_store
+            .append("info", "cooldown.updated", format!("seconds={value}"))?;
+        Ok(settings)
+    }
+
+    pub async fn set_refresh_interval_seconds(
+        &self,
+        value: i64,
+    ) -> Result<AppSettings, RelayError> {
+        if !(15..=900).contains(&value) {
+            return Err(RelayError::InvalidInput(
+                "refresh interval must be between 15 and 900 seconds".into(),
+            ));
+        }
+        let settings = self.store.set_refresh_interval_seconds(value).await?;
+        self.log_store.append(
+            "info",
+            "refresh_interval.updated",
+            format!("seconds={value}"),
+        )?;
+        Ok(settings)
+    }
+
     pub async fn update_system_settings(
         &self,
         request: SystemSettingsUpdateRequest,
     ) -> Result<AppSettings, RelayError> {
         if let Some(enabled) = request.auto_switch_enabled {
             return self.set_auto_switch_enabled(enabled).await;
+        }
+        if let Some(value) = request.cooldown_seconds {
+            return self.set_cooldown_seconds(value).await;
+        }
+        if let Some(value) = request.refresh_interval_seconds {
+            return self.set_refresh_interval_seconds(value).await;
         }
         self.store.get_settings().await
     }

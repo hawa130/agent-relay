@@ -12,11 +12,21 @@ pub use app::{
     ActivityEventsQuery, AddProfileRequest, AgentLoginMode, AgentLoginRequest, EditProfileRequest,
     ImportProfileRequest, RelayApp, SystemSettingsUpdateRequest,
 };
+pub use services::daemon_service::DaemonService;
 pub use models::{
     ActiveState, AgentKind, AgentLinkResult, AppSettings, AuthMode, DiagnosticsExport,
-    DoctorReport, ErrorCode, FailureEvent, FailureReason, JsonResponse, LogTail, ProbeProvider,
-    Profile, ProfileDetail, ProfileListItem, ProfileProbeIdentity, ProfileRecoveryReport,
-    RecoveredProfile, RelayError, SkippedRecoveredProfile, StatusReport, SwitchCheckpoint,
-    SwitchHistoryEntry, SwitchOutcome, SwitchReport, SystemStatusReport, UsageCache,
-    UsageConfidence, UsageSnapshot, UsageSource, UsageSourceMode, UsageStatus, UsageWindow,
+    AddProfileParams, DoctorReport, EditProfileParams, EngineConnectionState, EngineState,
+    ErrorCode, FailureEvent, FailureReason, ImportProfileParams, InitializeParams,
+    InitializeResult, JsonResponse, LogTail, LoginProfileParams, ProbeProvider, Profile,
+    ProfileDetail, ProfileIdParams, ProfileListItem, ProfileProbeIdentity,
+    ProfileRecoveryReport, RecoveredProfile, RefreshUsageParams, RefreshUsageResult, RelayError,
+    RelayRpcTopic, RpcClientCapabilities, RpcClientInfo, RpcErrorData, RpcErrorObject,
+    RpcErrorResponse, RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo,
+    RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
+    SettingsUpdateParams, SkippedRecoveredProfile, StatusReport, SubscribeParams,
+    SubscribeResult, SwitchCheckpoint, SwitchCompletedPayload, SwitchFailedPayload,
+    SwitchHistoryEntry, SwitchOutcome, SwitchReport, SwitchTrigger, SystemSettingsParams,
+    SystemStatusReport, UsageCache, UsageConfidence, UsageGetParams, UsageResult,
+    UsageSnapshot, UsageSource, UsageSourceMode, UsageStatus, UsageUpdateTrigger,
+    UsageUpdatedPayload, UsageWindow,
 };

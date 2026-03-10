@@ -12,9 +12,9 @@ V1 currently targets `Codex` and provides:
 - event history
 - log tailing
 - diagnostics export
-- a native macOS menu bar control plane that calls Relay CLI JSON
+- a native macOS menu bar control plane that supervises a persistent Relay daemon over JSON-RPC
 
-The CLI remains the only execution layer. The macOS menu bar app is a native control plane on top of Relay CLI JSON.
+The CLI remains the only execution layer. The macOS menu bar app is a native control plane that supervises `relay daemon --stdio` and communicates over stdio JSON-RPC.
 
 ## Status
 
@@ -26,7 +26,7 @@ Implemented command groups:
 relay doctor
 relay status
 relay settings show
-relay settings set
+relay daemon --stdio
 
 relay list
 relay show
@@ -129,6 +129,14 @@ relay activity logs tail --lines 50 --json
 relay activity diagnostics export --json
 ```
 
+Programmatic clients can also start a persistent daemon session:
+
+```bash
+relay daemon --stdio
+```
+
+The daemon speaks newline-delimited JSON-RPC 2.0 on `stdin` and `stdout`. It is intended for the macOS app and other host programs, not for interactive human terminal use.
+
 ## How It Works
 
 Relay does not replace the whole `~/.codex` directory.
@@ -157,6 +165,7 @@ Common commands:
 cargo fmt --all
 cargo test
 cargo run -p relay-cli --bin relay -- --help
+cargo run -p relay-cli --bin relay -- daemon --stdio
 ```
 
 SeaORM workflow:

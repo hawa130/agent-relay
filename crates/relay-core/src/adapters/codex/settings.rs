@@ -14,7 +14,7 @@ impl Default for CodexSettings {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CodexSettingsUpdateRequest {
     pub usage_source_mode: Option<UsageSourceMode>,
 }

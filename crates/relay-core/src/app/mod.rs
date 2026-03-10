@@ -11,6 +11,7 @@ use crate::platform::RelayPaths;
 use crate::services::{diagnostics_service, doctor_service, status_service};
 use crate::store::{FileLogStore, FileStateStore, FileUsageStore, SqliteStore};
 use crate::{CodexSettings, CodexSettingsUpdateRequest};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,13 +20,13 @@ pub enum BootstrapMode {
     ReadWrite,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AgentLoginMode {
     Browser,
     DeviceAuth,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AddProfileRequest {
     pub agent: AgentKind,
     pub nickname: String,
@@ -35,7 +36,7 @@ pub struct AddProfileRequest {
     pub auth_mode: crate::models::AuthMode,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EditProfileRequest {
     pub nickname: Option<String>,
     pub priority: Option<i32>,
@@ -54,7 +55,7 @@ pub struct RelayApp {
     bootstrap_mode: BootstrapMode,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentLoginRequest {
     pub agent: AgentKind,
     pub nickname: Option<String>,
@@ -62,19 +63,21 @@ pub struct AgentLoginRequest {
     pub mode: AgentLoginMode,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImportProfileRequest {
     pub agent: AgentKind,
     pub nickname: Option<String>,
     pub priority: i32,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SystemSettingsUpdateRequest {
     pub auto_switch_enabled: Option<bool>,
+    pub cooldown_seconds: Option<i64>,
+    pub refresh_interval_seconds: Option<i64>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActivityEventsQuery {
     pub limit: usize,
     pub profile_id: Option<String>,

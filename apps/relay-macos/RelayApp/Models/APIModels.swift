@@ -24,7 +24,7 @@ struct StatusReport: Decodable, Sendable {
     let relayHome: String
     let liveAgentHome: String
     let profileCount: Int
-    let activeState: ActiveState
+    var activeState: ActiveState
     let settings: AppSettings
 }
 
@@ -60,10 +60,12 @@ struct ActiveState: Decodable, Sendable {
 struct AppSettings: Decodable, Sendable {
     let autoSwitchEnabled: Bool
     let cooldownSeconds: Int
+    let refreshIntervalSeconds: Int
 
     private enum CodingKeys: String, CodingKey {
         case autoSwitchEnabled
         case cooldownSeconds
+        case refreshIntervalSeconds
     }
 
     init(from decoder: Decoder) throws {
@@ -74,6 +76,9 @@ struct AppSettings: Decodable, Sendable {
         cooldownSeconds =
             try container.decodeIfPresent(Int.self, forKey: .cooldownSeconds)
             ?? 600
+        refreshIntervalSeconds =
+            try container.decodeIfPresent(Int.self, forKey: .refreshIntervalSeconds)
+            ?? 60
     }
 }
 
@@ -176,6 +181,160 @@ struct SwitchReport: Decodable, Sendable {
     let message: String
 }
 
+struct RPCRequestEnvelope<Params: Encodable & Sendable>: Encodable, Sendable {
+    let jsonrpc = "2.0"
+    let id: String
+    let method: String
+    let params: Params
+}
+
+struct RPCResponseEnvelope<Result: Decodable & Sendable>: Decodable, Sendable {
+    let jsonrpc: String
+    let id: String
+    let result: Result
+}
+
+struct RPCErrorEnvelope: Decodable, Sendable {
+    let jsonrpc: String
+    let id: String?
+    let error: RPCErrorObject
+}
+
+struct RPCErrorObject: Decodable, Sendable {
+    let code: Int
+    let message: String
+    let data: RPCErrorData?
+}
+
+struct RPCErrorData: Decodable, Sendable {
+    let relayErrorCode: String?
+}
+
+struct RPCInitializeParams: Encodable, Sendable {
+    let protocolVersion = "1"
+    let clientInfo = RPCClientInfo(name: "relay-macos", version: "0.1.0")
+    let capabilities = RPCClientCapabilities(
+        supportsSubscriptions: true,
+        supportsHealthUpdates: true
+    )
+}
+
+struct RPCClientInfo: Encodable, Sendable {
+    let name: String
+    let version: String
+}
+
+struct RPCClientCapabilities: Encodable, Sendable {
+    let supportsSubscriptions: Bool
+    let supportsHealthUpdates: Bool
+}
+
+struct RPCInitializeResult: Decodable, Sendable {
+    let protocolVersion: String
+    let initialState: RPCInitialState
+}
+
+struct RPCInitialState: Decodable, Sendable {
+    let status: StatusReport
+    let profiles: [ProfileListItem]
+    let codexSettings: CodexSettings
+    let engine: RPCEngineState
+}
+
+struct RPCEngineState: Decodable, Sendable {
+    let startedAt: Date
+    let connectionState: EngineConnectionState
+}
+
+enum EngineConnectionState: String, Decodable, Sendable {
+    case starting = "Starting"
+    case ready = "Ready"
+    case degraded = "Degraded"
+}
+
+struct RPCSubscribeParams: Encodable, Sendable {
+    let topics: [String]
+}
+
+struct RPCUsageRefreshResult: Decodable, Sendable {
+    let snapshots: [UsageSnapshot]
+}
+
+struct UsageResult: Decodable, Sendable {
+    let snapshot: UsageSnapshot
+}
+
+struct RPCSettingsResult: Decodable, Sendable {
+    let app: AppSettings
+    let codex: CodexSettings
+}
+
+struct AppSettingsPatch: Encodable, Sendable {
+    let autoSwitchEnabled: Bool?
+    let cooldownSeconds: Int?
+    let refreshIntervalSeconds: Int?
+}
+
+struct RPCSettingsUpdatePayload: Encodable, Sendable {
+    let app: AppSettingsPatch?
+    let codex: CodexSettingsDraft?
+}
+
+struct RPCEventsResult: Decodable, Sendable {
+    let events: [FailureEvent]
+}
+
+struct RPCLogsResult: Decodable, Sendable {
+    let logs: LogTail
+}
+
+enum RelaySessionUpdate: Sendable {
+    case usageUpdated(UsageUpdatedNotification)
+    case activeStateUpdated(ActiveStateUpdatedNotification)
+    case switchCompleted(SwitchCompletedNotification)
+    case switchFailed(SwitchFailedNotification)
+    case healthUpdated(HealthUpdatedNotification)
+}
+
+struct UsageUpdatedNotification: Decodable, Sendable {
+    let snapshots: [UsageSnapshot]
+    let trigger: UsageUpdateTrigger
+}
+
+struct ActiveStateUpdatedNotification: Decodable, Sendable {
+    let activeState: ActiveState
+    let activeProfile: ProfileListItem?
+}
+
+struct SwitchCompletedNotification: Decodable, Sendable {
+    let report: SwitchReport
+    let trigger: SwitchTrigger
+}
+
+struct SwitchFailedNotification: Decodable, Sendable {
+    let errorCode: String
+    let message: String
+    let profileId: String?
+    let trigger: SwitchTrigger
+}
+
+struct HealthUpdatedNotification: Decodable, Sendable {
+    let state: EngineConnectionState
+    let detail: String?
+}
+
+enum UsageUpdateTrigger: String, Decodable, Sendable {
+    case startup = "Startup"
+    case interval = "Interval"
+    case manual = "Manual"
+    case postSwitch = "PostSwitch"
+}
+
+enum SwitchTrigger: String, Decodable, Sendable {
+    case manual = "Manual"
+    case auto = "Auto"
+}
+
 struct ProfileProbeIdentity: Decodable, Sendable {
     let profileId: String
     let accountId: String
@@ -254,7 +413,7 @@ struct AgentLinkResult: Decodable, Sendable {
     let activated: Bool
 }
 
-enum AgentKind: String, Decodable, Sendable {
+enum AgentKind: String, Codable, Sendable {
     case codex = "Codex"
 
     var cliArgument: String {
