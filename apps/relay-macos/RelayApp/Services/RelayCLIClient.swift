@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 struct RelayCLIClient {
@@ -185,21 +186,30 @@ struct RelayCLIClient {
         as type: Response.Type
     ) async throws -> Response {
         let command = try resolvedRelayCLIPath()
-        return try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                do {
-                    let response = try runRelayProcess(
-                        command: command,
-                        arguments: arguments,
-                        inputData: inputData,
-                        environment: environment,
-                        as: type
-                    )
-                    continuation.resume(returning: response)
-                } catch {
-                    continuation.resume(throwing: error)
+        let cancellationHandle = RelayProcessCancellationHandle()
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        let response = try runRelayProcess(
+                            command: command,
+                            arguments: arguments,
+                            inputData: inputData,
+                            environment: environment,
+                            cancellationHandle: cancellationHandle,
+                            as: type
+                        )
+                        continuation.resume(returning: response)
+                    } catch is CancellationError {
+                        continuation.resume(throwing: CancellationError())
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
+        } onCancel: {
+            cancellationHandle.cancel()
         }
     }
 
@@ -285,6 +295,7 @@ private func runRelayProcess<Response: Decodable & Sendable>(
     arguments: [String],
     inputData: Data?,
     environment: [String: String],
+    cancellationHandle: RelayProcessCancellationHandle? = nil,
     as type: Response.Type
 ) throws -> Response {
     let process = Process()
@@ -303,6 +314,7 @@ private func runRelayProcess<Response: Decodable & Sendable>(
         process.standardInput = Pipe()
     }
     process.environment = environment
+    cancellationHandle?.attach(process)
 
     stdout.fileHandleForReading.readabilityHandler = { handle in
         let data = handle.availableData
@@ -327,8 +339,12 @@ private func runRelayProcess<Response: Decodable & Sendable>(
     do {
         try process.run()
     } catch {
+        if cancellationHandle?.isCancelled == true {
+            throw CancellationError()
+        }
         throw RelayCLIClientError.launchFailed(error.localizedDescription)
     }
+    cancellationHandle?.terminateIfCancelled()
 
     if let inputData, let stdin = process.standardInput as? Pipe {
         stdin.fileHandleForWriting.write(inputData)
@@ -338,6 +354,10 @@ private func runRelayProcess<Response: Decodable & Sendable>(
     process.waitUntilExit()
     stdoutDone.wait()
     stderrDone.wait()
+
+    if cancellationHandle?.isCancelled == true {
+        throw CancellationError()
+    }
 
     let output = stdoutBuffer.snapshot()
     let errorOutput = stderrBuffer.snapshot()
@@ -367,6 +387,68 @@ private func runRelayProcess<Response: Decodable & Sendable>(
     }
 
     return data
+}
+
+private final class RelayProcessCancellationHandle: @unchecked Sendable {
+    private let lock = NSLock()
+    private var process: Process?
+    private var cancelled = false
+
+    var isCancelled: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return cancelled
+    }
+
+    func attach(_ process: Process) {
+        lock.lock()
+        self.process = process
+        let cancelled = self.cancelled
+        lock.unlock()
+
+        if cancelled {
+            terminate(process)
+        }
+    }
+
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        let process = self.process
+        lock.unlock()
+
+        if let process {
+            terminate(process)
+        }
+    }
+
+    func terminateIfCancelled() {
+        lock.lock()
+        let cancelled = self.cancelled
+        let process = self.process
+        lock.unlock()
+
+        if cancelled, let process {
+            terminate(process)
+        }
+    }
+
+    private func terminate(_ process: Process) {
+        if process.isRunning {
+            process.terminate()
+        }
+
+        let pid = process.processIdentifier
+        guard pid > 0 else {
+            return
+        }
+
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.2) {
+            if process.isRunning {
+                kill(pid, SIGKILL)
+            }
+        }
+    }
 }
 
 private final class LockedDataBuffer: @unchecked Sendable {

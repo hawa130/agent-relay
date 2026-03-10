@@ -78,6 +78,33 @@ final class RelayCLIClientTests: XCTestCase {
         XCTAssertEqual(payload["priority"] as? Int, 90)
     }
 
+    func testLoginProfileCancellationStopsRunningRelayProcess() async throws {
+        let fixture = try RelayCLIFixture.make()
+        defer { fixture.cleanup() }
+
+        let client = RelayCLIClient(
+            relayCLIPathOverride: fixture.scriptPath,
+            environment: ["RELAY_FIXTURE_MODE": "slow_login"]
+        )
+
+        let task = Task {
+            try await client.loginProfile(agent: .codex, nickname: "browser", priority: 90)
+        }
+
+        try await Task.sleep(nanoseconds: 200_000_000)
+        task.cancel()
+
+        do {
+            _ = try await task.value
+            XCTFail("expected login task to be cancelled")
+        } catch is CancellationError {
+        } catch {
+            XCTFail("expected CancellationError, got \(error)")
+        }
+
+        XCTAssertTrue(try fixture.waitForCancelledLoginSignal())
+    }
+
     func testSwitchToNextProfileUsesDedicatedCommand() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
@@ -94,6 +121,7 @@ private struct RelayCLIFixture {
     let root: URL
     let scriptPath: String
     let payloadPath: String
+    let cancelledPath: String
 
     static func make() throws -> Self {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -107,12 +135,27 @@ private struct RelayCLIFixture {
         return Self(
             root: root,
             scriptPath: scriptURL.path,
-            payloadPath: root.appendingPathComponent("last-input.json").path
+            payloadPath: root.appendingPathComponent("last-input.json").path,
+            cancelledPath: root.appendingPathComponent("cancelled.log").path
         )
     }
 
     func cleanup() {
         try? FileManager.default.removeItem(at: root)
+    }
+
+    func waitForCancelledLoginSignal(timeout: TimeInterval = 2.0) throws -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        let cancelledURL = URL(fileURLWithPath: cancelledPath)
+
+        while Date() < deadline {
+            if FileManager.default.fileExists(atPath: cancelledURL.path) {
+                return true
+            }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+
+        return false
     }
 }
 
@@ -168,9 +211,19 @@ EOF
   "--json codex login --input-json -")
     payload="$(cat)"
     printf '%s' "$payload" > "$script_dir/last-input.json"
-    cat <<'EOF'
+    case "${RELAY_FIXTURE_MODE:-default}" in
+      "slow_login")
+        trap 'printf cancelled > "$script_dir/cancelled.log"; exit 0' TERM INT
+        while :; do
+          sleep 1
+        done
+        ;;
+      *)
+        cat <<'EOF'
 {"success":true,"error_code":null,"message":"codex login profile created","data":{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"probe_identity":{"profile_id":"p_browser","provider":"CodexOfficial","principal_id":"acct-123","display_name":"browser@example.com","credentials":{"account_id":"acct-123","access_token":"access-token"},"metadata":{"email":"browser@example.com","plan_hint":"team"}},"activated":true}}
 EOF
+        ;;
+    esac
     ;;
   "--json switch")
     cat <<'EOF'

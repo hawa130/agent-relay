@@ -266,9 +266,9 @@ public final class RelayAppModel: ObservableObject {
         }
     }
 
-    func loginProfile(agent: AgentKind, nickname: String?, priority: Int) async {
+    func loginProfile(agent: AgentKind, nickname: String?, priority: Int) async -> AddAccountResult {
         guard !isMutatingProfiles else {
-            return
+            return .failed(detail: "Another profile change is already in progress.")
         }
 
         isMutatingProfiles = true
@@ -281,16 +281,31 @@ public final class RelayAppModel: ObservableObject {
             selectProfile(result.profile.id)
             await refresh()
             lastErrorMessage = nil
+            return .success
+        } catch is CancellationError {
+            lastErrorMessage = nil
+            return .cancelled
         } catch {
-            lastErrorMessage = error.localizedDescription
-            await notificationService.post(
-                title: "Relay profile update failed",
-                body: error.localizedDescription
-            )
+            let outcome = addAccountResult(for: error, agent: agent)
+            switch outcome {
+            case .success:
+                lastErrorMessage = nil
+            case .cancelled:
+                lastErrorMessage = nil
+            case let .notSignedIn(detail):
+                lastErrorMessage = "\(agent.rawValue): Not signed in. \(detail)"
+            case let .failed(detail):
+                lastErrorMessage = detail
+                await notificationService.post(
+                    title: "Relay profile update failed",
+                    body: detail
+                )
+            }
+            return outcome
         }
     }
 
-    func addAccount(agent: AgentKind, priority: Int) async {
+    func addAccount(agent: AgentKind, priority: Int = 100) async -> AddAccountResult {
         await loginProfile(agent: agent, nickname: nil, priority: priority)
     }
 
@@ -343,6 +358,24 @@ public final class RelayAppModel: ObservableObject {
                 body: error.localizedDescription
             )
         }
+    }
+
+    private func addAccountResult(for error: Error, agent: AgentKind) -> AddAccountResult {
+        let description = error.localizedDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalized = description.lowercased()
+
+        if normalized.contains("timed out waiting for browser sign-in")
+            || normalized.contains("did not complete successfully")
+            || normalized.contains("without creating auth.json")
+            || normalized.contains("login cancelled")
+            || normalized.contains("login canceled")
+            || normalized.contains("sign-in cancelled")
+            || normalized.contains("sign-in canceled")
+        {
+            return .notSignedIn(detail: "Browser sign-in was cancelled or did not complete.")
+        }
+
+        return .failed(detail: description.isEmpty ? "\(agent.rawValue) login failed." : description)
     }
 
     private func normalizeSelection() {

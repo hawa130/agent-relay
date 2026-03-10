@@ -20,8 +20,8 @@ public struct ProfilesSettingsPaneView: View {
         .sheet(isPresented: $showingLoginSheet) {
             AddAccountSheet(
                 isBusy: model.isMutatingProfiles,
-                onContinue: { priority in
-                    await model.addAccount(agent: .codex, priority: priority)
+                onStart: {
+                    await model.addAccount(agent: .codex)
                 }
             )
         }
@@ -626,10 +626,12 @@ private struct ProfileEditorSheet: View {
 
 private struct AddAccountSheet: View {
     let isBusy: Bool
-    let onContinue: @MainActor (Int) async -> Void
+    let onStart: @MainActor () async -> AddAccountResult
 
     @Environment(\.dismiss) private var dismiss
-    @State private var priority = 100
+    @State private var flowState: FlowState = .requesting
+    @State private var loginTask: Task<Void, Never>?
+    @State private var didStartLogin = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -638,54 +640,214 @@ private struct AddAccountSheet: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 18)
 
-            Form {
-                Section {
-                    VStack(alignment: .leading, spacing: 6) {
-                        NativeStepperRow(
-                            title: "Priority",
-                            valueText: "\(priority)",
-                            value: $priority,
-                            range: 0...10_000
-                        )
+            statusCard
+                .padding(.horizontal, 18)
 
-                        Text("Lower numbers are preferred first during switching.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                } header: {
-                    Text("Profile")
-                }
-
-                Section("Flow") {
-                    Text("Continue to open the Codex sign-in flow in your browser, then import the signed-in account automatically.")
-                        .foregroundStyle(.secondary)
-                    Text("The default nickname will be the account email. You can rename it later.")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .formStyle(.grouped)
-            .frame(maxWidth: .infinity)
+            Text(flowState.bodyText)
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 18)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack {
                 Spacer()
 
-                Button("Cancel") {
+                Button(flowState.secondaryActionTitle) {
+                    if flowState.isRequesting {
+                        loginTask?.cancel()
+                    }
                     dismiss()
                 }
+                .disabled(isBusy && !flowState.isRequesting)
 
-                Button("Continue") {
-                    Task {
-                        await onContinue(priority)
-                        dismiss()
+                if let primaryActionTitle = flowState.primaryActionTitle {
+                    Button(primaryActionTitle) {
+                        startLogin()
                     }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isBusy || flowState.isRequesting)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(isBusy)
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 16)
         }
-        .frame(width: 560)
+        .frame(width: 420)
+        .interactiveDismissDisabled(flowState.isRequesting)
+        .onAppear {
+            startLogin()
+        }
+        .onDisappear {
+            loginTask?.cancel()
+            loginTask = nil
+        }
+    }
+
+    private var statusCard: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Group {
+                if flowState.isRequesting {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(flowState.accentColor)
+                        .frame(width: 22, height: 22)
+                } else {
+                    Image(systemName: flowState.symbolName)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(flowState.accentColor)
+                        .frame(width: 22, height: 22)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(flowState.statusTitle)
+                    .font(.headline)
+
+                Text(flowState.statusSubtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
+                if let detail = flowState.statusDetail {
+                    Text(detail)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(flowState.backgroundColor)
+        )
+    }
+
+    private func startLogin() {
+        guard !didStartLogin || !flowState.isRequesting else {
+            return
+        }
+
+        didStartLogin = true
+        flowState = .requesting
+        loginTask?.cancel()
+        loginTask = Task { @MainActor in
+            let result = await onStart()
+            guard !Task.isCancelled else {
+                return
+            }
+            switch result {
+            case .success, .cancelled:
+                dismiss()
+            case let .notSignedIn(detail):
+                flowState = .notSignedIn(detail: detail)
+            case let .failed(detail):
+                flowState = .failed(detail: detail)
+            }
+            loginTask = nil
+        }
+    }
+
+    private enum FlowState: Equatable {
+        case requesting
+        case notSignedIn(detail: String)
+        case failed(detail: String)
+
+        var isRequesting: Bool {
+            if case .requesting = self {
+                return true
+            }
+            return false
+        }
+
+        var primaryActionTitle: String? {
+            switch self {
+            case .requesting:
+                return nil
+            case .notSignedIn, .failed:
+                return "Try Again"
+            }
+        }
+
+        var secondaryActionTitle: String {
+            switch self {
+            case .requesting:
+                return "Cancel"
+            case .notSignedIn, .failed:
+                return "Close"
+            }
+        }
+
+        var bodyText: String {
+            switch self {
+            case .requesting:
+                return "Complete the browser login, or cancel here to stop waiting."
+            case .notSignedIn:
+                return "Login did not complete. Close this window or try again."
+            case let .failed(detail):
+                return detail
+            }
+        }
+
+        var statusTitle: String {
+            switch self {
+            case .requesting:
+                return "Add Account..."
+            case .notSignedIn, .failed:
+                return "Add Account"
+            }
+        }
+
+        var statusSubtitle: String {
+            switch self {
+            case .requesting:
+                return "Codex: Requesting login..."
+            case .notSignedIn:
+                return "Codex: Not signed in"
+            case .failed:
+                return "Codex: Login failed"
+            }
+        }
+
+        var statusDetail: String? {
+            switch self {
+            case .requesting:
+                return nil
+            case let .notSignedIn(detail), let .failed(detail):
+                return detail
+            }
+        }
+
+        var symbolName: String {
+            switch self {
+            case .requesting:
+                return "key.fill"
+            case .notSignedIn:
+                return "person.crop.circle.badge.xmark"
+            case .failed:
+                return "exclamationmark.triangle.fill"
+            }
+        }
+
+        var accentColor: Color {
+            switch self {
+            case .requesting:
+                return .secondary
+            case .notSignedIn:
+                return .orange
+            case .failed:
+                return .red
+            }
+        }
+
+        var backgroundColor: Color {
+            switch self {
+            case .requesting:
+                return Color.secondary.opacity(0.10)
+            case .notSignedIn:
+                return Color.orange.opacity(0.12)
+            case .failed:
+                return Color.red.opacity(0.10)
+            }
+        }
     }
 }
