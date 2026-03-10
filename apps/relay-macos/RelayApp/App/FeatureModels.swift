@@ -67,6 +67,7 @@ public final class ProfilesPaneModel: ObservableObject {
     }
 
     var profiles: [Profile] { session.profiles }
+    var agents: [AgentSettingsDescriptor] { AgentSettingsCatalog.supportedAgents }
     var selectedProfileId: String? { session.selectedProfileId }
     var activeProfileId: String? { session.activeProfileId }
     var selectedProfile: Profile? { session.selectedProfile }
@@ -77,6 +78,10 @@ public final class ProfilesPaneModel: ObservableObject {
 
     func usageSnapshot(for profileId: String) -> UsageSnapshot? {
         session.usageSnapshot(for: profileId)
+    }
+
+    func profileCount(for agent: AgentKind) -> Int {
+        session.profiles.filter { $0.agent == agent }.count
     }
 
     func recentFailureEvent(for profileId: String) -> FailureEvent? {

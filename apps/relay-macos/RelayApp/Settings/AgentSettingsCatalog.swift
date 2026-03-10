@@ -4,6 +4,7 @@ import SwiftUI
 struct AgentSettingsDescriptor: Identifiable {
     let agent: AgentKind
     let title: String
+    let vendorTitle: String
     let subtitle: String
     let iconResourceName: String
     let accentColor: Color
@@ -29,6 +30,7 @@ enum AgentSettingsCatalog {
         AgentSettingsDescriptor(
             agent: .codex,
             title: "Codex",
+            vendorTitle: "OpenAI",
             subtitle: "Configure usage source and other Codex-specific behavior.",
             iconResourceName: "ProviderIcon-codex",
             accentColor: Color(red: 73 / 255, green: 163 / 255, blue: 176 / 255),
