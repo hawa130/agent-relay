@@ -11,10 +11,7 @@ base64.workspace = true
 chrono.workspace = true
 dirs.workspace = true
 reqwest.workspace = true
-relay-entity = { path = "../relay-entity" }
-relay-migration = { path = "../relay-migration" }
 sea-orm.workspace = true
-sea-orm-migration.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

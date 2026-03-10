@@ -54,7 +54,8 @@ The command surface is intentionally shallow:
 ### Store
 
 - SQLite stores durable relational state such as profiles, settings, switch history, failure events, and linked provider identities.
-- `relay-core::store` uses SeaORM entities and embedded migrations for durable schema management.
+- `relay-core::store` owns hand-written SeaORM entities and uses SeaORM 2.x schema sync during write bootstrap.
+- The entities are the schema source of truth; Relay no longer treats versioned migrations as the primary workflow.
 - File-backed caches store active state and usage snapshots for low-latency reads and reduced migration overhead.
 - Snapshot directories store rollback assets for switch transactions.
 
@@ -93,7 +94,7 @@ Use SQLite for durable truth and keep file-backed state limited to caches or ope
 
 1. Resolve paths from environment or home directory.
 2. Ensure the Relay home layout exists.
-3. Open stores and run embedded SeaORM migration bootstrap.
+3. Open stores, reject incompatible legacy schemas, and run SeaORM schema sync for write mode.
 4. Execute the requested use-case.
 
 ### Profile Mutation

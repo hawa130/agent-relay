@@ -10,6 +10,7 @@ pub enum ErrorCode {
     NotImplemented,
     Io,
     Store,
+    SchemaIncompatible,
     Validation,
     Conflict,
     ExternalCommand,
@@ -24,6 +25,7 @@ impl ErrorCode {
             Self::NotImplemented => "RELAY_NOT_IMPLEMENTED",
             Self::Io => "RELAY_IO",
             Self::Store => "RELAY_STORE",
+            Self::SchemaIncompatible => "RELAY_SCHEMA_INCOMPATIBLE",
             Self::Validation => "RELAY_VALIDATION",
             Self::Conflict => "RELAY_CONFLICT",
             Self::ExternalCommand => "RELAY_EXTERNAL_COMMAND",
@@ -45,6 +47,8 @@ pub enum RelayError {
     #[error("{0}")]
     Store(String),
     #[error("{0}")]
+    SchemaIncompatible(String),
+    #[error("{0}")]
     Validation(String),
     #[error("{0}")]
     Conflict(String),
@@ -62,6 +66,7 @@ impl RelayError {
             Self::NotImplemented(_) => ErrorCode::NotImplemented,
             Self::Io(_) => ErrorCode::Io,
             Self::Store(_) => ErrorCode::Store,
+            Self::SchemaIncompatible(_) => ErrorCode::SchemaIncompatible,
             Self::Validation(_) => ErrorCode::Validation,
             Self::Conflict(_) => ErrorCode::Conflict,
             Self::ExternalCommand(_) => ErrorCode::ExternalCommand,

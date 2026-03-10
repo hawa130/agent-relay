@@ -142,7 +142,7 @@ mod tests {
     use crate::platform::RelayPaths;
     use crate::store::{FileLogStore, FileStateStore};
     use chrono::Utc;
-    use sea_orm::{ConnectionTrait, Database, DbBackend, Statement};
+    use sea_orm::{ConnectionTrait, Database};
     use std::fs;
     use tempfile::tempdir;
 
@@ -176,10 +176,7 @@ mod tests {
         .await
         .expect("open breaker db");
         breaker
-            .execute(Statement::from_string(
-                DbBackend::Sqlite,
-                "DROP TABLE switch_history".to_string(),
-            ))
+            .execute_unprepared("DROP TABLE switch_history")
             .await
             .expect("drop switch_history");
         drop(breaker);

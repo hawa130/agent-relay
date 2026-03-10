@@ -1,3 +1,4 @@
+use sea_orm::{ConnectionTrait, Database};
 use serde_json::Value;
 use std::fs;
 use std::io::Write;
@@ -89,6 +90,16 @@ fn write_oauth_auth(path: &Path, account_id: &str, email: &str) {
         ),
     )
     .expect("oauth auth");
+}
+
+async fn create_legacy_relay_db(path: &Path) {
+    let connection = Database::connect(format!("sqlite://{}?mode=rwc", path.to_string_lossy()))
+        .await
+        .expect("legacy db");
+    connection
+        .execute_unprepared("CREATE TABLE seaql_migrations (version TEXT PRIMARY KEY NOT NULL)")
+        .await
+        .expect("create legacy migrations table");
 }
 
 fn run_json(relay_home: &Path, codex_home: &Path, args: &[&str]) -> Value {
@@ -1442,4 +1453,24 @@ fn failed_add_does_not_persist_invalid_profile() {
 
     let list = run_json(&relay_home, &live_codex_home, &["--json", "list"]);
     assert_eq!(list["data"], serde_json::json!([]));
+}
+
+#[tokio::test]
+async fn legacy_database_returns_schema_incompatible_error() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    fs::create_dir_all(&relay_home).expect("relay home");
+    make_codex_home(&live_codex_home, "live");
+    create_legacy_relay_db(&relay_home.join("relay.db")).await;
+
+    let failure = run_failure(&relay_home, &live_codex_home, &["--json", "doctor"]);
+    assert_eq!(failure["success"], false);
+    assert_eq!(failure["error_code"], "RELAY_SCHEMA_INCOMPATIBLE");
+    assert!(
+        failure["message"]
+            .as_str()
+            .expect("message")
+            .contains("remove the existing database")
+    );
 }

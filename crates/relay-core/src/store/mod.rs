@@ -1,6 +1,5 @@
 mod entities;
 mod log_store;
-mod migrations;
 mod profile_store;
 mod state_store;
 mod usage_store;

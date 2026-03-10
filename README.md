@@ -152,8 +152,22 @@ cargo test
 cargo run -p relay-cli --bin relay -- --help
 ```
 
+SeaORM workflow:
+
+```bash
+# 1. edit the hand-written SeaORM entities in relay-core
+# 2. delete relay.db if you made a breaking schema change
+cargo test
+```
+
+Relay now uses SeaORM 2.x entity-first schema sync. The entities in
+`relay-core` are the schema source of truth. If a local dev database predates
+the current entity-first layout, remove `relay.db` and let Relay recreate it on
+next bootstrap.
+
 Additional docs:
 
 - [Architecture](./docs/architecture.md)
 - [Install and Usage](./docs/install.md)
 - [Development](./docs/development.md)
+- [SQLite Schema](./docs/sqlite-schema.md)

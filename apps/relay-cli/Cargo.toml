@@ -21,5 +21,6 @@ tracing-subscriber.workspace = true
 relay-core = { path = "../../crates/relay-core" }
 
 [dev-dependencies]
+sea-orm.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
