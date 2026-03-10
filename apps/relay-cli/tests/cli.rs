@@ -960,7 +960,7 @@ fn codex_login_and_remote_usage_probe_work() {
         .as_str()
         .expect("profile id")
         .to_string();
-    assert_eq!(logged_in["data"]["activated"], true);
+    assert_eq!(logged_in["data"]["activated"], false);
     assert_eq!(
         logged_in["data"]["probe_identity"]["principal_id"],
         "acct-123"
@@ -969,8 +969,8 @@ fn codex_login_and_remote_usage_probe_work() {
         logged_in["data"]["probe_identity"]["credentials"]["account_id"],
         "acct-123"
     );
-    let current = run_json_with_env(&relay_home, &live_codex_home, &["--json", "show"], &envs);
-    assert_eq!(current["data"]["profile"]["id"], profile_id);
+    let status = run_json_with_env(&relay_home, &live_codex_home, &["--json", "status"], &envs);
+    assert_eq!(status["data"]["active_state"]["active_profile_id"], serde_json::Value::Null);
 
     let refreshed = run_json_with_env(
         &relay_home,

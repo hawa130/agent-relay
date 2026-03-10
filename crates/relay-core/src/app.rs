@@ -254,14 +254,12 @@ impl RelayApp {
 
     pub fn login_profile(&self, request: AgentLoginRequest) -> Result<AgentLinkResult, RelayError> {
         let adapter = self.adapters.adapter(&request.agent);
-        let mut result = adapter.login_profile(
+        let result = adapter.login_profile(
             &self.store,
             &self.paths.profiles_dir,
             request.nickname,
             request.priority,
         )?;
-        self.sync_active_profile(&result.profile)?;
-        result.activated = true;
         let _ = self.refresh_usage_profile(&result.profile.id);
         self.log_store.append(
             "info",
