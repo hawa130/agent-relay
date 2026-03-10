@@ -109,8 +109,9 @@ public struct ProfilesSettingsPaneView: View {
                 Button {
                     model.presentAddSheet()
                 } label: {
-                    Image(systemName: "plus")
+                    Label("Add Profile", systemImage: "plus")
                 }
+                .accessibilityLabel("Add Profile")
                 .help("Add Profile")
             }
         }
@@ -159,8 +160,9 @@ public struct ProfilesSettingsPaneView: View {
                 Button {
                     model.presentEditForSelectedProfile()
                 } label: {
-                    Image(systemName: "square.and.pencil")
+                    Label("Edit Profile", systemImage: "square.and.pencil")
                 }
+                .accessibilityLabel("Edit Profile")
                 .help("Edit Profile")
                 .disabled(model.selectedProfileId == nil || model.isMutatingProfiles)
             }

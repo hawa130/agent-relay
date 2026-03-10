@@ -1,12 +1,12 @@
+use crate::CodexSettings;
 use crate::models::{
     ActiveState, AppSettings, ErrorCode, FailureEvent, LogTail, ProfileDetail, ProfileListItem,
     SwitchReport, SwitchTrigger, SystemStatusReport, UsageSnapshot,
 };
 use crate::{
-    AgentLoginRequest, AddProfileRequest, CodexSettingsUpdateRequest, EditProfileRequest,
+    AddProfileRequest, AgentLoginRequest, CodexSettingsUpdateRequest, EditProfileRequest,
     ImportProfileRequest, SystemSettingsUpdateRequest,
 };
-use crate::CodexSettings;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
