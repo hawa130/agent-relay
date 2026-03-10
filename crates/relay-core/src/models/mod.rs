@@ -26,18 +26,17 @@ pub use probe_identity::{ProbeProvider, ProfileProbeIdentity};
 pub use profile::{AgentKind, AuthMode, Profile};
 pub use protocol::JsonResponse;
 pub use rpc::{
-    ActiveStateUpdatedPayload, ActivityEventsParams, ActivityEventsResult, AppSettingsPatch,
-    AddProfileParams, CodexSettingsPatch, CodexSettingsParams, EditProfileParams,
-    EngineConnectionState, EngineState, HealthUpdatedPayload, ImportProfileParams,
-    InitializeParams, InitializeResult, InitialState, LoginProfileParams, LogsTailParams,
-    LogsTailResult, ProfileIdParams, ProfileResult, RefreshUsageParams, RefreshUsageResult,
-    RelayRpcTopic, RpcClientCapabilities, RpcClientInfo, RpcErrorData, RpcErrorObject,
-    RpcErrorResponse, RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo,
-    RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
-    SettingsUpdateParams, SubscribeParams, SubscribeResult, SwitchCompletedPayload,
-    SwitchFailedPayload, SystemSettingsParams, UsageGetParams, UsageResult,
-    UsageUpdateTrigger, UsageUpdatedPayload, rpc_from_error, rpc_internal_error,
-    rpc_invalid_params, rpc_invalid_request, rpc_method_not_found,
+    ActiveStateUpdatedPayload, ActivityEventsParams, ActivityEventsResult, AddProfileParams,
+    AppSettingsPatch, CodexSettingsParams, CodexSettingsPatch, EditProfileParams,
+    EngineConnectionState, EngineState, HealthUpdatedPayload, ImportProfileParams, InitialState,
+    InitializeParams, InitializeResult, LoginProfileParams, LogsTailParams, LogsTailResult,
+    ProfileIdParams, ProfileResult, RefreshUsageParams, RefreshUsageResult, RelayRpcTopic,
+    RpcClientCapabilities, RpcClientInfo, RpcErrorData, RpcErrorObject, RpcErrorResponse,
+    RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo, RpcSuccessResponse,
+    SessionUpdate, SetProfileEnabledParams, SettingsResult, SettingsUpdateParams, SubscribeParams,
+    SubscribeResult, SwitchCompletedPayload, SwitchFailedPayload, SystemSettingsParams,
+    UsageGetParams, UsageResult, UsageUpdateTrigger, UsageUpdatedPayload, rpc_from_error,
+    rpc_internal_error, rpc_invalid_params, rpc_invalid_request, rpc_method_not_found,
 };
 pub use settings::AppSettings;
 pub use state::{ActiveState, StatusReport, SwitchCheckpoint, SwitchOutcome};

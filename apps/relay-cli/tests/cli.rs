@@ -1,5 +1,6 @@
 use sea_orm::{ConnectionTrait, Database};
 use serde_json::Value;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
@@ -1609,7 +1610,10 @@ impl DaemonHarness {
 
     fn read_message(&mut self) -> Value {
         let mut line = String::new();
-        let read = self.stdout.read_line(&mut line).expect("read daemon stdout");
+        let read = self
+            .stdout
+            .read_line(&mut line)
+            .expect("read daemon stdout");
         assert!(read > 0, "daemon stdout closed unexpectedly");
         serde_json::from_str(line.trim()).expect("daemon json")
     }
@@ -1661,7 +1665,10 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
     let initialize = daemon.read_message();
     assert_eq!(initialize["id"], "1");
     assert_eq!(initialize["result"]["protocol_version"], "1");
-    assert_eq!(initialize["result"]["initial_state"]["status"]["profile_count"], 1);
+    assert_eq!(
+        initialize["result"]["initial_state"]["status"]["profile_count"],
+        1
+    );
 
     daemon.send_request(
         "2",
@@ -1673,7 +1680,10 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
     let subscribe = daemon.read_message();
     assert_eq!(subscribe["id"], "2");
     assert_eq!(
-        subscribe["result"]["subscribed_topics"].as_array().expect("topics").len(),
+        subscribe["result"]["subscribed_topics"]
+            .as_array()
+            .expect("topics")
+            .len(),
         3
     );
     let startup_notifications = [
@@ -1697,14 +1707,20 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
     let refresh = daemon.read_message();
     assert_eq!(refresh["id"], "3");
     assert_eq!(
-        refresh["result"]["snapshots"].as_array().expect("snapshots").len(),
+        refresh["result"]["snapshots"]
+            .as_array()
+            .expect("snapshots")
+            .len(),
         1
     );
     let usage_update = daemon.read_message();
     assert_eq!(usage_update["params"]["topic"], "usage.updated");
     assert_eq!(usage_update["params"]["payload"]["trigger"], "Manual");
     let active_state_update = daemon.read_message();
-    assert_eq!(active_state_update["params"]["topic"], "active_state.updated");
+    assert_eq!(
+        active_state_update["params"]["topic"],
+        "active_state.updated"
+    );
 
     daemon.shutdown();
 }
@@ -1764,6 +1780,148 @@ fn daemon_stdio_rejects_malformed_json_requests() {
     let error = daemon.read_message();
     assert!(error.get("id").is_none() || error["id"].is_null());
     assert_eq!(error["error"]["code"], -32600);
+
+    daemon.shutdown();
+}
+
+#[test]
+fn daemon_stdio_handles_high_concurrency_read_requests() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+
+    let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
+    daemon.send_request(
+        "init",
+        "initialize",
+        serde_json::json!({
+            "protocol_version": "1",
+            "client_info": { "name": "relay-cli-test", "version": "1.0.0" },
+            "capabilities": {
+                "supports_subscriptions": false,
+                "supports_health_updates": false
+            }
+        }),
+    );
+    let initialize = daemon.read_message();
+    assert_eq!(initialize["id"], "init");
+
+    const READ_REQUESTS: usize = 120;
+    let mut expected_ids = HashSet::new();
+    for idx in 0..READ_REQUESTS {
+        let id = format!("read-{idx}");
+        expected_ids.insert(id.clone());
+        match idx % 3 {
+            0 => daemon.send_request(&id, "relay/status/get", serde_json::json!({})),
+            1 => daemon.send_request(&id, "relay/usage/get", serde_json::json!({})),
+            _ => daemon.send_request(&id, "relay/profiles/list", serde_json::json!({})),
+        }
+    }
+
+    let mut seen_ids = HashSet::new();
+    for _ in 0..READ_REQUESTS {
+        let response = daemon.read_message();
+        assert!(
+            response.get("error").is_none(),
+            "read request failed: {response}"
+        );
+        let id = response["id"].as_str().expect("response id").to_string();
+        assert!(expected_ids.contains(&id), "unexpected response id: {id}");
+        assert!(seen_ids.insert(id), "duplicate response id");
+    }
+
+    assert_eq!(seen_ids.len(), READ_REQUESTS);
+    daemon.shutdown();
+}
+
+#[test]
+fn daemon_stdio_handles_high_concurrency_profile_switch_writes() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+
+    let mut profile_ids = Vec::new();
+    for idx in 0..3 {
+        let profile_home = temp.path().join(format!("switch-profile-{idx}"));
+        make_codex_home(&profile_home, &format!("profile-{idx}"));
+        let add_payload = format!(
+            "{{\"nickname\":\"switch-{idx}\",\"priority\":{},\"agent_home\":\"{}\",\"auth_mode\":\"ConfigFilesystem\"}}",
+            100 + idx,
+            profile_home.to_string_lossy()
+        );
+        let add = run_json_with_stdin(
+            &relay_home,
+            &live_codex_home,
+            &["--json", "codex", "add", "--input-json", "-"],
+            &add_payload,
+        );
+        profile_ids.push(
+            add["data"]["id"]
+                .as_str()
+                .expect("profile id")
+                .to_string(),
+        );
+    }
+
+    let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
+    daemon.send_request(
+        "init",
+        "initialize",
+        serde_json::json!({
+            "protocol_version": "1",
+            "client_info": { "name": "relay-cli-test", "version": "1.0.0" },
+            "capabilities": {
+                "supports_subscriptions": false,
+                "supports_health_updates": false
+            }
+        }),
+    );
+    let initialize = daemon.read_message();
+    assert_eq!(initialize["id"], "init");
+
+    const WRITE_REQUESTS: usize = 72;
+    let mut expected_targets = HashMap::new();
+    for idx in 0..WRITE_REQUESTS {
+        let id = format!("switch-{idx}");
+        let target = profile_ids[idx % profile_ids.len()].clone();
+        expected_targets.insert(id.clone(), target.clone());
+        daemon.send_request(
+            &id,
+            "relay/switch/activate",
+            serde_json::json!({
+                "profile_id": target,
+            }),
+        );
+    }
+
+    for _ in 0..WRITE_REQUESTS {
+        let response = daemon.read_message();
+        assert!(
+            response.get("error").is_none(),
+            "write request failed: {response}"
+        );
+        let id = response["id"].as_str().expect("response id").to_string();
+        let expected_target = expected_targets
+            .remove(&id)
+            .unwrap_or_else(|| panic!("unexpected response id: {id}"));
+        assert_eq!(response["result"]["profile_id"], expected_target);
+    }
+    assert!(
+        expected_targets.is_empty(),
+        "missing responses: {}",
+        expected_targets.len()
+    );
+
+    daemon.send_request("status", "relay/status/get", serde_json::json!({}));
+    let status = daemon.read_message();
+    assert_eq!(status["id"], "status");
+    let last_target = profile_ids[(WRITE_REQUESTS - 1) % profile_ids.len()].clone();
+    assert_eq!(
+        status["result"]["active_state"]["active_profile_id"],
+        last_target
+    );
 
     daemon.shutdown();
 }

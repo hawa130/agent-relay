@@ -114,6 +114,32 @@ final class RelayDaemonClientTests: XCTestCase {
         }
     }
 
+    func testRequestTimeoutDoesNotPoisonSubsequentRequests() async throws {
+        let fixture = try RelayDaemonFixture.make(mode: "drop_status_response")
+        defer { fixture.cleanup() }
+
+        let client = RelayDaemonClient(
+            relayCLIPathOverride: fixture.scriptPath,
+            requestTimeoutSeconds: 0.2,
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "drop_status_response"]
+        )
+
+        do {
+            _ = try await client.fetchStatus()
+            XCTFail("expected fetchStatus to time out")
+        } catch let RelayCLIClientError.commandFailed(code, message) {
+            XCTAssertEqual(code, "RELAY_DAEMON_TIMEOUT")
+            XCTAssertTrue(message.contains("timed out"))
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+
+        let usage = try await client.fetchCurrentUsage()
+        XCTAssertEqual(usage.profileId?.hasPrefix("p_active_"), true)
+
+        await client.stop()
+    }
+
     func testRestartCreatesFreshDaemonSession() async throws {
         let fixture = try RelayDaemonFixture.make()
         defer { fixture.cleanup() }
@@ -255,6 +281,9 @@ EOF
           printf '%s\n' 'rpc relay/status/get' >> "$script_dir/commands.log"
           if [ "$mode" = "crash_on_status" ]; then
             exit 9
+          fi
+          if [ "$mode" = "drop_status_response" ]; then
+            continue
           fi
           if [ "$mode" = "out_of_order_responses" ]; then
             sleep 0.2

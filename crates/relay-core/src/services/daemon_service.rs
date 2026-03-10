@@ -1,7 +1,7 @@
 use crate::models::{
     ActiveStateUpdatedPayload, ActivityEventsParams, ActivityEventsResult, AddProfileParams,
     EditProfileParams, EngineConnectionState, EngineState, HealthUpdatedPayload,
-    ImportProfileParams, InitializeParams, InitializeResult, InitialState, LoginProfileParams,
+    ImportProfileParams, InitialState, InitializeParams, InitializeResult, LoginProfileParams,
     LogsTailParams, LogsTailResult, ProfileIdParams, RefreshUsageParams, RefreshUsageResult,
     RelayRpcTopic, RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo,
     RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
@@ -61,6 +61,92 @@ impl DaemonService {
             .await
     }
 
+    pub fn is_read_method(method: &str) -> bool {
+        matches!(
+            method,
+            "relay/doctor/get"
+                | "relay/status/get"
+                | "relay/profiles/list"
+                | "relay/profiles/get"
+                | "relay/usage/get"
+                | "relay/settings/get"
+                | "relay/activity/events/list"
+                | "relay/activity/logs/tail"
+        )
+    }
+
+    pub async fn handle_read_request(
+        app: &RelayApp,
+        request: RpcRequest,
+    ) -> Result<RpcSuccessResponse, crate::RpcErrorObject> {
+        if request.jsonrpc != "2.0" {
+            return Err(rpc_invalid_request("jsonrpc must equal 2.0"));
+        }
+
+        let result = match request.method.as_str() {
+            "relay/doctor/get" => serialize(app.doctor_report().map_err(|e| rpc_from_error(&e))?)?,
+            "relay/status/get" => {
+                serialize(app.system_status().await.map_err(|e| rpc_from_error(&e))?)?
+            }
+            "relay/profiles/list" => serialize(
+                app.list_profiles_with_usage()
+                    .await
+                    .map_err(|e| rpc_from_error(&e))?,
+            )?,
+            "relay/profiles/get" => {
+                let params: ProfileIdParams = parse_params(request.params)?;
+                serialize(
+                    app.profile_detail(&params.profile_id)
+                        .await
+                        .map_err(|e| rpc_from_error(&e))?,
+                )?
+            }
+            "relay/usage/get" => {
+                let params: UsageGetParams = parse_params(request.params)?;
+                let snapshot = if let Some(profile_id) = params.profile_id {
+                    app.profile_usage_report(&profile_id)
+                        .await
+                        .map_err(|e| rpc_from_error(&e))?
+                } else {
+                    app.usage_report().await.map_err(|e| rpc_from_error(&e))?
+                };
+                serialize(UsageResult { snapshot })?
+            }
+            "relay/settings/get" => serialize(SettingsResult {
+                app: app.settings().await.map_err(|e| rpc_from_error(&e))?,
+                codex: app.codex_settings().await.map_err(|e| rpc_from_error(&e))?,
+            })?,
+            "relay/activity/events/list" => {
+                let params: ActivityEventsParams = parse_params(request.params)?;
+                serialize(ActivityEventsResult {
+                    events: app
+                        .list_activity_events(ActivityEventsQuery {
+                            limit: params.limit,
+                            profile_id: params.profile_id,
+                            reason: params.reason.map(parse_failure_reason).transpose()?,
+                        })
+                        .await
+                        .map_err(|e| rpc_from_error(&e))?,
+                })?
+            }
+            "relay/activity/logs/tail" => {
+                let params: LogsTailParams = parse_params(request.params)?;
+                serialize(LogsTailResult {
+                    logs: app
+                        .logs_tail(params.lines)
+                        .map_err(|e| rpc_from_error(&e))?,
+                })?
+            }
+            other => return Err(rpc_method_not_found(other)),
+        };
+
+        Ok(RpcSuccessResponse {
+            jsonrpc: "2.0".into(),
+            id: request.id,
+            result,
+        })
+    }
+
     pub async fn handle_request(
         &mut self,
         request: RpcRequest,
@@ -73,10 +159,15 @@ impl DaemonService {
             "initialize" => self.handle_initialize(request.params).await?,
             "session/subscribe" => self.handle_subscribe(request.params).await?,
             "session/unsubscribe" => self.handle_unsubscribe(request.params).await?,
-            "relay/doctor/get" => serialize(self.app.doctor_report().map_err(|e| rpc_from_error(&e))?)?,
-            "relay/status/get" => {
-                serialize(self.app.system_status().await.map_err(|e| rpc_from_error(&e))?)?
+            "relay/doctor/get" => {
+                serialize(self.app.doctor_report().map_err(|e| rpc_from_error(&e))?)?
             }
+            "relay/status/get" => serialize(
+                self.app
+                    .system_status()
+                    .await
+                    .map_err(|e| rpc_from_error(&e))?,
+            )?,
             "relay/profiles/list" => serialize(
                 self.app
                     .list_profiles_with_usage()
@@ -154,7 +245,10 @@ impl DaemonService {
                         .await
                         .map_err(|e| rpc_from_error(&e))?
                 } else {
-                    self.app.usage_report().await.map_err(|e| rpc_from_error(&e))?
+                    self.app
+                        .usage_report()
+                        .await
+                        .map_err(|e| rpc_from_error(&e))?
                 };
                 serialize(UsageResult { snapshot })?
             }
@@ -170,16 +264,14 @@ impl DaemonService {
                     .await?,
                 )?
             }
-            "relay/switch/next" => {
-                serialize(
-                    self.handle_switch_result(
-                        self.app.switch_next_profile().await,
-                        SwitchTrigger::Manual,
-                        None,
-                    )
-                    .await?,
-                )?
-            }
+            "relay/switch/next" => serialize(
+                self.handle_switch_result(
+                    self.app.switch_next_profile().await,
+                    SwitchTrigger::Manual,
+                    None,
+                )
+                .await?,
+            )?,
             "relay/settings/get" => serialize(SettingsResult {
                 app: self.app.settings().await.map_err(|e| rpc_from_error(&e))?,
                 codex: self
@@ -188,7 +280,9 @@ impl DaemonService {
                     .await
                     .map_err(|e| rpc_from_error(&e))?,
             })?,
-            "relay/settings/update" => serialize(self.handle_settings_update(request.params).await?)?,
+            "relay/settings/update" => {
+                serialize(self.handle_settings_update(request.params).await?)?
+            }
             "relay/activity/events/list" => {
                 let params: ActivityEventsParams = parse_params(request.params)?;
                 serialize(ActivityEventsResult {
@@ -206,7 +300,10 @@ impl DaemonService {
             "relay/activity/logs/tail" => {
                 let params: LogsTailParams = parse_params(request.params)?;
                 serialize(LogsTailResult {
-                    logs: self.app.logs_tail(params.lines).map_err(|e| rpc_from_error(&e))?,
+                    logs: self
+                        .app
+                        .logs_tail(params.lines)
+                        .map_err(|e| rpc_from_error(&e))?,
                 })?
             }
             "relay/activity/diagnostics/export" => serialize(
@@ -229,10 +326,7 @@ impl DaemonService {
         })
     }
 
-    async fn handle_initialize(
-        &mut self,
-        params: Value,
-    ) -> Result<Value, crate::RpcErrorObject> {
+    async fn handle_initialize(&mut self, params: Value) -> Result<Value, crate::RpcErrorObject> {
         let _: InitializeParams = parse_params(params)?;
         self.connection_state = EngineConnectionState::Ready;
         serialize(InitializeResult {
@@ -269,10 +363,7 @@ impl DaemonService {
         })
     }
 
-    async fn handle_subscribe(
-        &mut self,
-        params: Value,
-    ) -> Result<Value, crate::RpcErrorObject> {
+    async fn handle_subscribe(&mut self, params: Value) -> Result<Value, crate::RpcErrorObject> {
         let params: SubscribeParams = parse_params(params)?;
         self.subscribed_topics.extend(params.topics.iter().copied());
         self.publish_health_update(EngineConnectionState::Ready, None)
@@ -283,10 +374,7 @@ impl DaemonService {
         })
     }
 
-    async fn handle_unsubscribe(
-        &mut self,
-        params: Value,
-    ) -> Result<Value, crate::RpcErrorObject> {
+    async fn handle_unsubscribe(&mut self, params: Value) -> Result<Value, crate::RpcErrorObject> {
         let params: SubscribeParams = parse_params(params)?;
         for topic in params.topics {
             self.subscribed_topics.remove(&topic);
@@ -391,7 +479,8 @@ impl DaemonService {
         trigger: UsageUpdateTrigger,
     ) -> Result<(), RelayError> {
         let snapshots = self.app.refresh_enabled_usage_reports().await?;
-        self.publish_usage_updated(snapshots.clone(), trigger).await?;
+        self.publish_usage_updated(snapshots.clone(), trigger)
+            .await?;
         self.publish_active_state_updated().await?;
 
         let settings = self.app.settings().await?;
@@ -414,7 +503,8 @@ impl DaemonService {
 
         match self.app.switch_next_profile().await {
             Ok(report) => {
-                self.publish_switch_completed(report, SwitchTrigger::Auto).await?;
+                self.publish_switch_completed(report, SwitchTrigger::Auto)
+                    .await?;
                 let post_switch = self.app.refresh_enabled_usage_reports().await?;
                 self.publish_usage_updated(post_switch, UsageUpdateTrigger::PostSwitch)
                     .await?;

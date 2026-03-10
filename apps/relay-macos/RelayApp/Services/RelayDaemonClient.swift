@@ -2,13 +2,18 @@ import Darwin
 import Foundation
 
 actor RelayDaemonClient {
+    private static let defaultRequestTimeoutSeconds: TimeInterval = 30
+    private static let minimumRequestTimeoutSeconds: TimeInterval = 0.1
+
     private let relayCLIPathOverride: String?
     private let environment: [String: String]
+    private let requestTimeoutSeconds: TimeInterval
     private var process: Process?
     private var stdinPipe: Pipe?
     private var stdoutBuffer = Data()
     private var nextRequestID = 0
     private var pending: [String: CheckedContinuation<Data, Error>] = [:]
+    private var pendingTimeouts: [String: Task<Void, Never>] = [:]
     private var initializedState: RPCInitialState?
     private var startTask: Task<RPCInitialState, Error>?
     private var isStopping = false
@@ -17,10 +22,15 @@ actor RelayDaemonClient {
 
     init(
         relayCLIPathOverride: String? = nil,
+        requestTimeoutSeconds: TimeInterval? = nil,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) {
         self.relayCLIPathOverride = relayCLIPathOverride
         self.environment = environment
+        self.requestTimeoutSeconds = Self.resolveRequestTimeoutSeconds(
+            override: requestTimeoutSeconds,
+            environment: environment
+        )
         let streamPair = AsyncStream.makeStream(of: RelaySessionUpdate.self)
         self.stream = streamPair.stream
         self.continuation = streamPair.continuation
@@ -332,6 +342,7 @@ actor RelayDaemonClient {
         let line = payload + Data([0x0A])
         let responseData = try await withCheckedThrowingContinuation { continuation in
             pending[requestID] = continuation
+            scheduleTimeout(for: requestID)
             stdinPipe.fileHandleForWriting.write(line)
         }
 
@@ -385,6 +396,7 @@ actor RelayDaemonClient {
         guard let id = object["id"] as? String, let continuation = pending.removeValue(forKey: id) else {
             return
         }
+        pendingTimeouts.removeValue(forKey: id)?.cancel()
         continuation.resume(returning: data)
     }
 
@@ -419,7 +431,40 @@ actor RelayDaemonClient {
         }
     }
 
+    private func scheduleTimeout(for requestID: String) {
+        pendingTimeouts.removeValue(forKey: requestID)?.cancel()
+        let timeoutSeconds = requestTimeoutSeconds
+        let timeoutNanoseconds = UInt64((timeoutSeconds * 1_000_000_000).rounded())
+        pendingTimeouts[requestID] = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: timeoutNanoseconds)
+            } catch {
+                return
+            }
+            await self?.failPendingRequestTimeout(id: requestID, timeoutSeconds: timeoutSeconds)
+        }
+    }
+
+    private func failPendingRequestTimeout(id: String, timeoutSeconds: TimeInterval) {
+        guard let continuation = pending.removeValue(forKey: id) else {
+            return
+        }
+        pendingTimeouts.removeValue(forKey: id)?.cancel()
+        continuation.resume(throwing: RelayCLIClientError.commandFailed(
+            code: "RELAY_DAEMON_TIMEOUT",
+            message: "relay daemon request timed out after \(Self.formatTimeout(timeoutSeconds)) seconds"
+        ))
+    }
+
+    private func cancelPendingTimeouts() {
+        for task in pendingTimeouts.values {
+            task.cancel()
+        }
+        pendingTimeouts.removeAll()
+    }
+
     private func handleTermination(_ process: Process) {
+        cancelPendingTimeouts()
         if isStopping {
             cleanupProcessState()
             return
@@ -442,6 +487,7 @@ actor RelayDaemonClient {
     }
 
     private func cleanupProcessState() {
+        cancelPendingTimeouts()
         process = nil
         stdinPipe = nil
         stdoutBuffer.removeAll(keepingCapacity: false)
@@ -542,6 +588,30 @@ actor RelayDaemonClient {
 
         var seen = Set<String>()
         return candidates.filter { seen.insert($0).inserted }
+    }
+
+    private static func resolveRequestTimeoutSeconds(
+        override: TimeInterval?,
+        environment: [String: String]
+    ) -> TimeInterval {
+        if let override, override.isFinite {
+            return max(override, minimumRequestTimeoutSeconds)
+        }
+        if
+            let raw = environment["RELAY_DAEMON_REQUEST_TIMEOUT_SECONDS"],
+            let parsed = TimeInterval(raw),
+            parsed.isFinite
+        {
+            return max(parsed, minimumRequestTimeoutSeconds)
+        }
+        return defaultRequestTimeoutSeconds
+    }
+
+    private static func formatTimeout(_ seconds: TimeInterval) -> String {
+        if seconds.rounded() == seconds {
+            return String(Int(seconds))
+        }
+        return String(format: "%.1f", seconds)
     }
 }
 
