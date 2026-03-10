@@ -71,6 +71,7 @@ public final class ProfilesPaneModel: ObservableObject {
     private let session: RelayAppModel
     private var cancellables: Set<AnyCancellable> = []
     @Published var isPresentingAddSheet = false
+    @Published var editingProfile: Profile?
 
     public init(session: RelayAppModel) {
         self.session = session
@@ -112,6 +113,17 @@ public final class ProfilesPaneModel: ObservableObject {
 
     public func dismissAddSheet() {
         isPresentingAddSheet = false
+    }
+
+    public func presentEditForSelectedProfile() {
+        guard !session.isMutatingProfiles, let profile = session.selectedProfile else {
+            return
+        }
+        editingProfile = profile
+    }
+
+    public func dismissEditSheet() {
+        editingProfile = nil
     }
 
     func addAccount(agent: AgentKind, priority: Int = 100) async -> AddAccountResult {
