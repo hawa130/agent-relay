@@ -41,3 +41,37 @@ enum SettingsSidebarSelection: Hashable, Identifiable, Sendable {
         }
     }
 }
+
+enum ProfilesSidebarFilter: String, CaseIterable, Hashable, Identifiable, Sendable {
+    case all
+    case codex
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .all:
+            return "All"
+        case .codex:
+            return "Codex"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .all:
+            return "square.grid.2x2"
+        case .codex:
+            return "command.square"
+        }
+    }
+
+    var emptyStateDescription: String {
+        switch self {
+        case .all:
+            return "Add an account from the toolbar to create your first profile."
+        case .codex:
+            return "No Codex profiles are available in this view yet."
+        }
+    }
+}
