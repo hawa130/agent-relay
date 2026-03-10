@@ -8,14 +8,13 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
     private lazy var settingsPaneModel = SettingsPaneModel(session: model)
     private lazy var profilesPaneModel = ProfilesPaneModel(session: model)
     private var statusItemController: RelayStatusItemController?
-    private lazy var profilesWindowController = ProfilesWindowController(
-        title: RelayWindowID.profiles.title,
+    private lazy var profilesWindowController = RelayWindowController(
+        windowID: .profiles,
+        title: "",
+        style: .manager,
         rootView: AnyView(
             ProfilesSettingsPaneView(model: self.profilesPaneModel)
-        ),
-        onAddProfile: { [weak self] in
-            self?.profilesPaneModel.presentAddSheet()
-        }
+        )
     )
     private lazy var settingsWindowController = SettingsWindowController(
         title: RelayWindowID.settings.title,

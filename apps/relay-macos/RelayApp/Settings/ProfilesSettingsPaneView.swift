@@ -2,7 +2,6 @@ import SwiftUI
 
 public struct ProfilesSettingsPaneView: View {
     @ObservedObject var model: ProfilesPaneModel
-    @State private var editingProfile: Profile?
     @State private var deletingProfile: Profile?
 
     public init(model: ProfilesPaneModel) {
@@ -10,12 +9,12 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     public var body: some View {
-        HStack(spacing: 0) {
+        NavigationSplitView {
             sidebar
-            Divider()
+        } detail: {
             detail
         }
-        .background(NativePreferencesTheme.Colors.paneBackground)
+        .navigationSplitViewStyle(.balanced)
         .sheet(
             isPresented: Binding(
                 get: { model.isPresentingAddSheet },
@@ -40,7 +39,16 @@ public struct ProfilesSettingsPaneView: View {
                 }
             )
         }
-        .sheet(item: $editingProfile) { profile in
+        .sheet(
+            item: Binding(
+                get: { model.editingProfile },
+                set: { profile in
+                    if profile == nil {
+                        model.dismissEditSheet()
+                    }
+                }
+            )
+        ) { profile in
             ProfileEditorSheet(
                 title: "Edit Profile",
                 initialDraft: ProfileDraft(profile: profile),
@@ -65,62 +73,98 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private var sidebar: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 8) {
-                    ForEach(model.profiles) { profile in
-                        Button {
-                            model.selectProfile(profile.id)
-                        } label: {
-                            ProfileListRow(
-                                profile: profile,
-                                usage: model.usageSnapshot(for: profile.id),
-                                isActive: model.activeProfileId == profile.id,
-                                isSelected: model.selectedProfileId == profile.id
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+        List(selection: selectedProfileBinding) {
+            ForEach(model.profiles) { profile in
+                ProfileListRow(
+                    profile: profile,
+                    usage: model.usageSnapshot(for: profile.id),
+                    isActive: model.activeProfileId == profile.id
+                )
+                .tag(Optional(profile.id))
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
+                .listRowBackground(Color.clear)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+
+            if model.profiles.isEmpty {
+                ContentUnavailableView(
+                    "No Profiles",
+                    systemImage: "person.crop.square",
+                    description: Text("Add an account from the toolbar to create your first profile.")
+                )
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+                .disabled(true)
+            }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .listStyle(.sidebar)
         .frame(
             minWidth: NativePreferencesTheme.Metrics.sidebarWidth,
             idealWidth: NativePreferencesTheme.Metrics.sidebarWidth,
-            maxWidth: NativePreferencesTheme.Metrics.sidebarWidth + 12,
-            maxHeight: .infinity,
-            alignment: .topLeading
+            maxWidth: NativePreferencesTheme.Metrics.sidebarWidth + 24,
+            maxHeight: .infinity
         )
-        .background(NativePreferencesTheme.Colors.paneBackground)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    model.presentAddSheet()
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .help("Add Profile")
+            }
+        }
+    }
+
+    private var selectedProfileBinding: Binding<String?> {
+        Binding(
+            get: { model.selectedProfileId },
+            set: { profileId in
+                model.selectProfile(profileId)
+            }
+        )
     }
 
     private var detail: some View {
-        NativePaneScrollView {
-            VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
-                if let profile = selectedProfile {
-                    profileHero(profile)
-                    usageCard(profile)
-                    if let error = model.lastErrorMessage {
-                        SettingsSurfaceCard("Last Error") {
-                            Text(error)
-                                .foregroundStyle(.red)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+        Group {
+            if let profile = selectedProfile {
+                NativePaneScrollView {
+                    VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
+                        profileHero(profile)
+                        usageCard(profile)
+                        if let error = model.lastErrorMessage {
+                            SettingsSurfaceCard("Last Error") {
+                                Text(error)
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
                         }
                     }
-                } else {
-                    ContentUnavailableView(
-                        "No Profile Selected",
-                        systemImage: "person.crop.square",
-                        description: Text("Choose a profile on the left to inspect its details and actions.")
-                    )
-                    .frame(maxWidth: .infinity, minHeight: 420)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            } else {
+                ContentUnavailableView(
+                    "No Profile Selected",
+                    systemImage: "person.crop.square",
+                    description: Text("Choose a profile on the left to inspect its details and actions.")
+                )
+                .frame(maxWidth: .infinity, minHeight: 420)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .background(NativePreferencesTheme.Colors.paneBackground)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    model.presentEditForSelectedProfile()
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                }
+                .help("Edit Profile")
+                .disabled(model.selectedProfileId == nil || model.isMutatingProfiles)
+            }
+        }
     }
 
     private func profileHero(_ profile: Profile) -> some View {
@@ -186,11 +230,6 @@ public struct ProfilesSettingsPaneView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(model.activeProfileId == profile.id || !profile.enabled || model.isSwitching)
-
-                    Button("Edit") {
-                        editingProfile = profile
-                    }
-                    .disabled(model.isMutatingProfiles)
 
                     Button("Remove", role: .destructive) {
                         deletingProfile = profile
@@ -296,7 +335,6 @@ private struct ProfileListRow: View {
     let profile: Profile
     let usage: UsageSnapshot?
     let isActive: Bool
-    let isSelected: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -348,22 +386,16 @@ private struct ProfileListRow: View {
                 Spacer(minLength: 0)
             }
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 7)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(rowBackground, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .strokeBorder(rowBorder, lineWidth: isSelected ? 1 : 0.5)
-        )
         .overlay(alignment: .topTrailing) {
             if isActive {
                 ProfileStateBadge(title: "Current", kind: .info)
-                    .padding(.top, 7)
-                    .padding(.trailing, 8)
+                    .padding(.top, 4)
+                    .padding(.trailing, 4)
             }
         }
-        .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
     }
 
     private func updatedText(for usage: UsageSnapshot) -> String {
@@ -394,20 +426,6 @@ private struct ProfileListRow: View {
         parts.append("\(minutes)m")
 
         return "in \(parts.joined(separator: " "))"
-    }
-
-    private var rowBackground: Color {
-        if isSelected {
-            return Color.accentColor.opacity(0.12)
-        }
-        return NativePreferencesTheme.Colors.groupedBackground.opacity(0.55)
-    }
-
-    private var rowBorder: Color {
-        if isSelected {
-            return Color.accentColor.opacity(0.28)
-        }
-        return NativePreferencesTheme.Colors.sectionBorder.opacity(0.55)
     }
 }
 

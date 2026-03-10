@@ -2,10 +2,6 @@ import AppKit
 import RelayMacOSUI
 import SwiftUI
 
-private extension NSToolbarItem.Identifier {
-    static let addProfile = Self("relay.addProfile")
-}
-
 @MainActor
 enum RelayWindowStyle {
     case manager
@@ -41,6 +37,24 @@ enum RelayWindowStyle {
     var usesSidebarTitlebarChrome: Bool {
         switch self {
         case .manager:
+            return true
+        case .settings:
+            return true
+        }
+    }
+
+    var titlebarTransparent: Bool {
+        switch self {
+        case .manager:
+            return false
+        case .settings:
+            return true
+        }
+    }
+
+    var usesFullSizeContentView: Bool {
+        switch self {
+        case .manager:
             return false
         case .settings:
             return true
@@ -73,10 +87,12 @@ class RelayWindowController: NSWindowController, NSWindowDelegate {
         window.contentMinSize = style.minSize
         window.toolbarStyle = style.toolbarStyle
         if style.usesSidebarTitlebarChrome {
-            window.styleMask.insert(.fullSizeContentView)
-            window.titlebarAppearsTransparent = true
+            if style.usesFullSizeContentView {
+                window.styleMask.insert(.fullSizeContentView)
+            }
+            window.titlebarAppearsTransparent = style.titlebarTransparent
             window.titleVisibility = .hidden
-            window.isMovableByWindowBackground = true
+            window.isMovableByWindowBackground = style.usesFullSizeContentView
         }
         window.identifier = NSUserInterfaceItemIdentifier("relay.\(windowID.rawValue)")
         window.isReleasedWhenClosed = false
@@ -105,71 +121,6 @@ class RelayWindowController: NSWindowController, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         _ = notification
-    }
-}
-
-@MainActor
-final class ProfilesWindowController: RelayWindowController, NSToolbarDelegate {
-    private let onAddProfile: () -> Void
-
-    init(
-        title: String,
-        rootView: AnyView,
-        onAddProfile: @escaping () -> Void
-    ) {
-        self.onAddProfile = onAddProfile
-        super.init(
-            windowID: .profiles,
-            title: title,
-            style: .manager,
-            rootView: rootView
-        )
-
-        let toolbar = NSToolbar(identifier: "relay.profiles.toolbar")
-        toolbar.delegate = self
-        toolbar.displayMode = .iconOnly
-        toolbar.allowsUserCustomization = false
-        toolbar.autosavesConfiguration = false
-        window?.toolbar = toolbar
-    }
-
-    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        _ = toolbar
-        return [NSToolbarItem.Identifier.flexibleSpace, NSToolbarItem.Identifier.addProfile]
-    }
-
-    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        _ = toolbar
-        return [NSToolbarItem.Identifier.flexibleSpace, NSToolbarItem.Identifier.addProfile]
-    }
-
-    func toolbar(
-        _ toolbar: NSToolbar,
-        itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
-        willBeInsertedIntoToolbar flag: Bool
-    ) -> NSToolbarItem? {
-        _ = toolbar
-        _ = flag
-
-        guard itemIdentifier == .addProfile else {
-            return nil
-        }
-
-        let item = NSToolbarItem(itemIdentifier: itemIdentifier)
-        item.label = "Add"
-        item.paletteLabel = "Add"
-        item.toolTip = "Add Profile"
-        item.image = NSImage(
-            systemSymbolName: "plus",
-            accessibilityDescription: "Add Profile"
-        )
-        item.target = self
-        item.action = #selector(handleAddProfile)
-        return item
-    }
-
-    @objc private func handleAddProfile() {
-        onAddProfile()
     }
 }
 
