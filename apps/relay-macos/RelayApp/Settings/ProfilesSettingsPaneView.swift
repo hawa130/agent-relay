@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct ProfilesSettingsPaneView: View {
     @ObservedObject var model: ProfilesPaneModel
-    @State private var showingLoginSheet = false
+    @State private var showingAddSheet = false
     @State private var editingProfile: Profile?
     @State private var deletingProfile: Profile?
 
@@ -17,11 +17,18 @@ public struct ProfilesSettingsPaneView: View {
             detail
         }
         .background(NativePreferencesTheme.Colors.paneBackground)
-        .sheet(isPresented: $showingLoginSheet) {
-            AddAccountSheet(
+        .sheet(isPresented: $showingAddSheet) {
+            AddProfileSheet(
+                agents: model.agents,
+                profileCountForAgent: { agent in
+                    model.profileCount(for: agent)
+                },
                 isBusy: model.isMutatingProfiles,
-                onStart: {
-                    await model.addAccount(agent: .codex)
+                onImportProfile: { agent in
+                    await model.importProfile(agent: agent, nickname: nil, priority: 100)
+                },
+                onStartLogin: { agent in
+                    await model.addAccount(agent: agent)
                 }
             )
         }
@@ -51,20 +58,11 @@ public struct ProfilesSettingsPaneView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Button("Add Account") {
-                    showingLoginSheet = true
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(model.isMutatingProfiles)
-
-                Button("Import Current Live") {
-                    Task {
-                        await model.importProfile(agent: .codex, nickname: nil, priority: 100)
-                    }
-                }
-                .disabled(model.isMutatingProfiles)
+            Button("Add...") {
+                showingAddSheet = true
             }
+            .buttonStyle(.borderedProminent)
+            .disabled(model.isMutatingProfiles)
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
@@ -624,18 +622,108 @@ private struct ProfileEditorSheet: View {
     }
 }
 
-private struct AddAccountSheet: View {
+private struct AddProfileSheet: View {
+    let agents: [AgentSettingsDescriptor]
+    let profileCountForAgent: (AgentKind) -> Int
     let isBusy: Bool
-    let onStart: @MainActor () async -> AddAccountResult
+    let onImportProfile: @MainActor (AgentKind) async -> Void
+    let onStartLogin: @MainActor (AgentKind) async -> AddAccountResult
 
     @Environment(\.dismiss) private var dismiss
+    @State private var mode: Mode = .catalog
+    @State private var loginAgent: AgentKind?
     @State private var flowState: FlowState = .requesting
     @State private var loginTask: Task<Void, Never>?
-    @State private var didStartLogin = false
 
     var body: some View {
+        Group {
+            switch mode {
+            case .catalog:
+                catalogView
+            case .login:
+                loginView
+            }
+        }
+        .frame(width: 440)
+        .interactiveDismissDisabled(mode == .login && flowState.isRequesting)
+        .onDisappear {
+            loginTask?.cancel()
+            loginTask = nil
+        }
+    }
+
+    private var catalogView: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Form {
+                ForEach(agents) { descriptor in
+                    agentRow(descriptor: descriptor)
+                }
+            }
+            .formStyle(.grouped)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            HStack {
+                Spacer()
+
+                Button("Cancel") {
+                    dismiss()
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 14)
+        }
+    }
+
+    private func agentRow(descriptor: AgentSettingsDescriptor) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(Color.secondary.opacity(0.12))
+                    .frame(width: 28, height: 28)
+
+                AgentBrandIcon(descriptor: descriptor, size: 16, tint: .secondary)
+            }
+            .frame(width: 28, height: 28)
+
+            VStack(alignment: .leading, spacing: 0) {
+                Text(descriptor.title)
+                    .font(.system(size: 14, weight: .regular))
+
+                Text(profileCountText(for: descriptor))
+                    .font(.system(size: 11, weight: .regular))
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 6) {
+                    Spacer(minLength: 0)
+
+                    Button("Import Current Config") {
+                        Task { @MainActor in
+                            await onImportProfile(descriptor.agent)
+                            dismiss()
+                        }
+                    }
+                    .disabled(isBusy)
+
+                    Button("Add Account...") {
+                        startLogin(for: descriptor.agent)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isBusy)
+                }
+                .padding(.top, 4)
+            }
+        }
+    }
+
+    private func profileCountText(for descriptor: AgentSettingsDescriptor) -> String {
+        let count = profileCountForAgent(descriptor.agent)
+        let profileText = count == 1 ? "1 profile" : "\(count) profiles"
+        return "\(descriptor.vendorTitle) • \(profileText)"
+    }
+
+    private var loginView: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Add Account")
+            Text(loginTitle)
                 .font(.title3.weight(.semibold))
                 .padding(.horizontal, 16)
                 .padding(.top, 16)
@@ -655,14 +743,15 @@ private struct AddAccountSheet: View {
                 Button(flowState.secondaryActionTitle) {
                     if flowState.isRequesting {
                         loginTask?.cancel()
+                        dismiss()
+                    } else {
+                        showCatalog()
                     }
-                    dismiss()
                 }
-                .disabled(isBusy && !flowState.isRequesting)
 
-                if let primaryActionTitle = flowState.primaryActionTitle {
+                if let primaryActionTitle = flowState.primaryActionTitle, let agent = loginAgent {
                     Button(primaryActionTitle) {
-                        startLogin()
+                        startLogin(for: agent)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(isBusy || flowState.isRequesting)
@@ -670,15 +759,6 @@ private struct AddAccountSheet: View {
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 14)
-        }
-        .frame(width: 380)
-        .interactiveDismissDisabled(flowState.isRequesting)
-        .onAppear {
-            startLogin()
-        }
-        .onDisappear {
-            loginTask?.cancel()
-            loginTask = nil
         }
     }
 
@@ -702,7 +782,7 @@ private struct AddAccountSheet: View {
                 Text(flowState.statusTitle)
                     .font(.headline)
 
-                Text(flowState.statusSubtitle)
+                Text(flowState.statusSubtitle(agentName: loginAgent?.displayName ?? "Agent"))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
@@ -722,16 +802,17 @@ private struct AddAccountSheet: View {
         )
     }
 
-    private func startLogin() {
-        guard !didStartLogin || !flowState.isRequesting else {
-            return
-        }
+    private var loginTitle: String {
+        loginAgent?.displayName ?? "Add Account"
+    }
 
-        didStartLogin = true
+    private func startLogin(for agent: AgentKind) {
+        loginAgent = agent
+        mode = .login
         flowState = .requesting
         loginTask?.cancel()
         loginTask = Task { @MainActor in
-            let result = await onStart()
+            let result = await onStartLogin(agent)
             guard !Task.isCancelled else {
                 return
             }
@@ -745,6 +826,19 @@ private struct AddAccountSheet: View {
             }
             loginTask = nil
         }
+    }
+
+    private func showCatalog() {
+        loginTask?.cancel()
+        loginTask = nil
+        loginAgent = nil
+        mode = .catalog
+        flowState = .requesting
+    }
+
+    private enum Mode {
+        case catalog
+        case login
     }
 
     private enum FlowState: Equatable {
@@ -773,16 +867,16 @@ private struct AddAccountSheet: View {
             case .requesting:
                 return "Cancel"
             case .notSignedIn, .failed:
-                return "Close"
+                return "Back"
             }
         }
 
         var bodyText: String {
             switch self {
             case .requesting:
-                return "Complete the browser login, or cancel here to stop waiting."
+                return "Complete the browser login, or cancel."
             case .notSignedIn:
-                return "Login did not complete. Close this window or try again."
+                return "Login did not complete."
             case let .failed(detail):
                 return detail
             }
@@ -797,14 +891,14 @@ private struct AddAccountSheet: View {
             }
         }
 
-        var statusSubtitle: String {
+        func statusSubtitle(agentName _: String) -> String {
             switch self {
             case .requesting:
-                return "Codex: Requesting login..."
+                return "Requesting login..."
             case .notSignedIn:
-                return "Codex: Not signed in"
+                return "Not signed in"
             case .failed:
-                return "Codex: Login failed"
+                return "Login failed"
             }
         }
 
