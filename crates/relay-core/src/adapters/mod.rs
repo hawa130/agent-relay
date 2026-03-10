@@ -1,5 +1,6 @@
 pub mod codex;
 
+use crate::app::AgentLoginMode;
 use crate::models::{
     AgentKind, AgentLinkResult, Profile, ProfileProbeIdentity, RelayError, SwitchCheckpoint,
     UsageSnapshot,
@@ -33,6 +34,7 @@ pub trait AgentAdapter {
         profiles_dir: &Path,
         nickname: Option<String>,
         priority: i32,
+        mode: AgentLoginMode,
     ) -> Result<AgentLinkResult, RelayError>;
     fn relink_profile(
         &self,

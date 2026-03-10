@@ -8,7 +8,7 @@ pub mod store;
 pub use adapters::codex::{CodexSettings, CodexSettingsUpdateRequest};
 pub use app::BootstrapMode;
 pub use app::{
-    ActivityEventsQuery, AddProfileRequest, AgentLoginRequest, EditProfileRequest,
+    ActivityEventsQuery, AddProfileRequest, AgentLoginMode, AgentLoginRequest, EditProfileRequest,
     ImportProfileRequest, RelayApp, SystemSettingsUpdateRequest,
 };
 pub use models::{

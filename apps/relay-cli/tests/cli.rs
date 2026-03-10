@@ -236,6 +236,16 @@ fn make_fake_bin(root: &Path) -> std::path::PathBuf {
         r#"#!/bin/sh
 set -eu
 if [ "${1:-}" = "login" ]; then
+  if [ "${2:-}" = "--device-auth" ]; then
+    cat <<'EOF'
+Welcome to Codex [v0.112.0]
+Open this link in your browser:
+https://auth.openai.com/codex/device
+
+Enter this code:
+031C-3FZ9S
+EOF
+  fi
   mkdir -p "${CODEX_HOME:?}"
   cat > "${CODEX_HOME}/auth.json" <<'EOF'
 {"tokens":{"access_token":"access-token","refresh_token":"refresh-token","id_token":"id-token","account_id":"acct-123"}}
@@ -970,7 +980,10 @@ fn codex_login_and_remote_usage_probe_work() {
         "acct-123"
     );
     let status = run_json_with_env(&relay_home, &live_codex_home, &["--json", "status"], &envs);
-    assert_eq!(status["data"]["active_state"]["active_profile_id"], serde_json::Value::Null);
+    assert_eq!(
+        status["data"]["active_state"]["active_profile_id"],
+        serde_json::Value::Null
+    );
 
     let refreshed = run_json_with_env(
         &relay_home,
@@ -991,6 +1004,48 @@ fn codex_login_and_remote_usage_probe_work() {
     );
     assert_eq!(relinked["data"]["principal_id"], "acct-live");
     assert_eq!(relinked["data"]["metadata"]["email"], "live@example.com");
+}
+
+#[test]
+fn codex_login_device_auth_streams_instructions_to_stderr() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let fake_bin = make_fake_bin(temp.path());
+    make_codex_home(&live_codex_home, "live");
+
+    let path_env = std::env::join_paths(
+        [fake_bin.as_path(), Path::new("/usr/bin"), Path::new("/bin")].into_iter(),
+    )
+    .expect("path env");
+
+    let output = Command::new(relay_bin())
+        .args([
+            "--json",
+            "codex",
+            "login",
+            "--device-auth",
+            "--nickname",
+            "browser",
+        ])
+        .env("RELAY_HOME", &relay_home)
+        .env("CODEX_HOME", &live_codex_home)
+        .env("PATH", path_env)
+        .output()
+        .expect("command output");
+
+    assert!(
+        output.status.success(),
+        "command failed: {}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let logged_in: Value = serde_json::from_slice(&output.stdout).expect("json output");
+    let stderr = String::from_utf8(output.stderr).expect("utf8 stderr");
+    assert_eq!(logged_in["data"]["activated"], false);
+    assert!(stderr.contains("https://auth.openai.com/codex/device"));
+    assert!(stderr.contains("031C-3FZ9S"));
 }
 
 #[test]

@@ -1,6 +1,7 @@
 use super::CodexAdapter;
 use super::auth::{copy_login_auth, load_probe_identity_from_home};
 use crate::adapters::AgentAdapter;
+use crate::app::AgentLoginMode;
 use crate::models::{
     AgentKind, AgentLinkResult, AuthMode, Profile, ProfileProbeIdentity, RelayError,
 };
@@ -9,10 +10,11 @@ use crate::services::profile_service;
 use crate::store::{AddProfileRecord, SqliteStore};
 use chrono::Utc;
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 const CODEX_LOGIN_TIMEOUT_SECS: u64 = 300;
@@ -62,9 +64,10 @@ pub(crate) fn login_profile(
     profiles_dir: &Path,
     nickname: Option<String>,
     priority: i32,
+    mode: AgentLoginMode,
 ) -> Result<AgentLinkResult, RelayError> {
     let login_home = prepare_login_home()?;
-    run_codex_login(&login_home)?;
+    run_codex_login(&login_home, mode)?;
     let identity = load_probe_identity_from_home("pending", &login_home)?;
 
     let snapshot_dir = profiles_dir.join(format!("login_{}", Utc::now().timestamp_millis()));
@@ -119,19 +122,34 @@ fn prepare_login_home() -> Result<PathBuf, RelayError> {
     Ok(path)
 }
 
-fn run_codex_login(login_home: &Path) -> Result<(), RelayError> {
+fn run_codex_login(login_home: &Path, mode: AgentLoginMode) -> Result<(), RelayError> {
     let Some(binary) = crate::platform::find_binary("codex") else {
         return Err(RelayError::ExternalCommand("codex binary not found".into()));
     };
 
-    let mut child = Command::new(binary)
-        .arg("login")
+    let mut command = Command::new(binary);
+    command.arg("login");
+    if mode == AgentLoginMode::DeviceAuth {
+        command.arg("--device-auth");
+    }
+
+    let mut child = command
         .env("CODEX_HOME", login_home)
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
+
+    let forward_output = mode == AgentLoginMode::DeviceAuth;
+    let stdout_handle = child
+        .stdout
+        .take()
+        .map(|pipe| spawn_output_reader(pipe, forward_output));
+    let stderr_handle = child
+        .stderr
+        .take()
+        .map(|pipe| spawn_output_reader(pipe, forward_output));
 
     let deadline = Instant::now() + Duration::from_secs(CODEX_LOGIN_TIMEOUT_SECS);
     let status = loop {
@@ -145,23 +163,58 @@ fn run_codex_login(login_home: &Path) -> Result<(), RelayError> {
         if Instant::now() >= deadline {
             let _ = child.kill();
             let _ = child.wait();
+            let _ = stdout_handle
+                .map(JoinHandle::join)
+                .transpose()
+                .map_err(|_| RelayError::Internal("codex login stdout reader panicked".into()))?;
+            let _ = stderr_handle
+                .map(JoinHandle::join)
+                .transpose()
+                .map_err(|_| RelayError::Internal("codex login stderr reader panicked".into()))?;
             return Err(RelayError::ExternalCommand(
-                "codex login timed out waiting for browser sign-in".into(),
+                match mode {
+                    AgentLoginMode::Browser => "codex login timed out waiting for browser sign-in",
+                    AgentLoginMode::DeviceAuth => {
+                        "codex login timed out waiting for device authorization"
+                    }
+                }
+                .into(),
             ));
         }
 
         thread::sleep(Duration::from_millis(CODEX_LOGIN_POLL_MILLIS));
     };
 
+    let stdout = stdout_handle
+        .map(JoinHandle::join)
+        .transpose()
+        .map_err(|_| RelayError::Internal("codex login stdout reader panicked".into()))?
+        .unwrap_or_default();
+    let stderr = stderr_handle
+        .map(JoinHandle::join)
+        .transpose()
+        .map_err(|_| RelayError::Internal("codex login stderr reader panicked".into()))?
+        .unwrap_or_default();
+
     if !status.success() {
-        let mut stderr = String::new();
-        if let Some(mut pipe) = child.stderr.take() {
-            let _ = pipe.read_to_string(&mut stderr);
-        }
-        return Err(RelayError::ExternalCommand(if stderr.trim().is_empty() {
-            "codex login did not complete successfully".into()
+        let stderr = String::from_utf8_lossy(&stderr);
+        let stdout = String::from_utf8_lossy(&stdout);
+        let message = stderr
+            .trim()
+            .strip_suffix('\n')
+            .unwrap_or(stderr.trim())
+            .trim();
+        let fallback = stdout
+            .trim()
+            .strip_suffix('\n')
+            .unwrap_or(stdout.trim())
+            .trim();
+        return Err(RelayError::ExternalCommand(if !message.is_empty() {
+            message.into()
+        } else if !fallback.is_empty() {
+            fallback.into()
         } else {
-            stderr.trim().into()
+            "codex login did not complete successfully".into()
         }));
     }
 
@@ -173,4 +226,31 @@ fn run_codex_login(login_home: &Path) -> Result<(), RelayError> {
     }
 
     Ok(())
+}
+
+fn spawn_output_reader<R>(mut reader: R, forward_output: bool) -> JoinHandle<Vec<u8>>
+where
+    R: Read + Send + 'static,
+{
+    thread::spawn(move || {
+        let mut buffer = Vec::new();
+        let mut chunk = [0_u8; 1024];
+        let mut stderr = std::io::stderr();
+
+        loop {
+            match reader.read(&mut chunk) {
+                Ok(0) => break,
+                Ok(count) => {
+                    buffer.extend_from_slice(&chunk[..count]);
+                    if forward_output {
+                        let _ = stderr.write_all(&chunk[..count]);
+                        let _ = stderr.flush();
+                    }
+                }
+                Err(_) => break,
+            }
+        }
+
+        buffer
+    })
 }
