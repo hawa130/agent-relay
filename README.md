@@ -155,6 +155,5 @@ cargo run -p relay-cli --bin relay -- --help
 Additional docs:
 
 - [Architecture](./docs/architecture.md)
-- [Todo](./docs/todo.md)
 - [Install and Usage](./docs/install.md)
 - [Development](./docs/development.md)

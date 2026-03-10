@@ -1,29 +1,35 @@
 # AGENTS.md
 
-## Project Summary
+## Purpose
 
-Relay is a CLI-first local profile orchestrator for coding agents.
+This file defines stable implementation constraints for contributors and coding agents.
 
-V1 scope:
+Do not use it as a project status board, backlog dump, or feature snapshot. Keep time-sensitive state in code, tests, issues, or current task context instead.
 
-- Core execution engine is a Rust CLI.
-- Primary supported agent is `Codex`.
-- macOS menu bar app is a control plane over CLI JSON commands.
+## Canonical Docs
 
-Primary references:
+Use these documents as the long-lived sources of truth:
 
-- [`docs/architecture.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/architecture.md)
-- [`docs/todo.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/todo.md)
-- [`relay_cli_first_macos_ui_v_1_dev_plan.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/relay_cli_first_macos_ui_v_1_dev_plan.md)
+- [`README.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/README.md) for project overview, command surface, and quick start
+- [`docs/architecture.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/architecture.md) for runtime boundaries and module responsibilities
+- [`docs/install.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/install.md) for installation and operator usage
+- [`docs/development.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/development.md) for contributor workflows and release checks
+- [`docs/sqlite-migrations.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/sqlite-migrations.md) for schema versioning policy
+- [`docs/linux-support.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/linux-support.md) for Linux scope and test expectations
+- [`docs/security-checklist.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/security-checklist.md) for release-time security review
 
-## Current Repository Shape
+## Repository Shape
 
 Keep the Rust project at two package levels only:
 
 - `apps/relay-cli`: user-facing CLI entrypoint
 - `crates/relay-core`: core library
 
-Inside `relay-core`, organize code by modules instead of creating more crates:
+The native macOS control plane lives in:
+
+- `apps/relay-macos`
+
+Inside `relay-core`, prefer module boundaries over new crates:
 
 - `models`: shared domain types, error codes, JSON protocol
 - `services`: use-case orchestration
@@ -31,101 +37,62 @@ Inside `relay-core`, organize code by modules instead of creating more crates:
 - `platform`: path detection and platform-specific helpers
 - `adapters`: agent-specific behavior, currently Codex only
 
-Do not reintroduce tiny crates for `types`, `store`, `platform`, or `adapters` unless there is a strong independent packaging boundary.
+Do not reintroduce tiny crates for `types`, `store`, `platform`, or `adapters` unless there is a strong packaging boundary that justifies it.
 
 ## Architecture Rules
 
-- CLI is the only real execution layer.
-- Any future macOS UI must call `relay` CLI commands and parse JSON output.
-- UI code must not directly mutate Codex files.
+- CLI is the only execution layer for profile management, switching, validation, and diagnostics.
+- UI code must call `relay` CLI commands and parse JSON output; it must not mutate live agent files directly.
 - All user-visible commands must support `--json`.
-- All parameterized UI-to-CLI calls should use JSON input, not ad hoc flag assembly.
+- Parameterized UI-to-CLI calls should prefer JSON input instead of rebuilding flag combinations ad hoc.
 - Errors exposed to callers must use stable project error codes.
-- All live config mutations must be transactional and recoverable.
-- Read-only CLI commands should avoid unnecessary filesystem or database writes when possible.
-- Do not modify project-local `.codex/`; V1 only works on user-level Codex state.
-- Keep shared infrastructure agent-agnostic where practical. Transport, caching, refresh coordination, and persistence plumbing should not be hardwired to `Codex` if they can cleanly live behind adapters/providers.
-- Keep agent-specific protocols, endpoints, auth formats, and file semantics at the adapter/provider edge instead of leaking them into generic models or control-flow layers.
-- Profile-linked identities and credentials must support provider-specific payload shapes. Do not keep expanding shared tables with one nullable column per provider credential field; prefer a stable generic envelope plus provider-specific payload/metadata.
-- Shared interface names, diagnostics keys, and control-plane method names should stay agent-neutral unless the value itself is an explicit agent selection like `codex`.
+- Live config mutations must be transactional and recoverable.
+- Read-only commands should avoid unnecessary filesystem or database writes when possible.
+- Do not modify project-local `.codex/`; only user-level Codex state is in scope.
+- Keep shared infrastructure agent-agnostic where practical. Provider-specific auth, usage, and file semantics belong at the adapter edge.
+- Profile-linked identities and credentials must support provider-specific payload shapes. Do not keep adding nullable shared columns for provider-only fields.
+- Shared interface names, diagnostics keys, and control-plane method names should stay agent-neutral unless the value itself is an explicit provider choice such as `codex`.
 
-## Product Constraints
+## Product Boundaries
 
-V1 is intentionally limited:
+Relay is intentionally limited:
 
 - Support `Codex` first.
-- Focus on local profile management, safe switching, rollback, and diagnostics.
-- Do not build browser-cookie scraping, private API reverse engineering, or “quota bypass” logic.
+- Focus on local profile management, safe switching, rollback, usage visibility, and diagnostics.
+- Keep the macOS app as a control plane over the CLI, not a parallel execution path.
+- Do not build browser-cookie scraping, private API reverse engineering, or quota-bypass logic.
 
-## Implementation Status
-
-Implemented now:
-
-- workspace scaffold
-- `relay` CLI command framework
-- `relay doctor`
-- `relay status`
-- `relay usage`
-- `relay profiles list/add/edit/remove/enable/disable/import-codex`
-- `relay switch <id>`
-- `relay switch next`
-- `relay auto-switch enable/disable`
-- `relay auto-switch set`
-- `relay events list`
-- `relay logs tail`
-- `relay diagnostics export`
-- SQLite-backed profile store
-- file-backed active state cache
-- file-backed usage snapshot cache
-- switch checkpoints, rollback, switch history, and failure events
-- CLI integration tests and core unit tests
-- native macOS menu bar control plane built on top of CLI JSON
-- Swift package tests for JSON decoding and CLI client integration
-
-Not implemented yet:
-- web-enhanced usage
-
-Check [`docs/todo.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/todo.md) before starting new work and update it when major milestones change.
-
-## Working Commands
-
-Common commands:
-
-```bash
-cargo fmt --all
-cargo test
-cargo run -p relay-cli --bin relay -- status --json
-cargo run -p relay-cli --bin relay -- doctor --json
-cargo run -p relay-cli --bin relay -- usage --json
-cargo run -p relay-cli --bin relay -- profiles list --json
-cargo install --path apps/relay-cli
-./scripts/release-local.sh
-cd apps/relay-macos && swift test
-```
-
-Use `RELAY_HOME` for isolated testing:
-
-```bash
-RELAY_HOME=/tmp/relay-smoke cargo run -p relay-cli --bin relay -- status --json
-```
-
-## Coding Guidance
+## Working Rules
 
 - Prefer extending `relay-core` modules over adding new packages.
-- Put business logic in `services`, not in the CLI entrypoint.
-- Keep `models` stable because CLI JSON and future UI will depend on them.
+- Put business logic in `services`, not in the CLI entrypoint or Swift UI layer.
+- Keep `models` stable because CLI JSON and the macOS app depend on them.
 - Put persistence details behind `store`.
-- Keep agent-specific validation and activation behavior in `adapters`.
-- When adding a new integration, first ask whether the new code belongs in a reusable transport/provider utility or in an agent-specific adapter. Default to the narrower boundary.
+- Keep agent-specific validation, activation, login, and usage behavior in `adapters`.
+- When adding provider-specific capabilities, first decide whether the code belongs in a reusable transport/provider utility or in the provider adapter. Default to the narrower boundary.
 - Add tests for new store logic and service behavior.
 - For UI/CLI protocol changes, add Swift-side decoding or client tests as needed.
-- Use temp directories for tests touching filesystem state.
+- Use temp directories for tests that touch filesystem state.
 
-## Near-Term Priorities
+## Commit Conventions
 
-Work in this order unless the task explicitly says otherwise:
+- Use Conventional Commits style prefixes such as `feat`, `fix`, `chore`, `docs`, `refactor`, and `test`.
+- Start commit subjects with a lowercase letter.
+- Keep commit subjects short, imperative, and scoped to the change actually being made.
+- Prefer one coherent change per commit so history stays reviewable.
 
-1. SQLite migration/versioning policy
-2. Linux support hardening
-3. release packaging polish
-4. usage confidence/source policy hardening
+## Active Priorities
+
+Unless a task says otherwise, bias new work toward these areas:
+
+1. Linux support hardening
+2. Release packaging polish
+3. Usage confidence and source-policy hardening
+4. Documentation consistency and operator clarity
+
+## Documentation Maintenance
+
+- Do not add dated status reports, completed-only todo lists, or phase plans as long-lived repo docs.
+- If a planning document is temporary, either delete it after execution or fold its lasting guidance into the canonical docs above.
+- Keep `AGENTS.md` focused on durable constraints and working rules, not implementation status.
+- When command names, schema versions, or architecture boundaries change, update the canonical docs in the same change.
