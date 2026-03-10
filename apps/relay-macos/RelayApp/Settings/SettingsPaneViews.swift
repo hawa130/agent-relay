@@ -93,19 +93,6 @@ private struct GeneralSettingsDetailView: View {
 
     var body: some View {
         Form {
-            Section {
-                SettingsDetailHeader(
-                    title: "General",
-                    subtitle: "System-wide preferences that affect Relay regardless of agent."
-                ) {
-                    SettingsDetailIconTile {
-                        Image(systemName: "gearshape")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
             Section("Behavior") {
                 Toggle(
                     "Enable automatic failover",
@@ -204,17 +191,6 @@ private struct AgentSettingsDetailView: View {
 
     var body: some View {
         Form {
-            Section {
-                SettingsDetailHeader(
-                    title: descriptor.title,
-                    subtitle: "Settings here apply to all \(descriptor.title) profiles."
-                ) {
-                    SettingsDetailIconTile {
-                        AgentBrandIcon(descriptor: descriptor, size: 20, tint: .secondary)
-                    }
-                }
-            }
-
             switch descriptor.agent {
             case .codex:
                 Section("Usage") {
@@ -251,60 +227,6 @@ private struct AgentSettingsDetailView: View {
             }
         }
         .formStyle(.grouped)
-    }
-}
-
-private struct SettingsDetailHeader<Accessory: View>: View {
-    let title: String
-    let subtitle: String
-    let accessory: Accessory
-
-    init(
-        title: String,
-        subtitle: String,
-        @ViewBuilder accessory: () -> Accessory
-    ) {
-        self.title = title
-        self.subtitle = subtitle
-        self.accessory = accessory()
-    }
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            accessory
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-
-                Text(subtitle)
-                    .font(NativePreferencesTheme.Typography.body)
-                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-            }
-
-            Spacer(minLength: 12)
-        }
-    }
-}
-
-private struct SettingsDetailIconTile<Content: View>: View {
-    let fill: Color
-    let content: Content
-
-    init(fill: Color = Color.secondary.opacity(0.12), @ViewBuilder content: () -> Content) {
-        self.fill = fill
-        self.content = content()
-    }
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(fill)
-                .frame(width: 40, height: 40)
-
-            content
-        }
-        .frame(width: 40, height: 40)
     }
 }
 
