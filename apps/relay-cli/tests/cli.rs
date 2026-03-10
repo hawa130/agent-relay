@@ -1676,10 +1676,18 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
         subscribe["result"]["subscribed_topics"].as_array().expect("topics").len(),
         3
     );
-    let health_update = daemon.read_message();
-    assert_eq!(health_update["method"], "session/update");
-    assert_eq!(health_update["params"]["topic"], "health.updated");
-    assert_eq!(health_update["params"]["payload"]["state"], "Ready");
+    let startup_notifications = [
+        daemon.read_message(),
+        daemon.read_message(),
+        daemon.read_message(),
+    ];
+    let startup_topics: Vec<_> = startup_notifications
+        .iter()
+        .map(|message| message["params"]["topic"].as_str().expect("topic"))
+        .collect();
+    assert!(startup_topics.contains(&"health.updated"));
+    assert!(startup_topics.contains(&"usage.updated"));
+    assert!(startup_topics.contains(&"active_state.updated"));
 
     daemon.send_request(
         "3",

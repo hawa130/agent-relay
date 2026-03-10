@@ -21,11 +21,7 @@ pub(crate) async fn run(command: &DaemonCommand) -> Result<(), RelayError> {
     spawn_stdin_reader(request_tx);
 
     let mut service = DaemonService::new(app, notification_tx);
-    if let Err(error) = service.startup_tick().await {
-        let _ = service
-            .publish_health_update(EngineConnectionState::Degraded, Some(error.to_string()))
-            .await;
-    }
+    let mut startup_refresh_pending = true;
 
     let stdout = io::stdout();
     let mut writer = BufWriter::new(stdout.lock());
@@ -38,15 +34,19 @@ pub(crate) async fn run(command: &DaemonCommand) -> Result<(), RelayError> {
                 let Some(line) = maybe_line else {
                     break;
                 };
+                let mut handled_method: Option<String> = None;
                 let outbound = match serde_json::from_str::<RpcRequest>(&line) {
-                    Ok(request) => match service.handle_request(request).await {
-                        Ok(response) => serialize_response(&response)?,
-                        Err(error) => serialize_error(&RpcErrorResponse {
-                            jsonrpc: "2.0".into(),
-                            id: None,
-                            error,
-                        })?,
-                    },
+                    Ok(request) => {
+                        handled_method = Some(request.method.clone());
+                        match service.handle_request(request).await {
+                            Ok(response) => serialize_response(&response)?,
+                            Err(error) => serialize_error(&RpcErrorResponse {
+                                jsonrpc: "2.0".into(),
+                                id: None,
+                                error,
+                            })?,
+                        }
+                    }
                     Err(error) => serialize_error(&RpcErrorResponse {
                         jsonrpc: "2.0".into(),
                         id: None,
@@ -58,6 +58,19 @@ pub(crate) async fn run(command: &DaemonCommand) -> Result<(), RelayError> {
                     })?,
                 };
                 write_line(&mut writer, &outbound)?;
+                if startup_refresh_pending
+                    && handled_method.as_deref() == Some("session/subscribe")
+                {
+                    startup_refresh_pending = false;
+                    if let Err(error) = service.startup_tick().await {
+                        let _ = service
+                            .publish_health_update(
+                                EngineConnectionState::Degraded,
+                                Some(error.to_string()),
+                            )
+                            .await;
+                    }
+                }
                 if service.shutdown_requested() {
                     break;
                 }
