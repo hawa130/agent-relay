@@ -14,7 +14,7 @@ Use these documents as the long-lived sources of truth:
 - [`docs/architecture.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/architecture.md) for runtime boundaries and module responsibilities
 - [`docs/install.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/install.md) for installation and operator usage
 - [`docs/development.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/development.md) for contributor workflows and release checks
-- [`docs/sqlite-migrations.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/sqlite-migrations.md) for schema versioning policy
+- [`docs/sqlite-schema.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/sqlite-schema.md) for SQLite schema workflow and bootstrap expectations
 - [`docs/linux-support.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/linux-support.md) for Linux scope and test expectations
 - [`docs/security-checklist.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/security-checklist.md) for release-time security review
 
@@ -96,3 +96,4 @@ Unless a task says otherwise, bias new work toward these areas:
 - If a planning document is temporary, either delete it after execution or fold its lasting guidance into the canonical docs above.
 - Keep `AGENTS.md` focused on durable constraints and working rules, not implementation status.
 - When command names, schema versions, or architecture boundaries change, update the canonical docs in the same change.
+- Keep SQLite guidance aligned with the current SeaORM entity-first workflow; do not reintroduce stale references to versioned migration crates unless the architecture changes again.

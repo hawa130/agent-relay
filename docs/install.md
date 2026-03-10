@@ -115,6 +115,6 @@ If you want deterministic test runs:
 ## Additional References
 
 - Development workflow: `docs/development.md`
-- SQLite migration policy: `docs/sqlite-migrations.md`
+- SQLite schema workflow: `docs/sqlite-schema.md`
 - Linux support matrix: `docs/linux-support.md`
 - Security release checklist: `docs/security-checklist.md`

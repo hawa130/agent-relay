@@ -6,21 +6,88 @@ use crate::store::entities::{
     agent_settings, app_settings, failure_events, profile_probe_identities, profiles,
     switch_history,
 };
-use crate::store::migrations::Migrator;
 use crate::{CodexSettings, CodexSettingsUpdateRequest};
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
+use sea_orm::sea_query::{Alias, Expr, ExprTrait, Order, Query};
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, Database, DatabaseConnection, DbBackend,
-    EntityTrait, IntoActiveModel, QueryFilter, QueryOrder, QuerySelect, Set, Statement,
-    TransactionTrait,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, Database, DatabaseConnection, EntityTrait,
+    IntoActiveModel, QueryFilter, QueryOrder, QuerySelect, Set, TransactionTrait,
 };
-use sea_orm_migration::MigratorTrait;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
-const CURRENT_SCHEMA_VERSION: i32 = 1;
-const MIGRATIONS_TABLE: &str = "seaql_migrations";
+const LEGACY_MIGRATIONS_TABLE: &str = "seaql_migrations";
+const MANAGED_SCHEMA: &[(&str, &[&str])] = &[
+    (
+        "profiles",
+        &[
+            "id",
+            "nickname",
+            "agent",
+            "priority",
+            "enabled",
+            "agent_home",
+            "config_path",
+            "auth_mode",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ],
+    ),
+    ("app_settings", &["key", "value"]),
+    (
+        "switch_history",
+        &[
+            "id",
+            "profile_id",
+            "previous_profile_id",
+            "outcome",
+            "reason",
+            "checkpoint_id",
+            "rollback_performed",
+            "created_at",
+            "details",
+        ],
+    ),
+    (
+        "failure_events",
+        &[
+            "id",
+            "profile_id",
+            "reason",
+            "message",
+            "cooldown_until",
+            "created_at",
+        ],
+    ),
+    (
+        "profile_probe_identities",
+        &[
+            "profile_id",
+            "provider",
+            "principal_id",
+            "display_name",
+            "credentials_json",
+            "metadata_json",
+            "created_at",
+            "updated_at",
+        ],
+    ),
+    (
+        "agent_settings",
+        &["agent", "settings_json", "created_at", "updated_at"],
+    ),
+];
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SchemaState {
+    Empty,
+    Syncable,
+    Ready,
+    Legacy,
+    Incompatible,
+}
 
 #[derive(Debug, Clone)]
 pub struct AddProfileRecord {
@@ -67,17 +134,34 @@ impl SqliteStore {
     }
 
     pub async fn open_read_only(db_path: impl AsRef<Path>) -> Result<Self, RelayError> {
-        let connection = if db_path.as_ref().exists() {
-            Some(Database::connect(sqlite_url(db_path.as_ref(), true)).await?)
-        } else {
-            None
-        };
-        Ok(Self { connection })
+        if !db_path.as_ref().exists() {
+            return Ok(Self { connection: None });
+        }
+
+        let connection = Database::connect(sqlite_url(db_path.as_ref(), true)).await?;
+        match inspect_schema_state(&connection).await? {
+            SchemaState::Ready => {
+                validate_schema_queries(&connection).await?;
+                Ok(Self {
+                    connection: Some(connection),
+                })
+            }
+            SchemaState::Empty => Ok(Self { connection: None }),
+            SchemaState::Syncable | SchemaState::Legacy | SchemaState::Incompatible => {
+                Err(schema_incompatible_error())
+            }
+        }
     }
 
     async fn initialize(&self) -> Result<(), RelayError> {
         let connection = self.require_connection()?;
-        Migrator::up(connection, None).await?;
+        match inspect_schema_state(connection).await? {
+            SchemaState::Empty | SchemaState::Syncable | SchemaState::Ready => {}
+            SchemaState::Legacy | SchemaState::Incompatible => {
+                return Err(schema_incompatible_error());
+            }
+        }
+        sync_schema(connection).await?;
         self.ensure_default_settings(connection).await?;
         self.ensure_default_agent_settings(connection).await?;
         Ok(())
@@ -90,26 +174,6 @@ impl SqliteStore {
     fn require_connection(&self) -> Result<&DatabaseConnection, RelayError> {
         self.connection()
             .ok_or_else(|| RelayError::Store("database is not available".into()))
-    }
-
-    pub async fn schema_version(&self) -> Result<i32, RelayError> {
-        let Some(connection) = self.connection() else {
-            return Ok(0);
-        };
-        if !has_table(&connection, MIGRATIONS_TABLE).await? {
-            return Ok(0);
-        }
-
-        let statement = Statement::from_string(
-            DbBackend::Sqlite,
-            format!("SELECT COUNT(1) AS count FROM {MIGRATIONS_TABLE}"),
-        );
-        let row = connection.query_one(statement).await?;
-        let count = row
-            .as_ref()
-            .and_then(|value| value.try_get::<i64>("", "count").ok())
-            .unwrap_or_default();
-        Ok((count as i32).min(CURRENT_SCHEMA_VERSION))
     }
 
     async fn ensure_default_settings(
@@ -573,13 +637,110 @@ impl SqliteStore {
     }
 }
 
+#[cfg(test)]
 async fn has_table(connection: &DatabaseConnection, table: &str) -> Result<bool, RelayError> {
-    let statement = Statement::from_sql_and_values(
-        DbBackend::Sqlite,
-        "SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1",
-        [table.into()],
-    );
-    Ok(connection.query_one(statement).await?.is_some())
+    let query = Query::select()
+        .expr(Expr::val(1))
+        .from(Alias::new("sqlite_master"))
+        .and_where(Expr::col(Alias::new("type")).eq("table"))
+        .and_where(Expr::col(Alias::new("name")).eq(table))
+        .limit(1)
+        .to_owned();
+    Ok(connection.query_one(&query).await?.is_some())
+}
+
+async fn inspect_schema_state(connection: &DatabaseConnection) -> Result<SchemaState, RelayError> {
+    let user_tables = list_user_tables(connection).await?;
+    if user_tables.is_empty() {
+        return Ok(SchemaState::Empty);
+    }
+
+    if user_tables
+        .iter()
+        .any(|table| table == LEGACY_MIGRATIONS_TABLE)
+    {
+        return Ok(SchemaState::Legacy);
+    }
+
+    let mut missing_schema = false;
+    for (table, _) in MANAGED_SCHEMA {
+        if !user_tables.iter().any(|present| present == table) {
+            missing_schema = true;
+        }
+    }
+
+    if user_tables
+        .iter()
+        .any(|table| !MANAGED_SCHEMA.iter().any(|(managed, _)| managed == table))
+    {
+        Ok(SchemaState::Incompatible)
+    } else if missing_schema {
+        Ok(SchemaState::Syncable)
+    } else {
+        Ok(SchemaState::Ready)
+    }
+}
+
+async fn list_user_tables(connection: &DatabaseConnection) -> Result<Vec<String>, RelayError> {
+    let query = Query::select()
+        .column(Alias::new("name"))
+        .from(Alias::new("sqlite_master"))
+        .and_where(Expr::col(Alias::new("type")).eq("table"))
+        .and_where(Expr::col(Alias::new("name")).not_like("sqlite_%"))
+        .order_by(Alias::new("name"), Order::Asc)
+        .to_owned();
+    Ok(connection
+        .query_all(&query)
+        .await?
+        .into_iter()
+        .filter_map(|row| row.try_get::<String>("", "name").ok())
+        .collect())
+}
+
+async fn sync_schema(connection: &DatabaseConnection) -> Result<(), RelayError> {
+    connection
+        .get_schema_builder()
+        .register(profiles::Entity)
+        .register(app_settings::Entity)
+        .register(switch_history::Entity)
+        .register(failure_events::Entity)
+        .register(profile_probe_identities::Entity)
+        .register(agent_settings::Entity)
+        .sync(connection)
+        .await?;
+    Ok(())
+}
+
+async fn validate_schema_queries(connection: &DatabaseConnection) -> Result<(), RelayError> {
+    profiles::Entity::find().limit(1).all(connection).await?;
+    app_settings::Entity::find()
+        .limit(1)
+        .all(connection)
+        .await?;
+    switch_history::Entity::find()
+        .limit(1)
+        .all(connection)
+        .await?;
+    failure_events::Entity::find()
+        .limit(1)
+        .all(connection)
+        .await?;
+    profile_probe_identities::Entity::find()
+        .limit(1)
+        .all(connection)
+        .await?;
+    agent_settings::Entity::find()
+        .limit(1)
+        .all(connection)
+        .await?;
+    Ok(())
+}
+
+fn schema_incompatible_error() -> RelayError {
+    RelayError::SchemaIncompatible(
+        "relay database schema is incompatible with this build; remove the existing database and let relay recreate it"
+            .into(),
+    )
 }
 
 async fn insert_switch_history<C>(
@@ -839,10 +1000,14 @@ mod tests {
         let temp = tempdir().expect("tempdir");
         let db_path = temp.path().join("relay.db");
         let store = SqliteStore::new(&db_path).await.expect("store");
-        assert_eq!(
-            store.schema_version().await.expect("schema version"),
-            CURRENT_SCHEMA_VERSION
-        );
+        for (table, _) in MANAGED_SCHEMA {
+            assert!(
+                has_table(store.require_connection().expect("connection"), table)
+                    .await
+                    .expect("managed table"),
+                "missing managed table: {table}"
+            );
+        }
 
         let created = store
             .add_profile(AddProfileRecord {
@@ -933,5 +1098,42 @@ mod tests {
                 .expect("reloaded codex settings"),
             updated
         );
+    }
+
+    #[tokio::test]
+    async fn legacy_schema_is_rejected_in_read_write_and_read_only_modes() {
+        let temp = tempdir().expect("tempdir");
+        let db_path = temp.path().join("relay.db");
+        let connection = Database::connect(sqlite_url(&db_path, false))
+            .await
+            .expect("legacy db");
+        connection
+            .execute_unprepared("CREATE TABLE seaql_migrations (version TEXT PRIMARY KEY NOT NULL)")
+            .await
+            .expect("create legacy table");
+
+        let error = SqliteStore::new(&db_path)
+            .await
+            .expect_err("legacy schema error");
+        assert!(matches!(error, RelayError::SchemaIncompatible(_)));
+
+        let error = SqliteStore::open_read_only(&db_path)
+            .await
+            .expect_err("legacy read-only schema error");
+        assert!(matches!(error, RelayError::SchemaIncompatible(_)));
+    }
+
+    #[tokio::test]
+    async fn read_only_bootstrap_treats_empty_existing_database_as_uninitialized() {
+        let temp = tempdir().expect("tempdir");
+        let db_path = temp.path().join("relay.db");
+        let _connection = Database::connect(sqlite_url(&db_path, false))
+            .await
+            .expect("empty db");
+
+        let store = SqliteStore::open_read_only(&db_path)
+            .await
+            .expect("read-only store");
+        assert!(store.list_profiles().await.expect("profiles").is_empty());
     }
 }

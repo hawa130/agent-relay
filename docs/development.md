@@ -59,6 +59,13 @@ RELAY_HOME=/tmp/relay-dev CODEX_HOME=/tmp/codex-dev \
 
 `relay-cli` now runs on a Tokio entrypoint because `relay-core` uses SeaORM's async database API and reuses a single store connection per app bootstrap.
 
+Schema changes use a SeaORM 2.x entity-first workflow:
+
+1. update the hand-written entities under `relay-core::store::entities`
+2. adjust store and service logic as needed
+3. delete `relay.db` for breaking schema changes during development
+4. run tests so write bootstrap rebuilds the schema through schema sync
+
 ## Test Strategy
 
 Current coverage includes:
@@ -92,6 +99,6 @@ Before cutting a release:
 
 ## Supporting Docs
 
-- SQLite migration policy: `docs/sqlite-migrations.md`
+- SQLite schema workflow: `docs/sqlite-schema.md`
 - Linux support matrix and test plan: `docs/linux-support.md`
 - Security release checklist: `docs/security-checklist.md`
