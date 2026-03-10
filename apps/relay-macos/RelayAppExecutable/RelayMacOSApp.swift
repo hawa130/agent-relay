@@ -23,8 +23,8 @@ struct RelayMacOSApp: App {
         }
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
-        .defaultSize(width: 760, height: 620)
-        .windowResizability(.contentMinSize)
+        .defaultSize(width: 700, height: 620)
+        .windowResizability(.contentSize)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
     }
 }
@@ -34,7 +34,7 @@ private struct ProfilesWindowRootView: View {
 
     var body: some View {
         ProfilesSettingsPaneView(model: model)
-            .frame(minWidth: 720, minHeight: 540)
+            .frame(minHeight: 400)
             .background(WindowActionInstaller())
             .task {
                 await model.refreshIfStale()
@@ -47,7 +47,7 @@ private struct SettingsWindowRootView: View {
 
     var body: some View {
         SettingsPaneView(model: model)
-            .frame(minWidth: 660, minHeight: 520)
+            .frame(minHeight: 400)
             .background(WindowActionInstaller())
             .task {
                 await model.refreshIfStale()
