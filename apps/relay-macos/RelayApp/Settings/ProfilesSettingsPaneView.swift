@@ -2,7 +2,6 @@ import SwiftUI
 
 public struct ProfilesSettingsPaneView: View {
     @ObservedObject var model: ProfilesPaneModel
-    @State private var showingAddSheet = false
     @State private var editingProfile: Profile?
     @State private var deletingProfile: Profile?
 
@@ -17,7 +16,16 @@ public struct ProfilesSettingsPaneView: View {
             detail
         }
         .background(NativePreferencesTheme.Colors.paneBackground)
-        .sheet(isPresented: $showingAddSheet) {
+        .sheet(
+            isPresented: Binding(
+                get: { model.isPresentingAddSheet },
+                set: { isPresented in
+                    if !isPresented {
+                        model.dismissAddSheet()
+                    }
+                }
+            )
+        ) {
             AddProfileSheet(
                 agents: model.agents,
                 profileCountForAgent: { agent in
@@ -58,12 +66,6 @@ public struct ProfilesSettingsPaneView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button("Add...") {
-                showingAddSheet = true
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(model.isMutatingProfiles)
-
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     ForEach(model.profiles) { profile in

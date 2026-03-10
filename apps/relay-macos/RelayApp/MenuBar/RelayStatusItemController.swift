@@ -9,7 +9,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     }
 
     private let model: RelayAppModel
-    private let openPreferencesPane: (SettingsPaneID) -> Void
+    private let openWindow: (RelayWindowID) -> Void
     private let statusItem: NSStatusItem
     private let menu: NSMenu
     private var menuIsOpen = false
@@ -20,11 +20,11 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
 
     public init(
         model: RelayAppModel,
-        openPreferencesPane: @escaping (SettingsPaneID) -> Void,
+        openWindow: @escaping (RelayWindowID) -> Void,
         statusBar: NSStatusBar = .system
     ) {
         self.model = model
-        self.openPreferencesPane = openPreferencesPane
+        self.openWindow = openWindow
         self.statusItem = statusBar.statusItem(withLength: NSStatusItem.squareLength)
         self.menu = NSMenu()
         super.init()
@@ -135,7 +135,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(makeSectionHeader(title: "Profiles"))
         menu.addItem(makeActionItem(
             title: "Manage...",
-            systemImage: SettingsPaneID.profiles.symbol,
+            systemImage: RelayWindowID.profiles.symbol,
             action: #selector(showProfiles)
         ))
 
@@ -167,7 +167,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     private func addActionItems(to menu: NSMenu) {
         menu.addItem(makeActionItem(
             title: "Settings...",
-            systemImage: SettingsPaneID.settings.symbol,
+            systemImage: RelayWindowID.settings.symbol,
             action: #selector(showSettings)
         ))
 
@@ -343,11 +343,11 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func showSettings() {
-        openPreferencesPane(.settings)
+        openWindow(.settings)
     }
 
     @objc private func showProfiles() {
-        openPreferencesPane(.profiles)
+        openWindow(.profiles)
     }
 
     @objc private func quitApp() {
