@@ -1,12 +1,13 @@
 use crate::adapters::UsageProvider;
+use crate::internal::usage_policy::{
+    apply_auto_switch_policy, is_usage_stale, unknown_usage_window,
+};
 use crate::models::{
     FailureReason, Profile, RelayError, UsageConfidence, UsageSnapshot, UsageSource,
-    UsageSourceMode, UsageStatus, UsageWindow,
+    UsageSourceMode, UsageStatus,
 };
 use crate::store::{FileUsageStore, SqliteStore};
-use chrono::{DateTime, Duration, Utc};
-
-const SNAPSHOT_STALE_AFTER_MINUTES: i64 = 15;
+use chrono::Utc;
 
 pub async fn build_active(
     store: &SqliteStore,
@@ -216,22 +217,6 @@ fn should_continue_to_next_provider(
         && (snapshot.stale || snapshot.confidence != UsageConfidence::High)
 }
 
-fn apply_auto_switch_policy(snapshot: &mut UsageSnapshot) {
-    snapshot.auto_switch_reason = None;
-    snapshot.can_auto_switch = false;
-    if snapshot.stale || snapshot.confidence != UsageConfidence::High {
-        return;
-    }
-
-    if snapshot.session.status == UsageStatus::Exhausted {
-        snapshot.auto_switch_reason = Some(FailureReason::SessionExhausted);
-    } else if snapshot.weekly.status == UsageStatus::Exhausted {
-        snapshot.auto_switch_reason = Some(FailureReason::WeeklyExhausted);
-    }
-
-    snapshot.can_auto_switch = snapshot.auto_switch_reason.is_some();
-}
-
 fn apply_profile_context(snapshot: &mut UsageSnapshot, profile: Option<&Profile>) {
     snapshot.profile_id = profile.map(|value| value.id.clone());
     snapshot.profile_name = profile.map(|value| value.nickname.clone());
@@ -252,28 +237,12 @@ fn empty_snapshot(
         stale,
         last_refreshed_at: now,
         next_reset_at: None,
-        session: UsageWindow {
-            used_percent: None,
-            window_minutes: Some(300),
-            reset_at: None,
-            status: UsageStatus::Unknown,
-            exact: false,
-        },
-        weekly: UsageWindow {
-            used_percent: None,
-            window_minutes: Some(10080),
-            reset_at: None,
-            status: UsageStatus::Unknown,
-            exact: false,
-        },
+        session: unknown_usage_window(Some(300)),
+        weekly: unknown_usage_window(Some(10080)),
         auto_switch_reason: None,
         can_auto_switch: false,
         message,
     }
-}
-
-fn is_usage_stale(timestamp: DateTime<Utc>) -> bool {
-    Utc::now() - timestamp > Duration::minutes(SNAPSHOT_STALE_AFTER_MINUTES)
 }
 
 #[cfg(test)]

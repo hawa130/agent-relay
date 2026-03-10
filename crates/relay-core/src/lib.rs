@@ -1,5 +1,6 @@
 pub mod adapters;
 mod app;
+mod internal;
 pub mod models;
 pub mod platform;
 pub mod services;

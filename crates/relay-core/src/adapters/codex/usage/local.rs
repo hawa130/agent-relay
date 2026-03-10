@@ -1,16 +1,13 @@
-use super::CodexAdapter;
-use crate::models::{
-    FailureReason, Profile, ProfileProbeIdentity, RelayError, UsageConfidence, UsageSnapshot,
-    UsageSource, UsageStatus, UsageWindow,
+use super::super::CodexAdapter;
+use crate::internal::usage_policy::{
+    apply_auto_switch_policy, build_usage_window, is_usage_stale, next_reset_at,
+    unknown_usage_window,
 };
-use crate::store::SqliteStore;
-use chrono::{DateTime, Duration, TimeZone, Utc};
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
-use reqwest::{Client, ClientBuilder};
+use crate::models::{Profile, RelayError, UsageConfidence, UsageSnapshot, UsageSource};
+use chrono::{DateTime, TimeZone, Utc};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::env;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -19,12 +16,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration as StdDuration, Instant};
 
-const SNAPSHOT_STALE_AFTER_MINUTES: i64 = 15;
 const APP_SERVER_TIMEOUT_SECS: u64 = 6;
-const OFFICIAL_HTTP_TIMEOUT_SECS: u64 = 10;
-const OFFICIAL_USAGE_URL: &str = "https://chatgpt.com/backend-api/wham/usage";
-const OFFICIAL_REFRESH_URL: &str = "https://auth.openai.com/oauth/token";
-const OFFICIAL_REFRESH_CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
 
 pub(crate) fn collect_local(
     adapter: &CodexAdapter,
@@ -44,20 +36,6 @@ pub(crate) fn collect_local(
     }
 
     collect_session_snapshot(target_profile, &local_home)
-}
-
-pub(crate) async fn collect_remote(
-    store: &SqliteStore,
-    profile: Option<&Profile>,
-) -> Result<Option<UsageSnapshot>, RelayError> {
-    let Some(profile) = profile else {
-        return Ok(None);
-    };
-    let Some(identity) = store.get_probe_identity(&profile.id).await? else {
-        return Ok(None);
-    };
-    let snapshot = fetch_official_usage_snapshot(store, profile, identity).await?;
-    Ok(Some(snapshot))
 }
 
 fn resolve_local_home(
@@ -197,13 +175,13 @@ fn collect_session_snapshot(
     };
 
     let stale = is_usage_stale(reading.last_refreshed_at);
-    let session = build_window(
+    let session = build_usage_window(
         Some(reading.primary_used_percent),
         Some(reading.primary_window_minutes),
         Some(reading.primary_resets_at),
         true,
     );
-    let weekly = build_window(
+    let weekly = build_usage_window(
         reading.secondary_used_percent,
         reading.secondary_window_minutes,
         reading.secondary_resets_at,
@@ -229,270 +207,6 @@ fn collect_session_snapshot(
     }
     apply_auto_switch_policy(&mut snapshot);
     Ok(Some(snapshot))
-}
-
-async fn fetch_official_usage_snapshot(
-    store: &SqliteStore,
-    profile: &Profile,
-    mut identity: ProfileProbeIdentity,
-) -> Result<UsageSnapshot, RelayError> {
-    let mut response = official_usage_request(&identity).await?;
-    if should_refresh_official_response(&response)
-        && identity
-            .refresh_token()
-            .is_some_and(|token| !token.is_empty())
-    {
-        identity = refresh_probe_identity(store, &identity).await?;
-        response = official_usage_request(&identity).await?;
-    }
-    if response.http_code != 200 {
-        return Ok(remote_error_snapshot(profile));
-    }
-
-    let payload: OfficialUsageResponse = serde_json::from_str(&response.body)
-        .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
-    let session = official_window(payload.rate_limit.primary_window.as_ref());
-    let weekly = official_window(payload.rate_limit.secondary_window.as_ref());
-    let mut snapshot = UsageSnapshot {
-        profile_id: Some(profile.id.clone()),
-        profile_name: Some(profile.nickname.clone()),
-        source: UsageSource::WebEnhanced,
-        confidence: UsageConfidence::High,
-        stale: false,
-        last_refreshed_at: Utc::now(),
-        next_reset_at: next_reset_at(&session, &weekly),
-        session,
-        weekly,
-        auto_switch_reason: None,
-        can_auto_switch: false,
-        message: None,
-    };
-    apply_auto_switch_policy(&mut snapshot);
-    Ok(snapshot)
-}
-
-fn should_refresh_official_response(response: &HttpResponse) -> bool {
-    matches!(response.http_code, 401 | 403)
-}
-
-async fn refresh_probe_identity(
-    store: &SqliteStore,
-    identity: &ProfileProbeIdentity,
-) -> Result<ProfileProbeIdentity, RelayError> {
-    let refresh_token = identity
-        .refresh_token()
-        .map(ToOwned::to_owned)
-        .ok_or_else(|| RelayError::Validation("probe identity is missing refresh_token".into()))?;
-    let body = serde_json::json!({
-        "client_id": OFFICIAL_REFRESH_CLIENT_ID,
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token,
-    })
-    .to_string();
-
-    let mut headers = HeaderMap::new();
-    headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-    let response = run_http_json(
-        &official_refresh_url(),
-        reqwest::Method::POST,
-        headers,
-        Some(body),
-    )
-    .await?;
-    if response.http_code != 200 {
-        return Err(RelayError::ExternalCommand(format!(
-            "official refresh returned HTTP {}",
-            response.http_code
-        )));
-    }
-
-    let refreshed: OfficialRefreshResponse = serde_json::from_str(&response.body)
-        .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
-    let updated = ProfileProbeIdentity::codex_official(
-        identity.profile_id.clone(),
-        identity
-            .account_id()
-            .map(ToOwned::to_owned)
-            .ok_or_else(|| RelayError::Validation("probe identity is missing account_id".into()))?,
-        refreshed.access_token,
-        refreshed
-            .refresh_token
-            .or_else(|| identity.refresh_token().map(ToOwned::to_owned)),
-        refreshed
-            .id_token
-            .or_else(|| identity.id_token().map(ToOwned::to_owned)),
-        identity.email().map(ToOwned::to_owned),
-        identity.plan_hint().map(ToOwned::to_owned),
-        identity.created_at.clone(),
-        Utc::now().to_rfc3339(),
-    );
-
-    store.upsert_probe_identity(&updated).await
-}
-
-async fn official_usage_request(
-    identity: &ProfileProbeIdentity,
-) -> Result<HttpResponse, RelayError> {
-    let access_token = identity
-        .access_token()
-        .ok_or_else(|| RelayError::Validation("probe identity is missing access_token".into()))?;
-    let account_id = identity
-        .account_id()
-        .ok_or_else(|| RelayError::Validation("probe identity is missing account_id".into()))?;
-    let mut headers = HeaderMap::new();
-    headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
-    headers.insert(
-        AUTHORIZATION,
-        header_value(&format!("Bearer {access_token}"))?,
-    );
-    headers.insert(
-        HeaderName::from_static("chatgpt-account-id"),
-        header_value(account_id)?,
-    );
-
-    run_http_json(&official_usage_url(), reqwest::Method::GET, headers, None).await
-}
-
-async fn run_http_json(
-    url: &str,
-    method: reqwest::Method,
-    headers: HeaderMap,
-    body: Option<String>,
-) -> Result<HttpResponse, RelayError> {
-    if let Some(path) = url.strip_prefix("file://") {
-        let body = fs::read_to_string(path)?;
-        return Ok(HttpResponse {
-            http_code: 200,
-            body,
-        });
-    }
-
-    let client = official_http_client()?;
-    let mut request = client.request(method, url).headers(headers);
-    if let Some(body) = body {
-        request = request.body(body);
-    }
-
-    let response = request
-        .send()
-        .await
-        .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
-    let http_code = response.status().as_u16();
-    let body = response
-        .text()
-        .await
-        .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
-
-    Ok(HttpResponse { http_code, body })
-}
-
-fn official_http_client() -> Result<Client, RelayError> {
-    ClientBuilder::new()
-        .timeout(StdDuration::from_secs(OFFICIAL_HTTP_TIMEOUT_SECS))
-        .user_agent("relay")
-        .build()
-        .map_err(|error| RelayError::ExternalCommand(error.to_string()))
-}
-
-fn official_usage_url() -> String {
-    env::var("RELAY_OFFICIAL_USAGE_URL").unwrap_or_else(|_| OFFICIAL_USAGE_URL.into())
-}
-
-fn official_refresh_url() -> String {
-    env::var("RELAY_OFFICIAL_REFRESH_URL").unwrap_or_else(|_| OFFICIAL_REFRESH_URL.into())
-}
-
-fn header_value(value: &str) -> Result<HeaderValue, RelayError> {
-    HeaderValue::from_str(value).map_err(|error| RelayError::Validation(error.to_string()))
-}
-
-fn official_window(window: Option<&OfficialRateLimitWindow>) -> UsageWindow {
-    let Some(window) = window else {
-        return UsageWindow {
-            used_percent: None,
-            window_minutes: None,
-            reset_at: None,
-            status: UsageStatus::Unknown,
-            exact: false,
-        };
-    };
-
-    let reset_at = window
-        .reset_after_seconds
-        .map(|seconds| Utc::now() + Duration::seconds(seconds));
-    build_window(
-        window.used_percent,
-        window.limit_window_seconds.map(|seconds| seconds / 60),
-        reset_at,
-        true,
-    )
-}
-
-fn remote_error_snapshot(profile: &Profile) -> UsageSnapshot {
-    UsageSnapshot {
-        profile_id: Some(profile.id.clone()),
-        profile_name: Some(profile.nickname.clone()),
-        source: UsageSource::WebEnhanced,
-        confidence: UsageConfidence::Medium,
-        stale: true,
-        last_refreshed_at: Utc::now(),
-        next_reset_at: None,
-        session: UsageWindow {
-            used_percent: None,
-            window_minutes: Some(300),
-            reset_at: None,
-            status: UsageStatus::Unknown,
-            exact: false,
-        },
-        weekly: UsageWindow {
-            used_percent: None,
-            window_minutes: Some(10080),
-            reset_at: None,
-            status: UsageStatus::Unknown,
-            exact: false,
-        },
-        auto_switch_reason: None,
-        can_auto_switch: false,
-        message: Some("Enhanced usage is currently unavailable.".into()),
-    }
-}
-
-fn apply_auto_switch_policy(snapshot: &mut UsageSnapshot) {
-    snapshot.auto_switch_reason = None;
-    snapshot.can_auto_switch = false;
-    if snapshot.stale || snapshot.confidence != UsageConfidence::High {
-        return;
-    }
-
-    if snapshot.session.status == UsageStatus::Exhausted {
-        snapshot.auto_switch_reason = Some(FailureReason::SessionExhausted);
-    } else if snapshot.weekly.status == UsageStatus::Exhausted {
-        snapshot.auto_switch_reason = Some(FailureReason::WeeklyExhausted);
-    }
-
-    snapshot.can_auto_switch = snapshot.auto_switch_reason.is_some();
-}
-
-fn build_window(
-    used_percent: Option<f64>,
-    window_minutes: Option<i64>,
-    reset_at: Option<DateTime<Utc>>,
-    exact: bool,
-) -> UsageWindow {
-    let status = match used_percent {
-        Some(value) if value >= 100.0 => UsageStatus::Exhausted,
-        Some(value) if value >= 80.0 => UsageStatus::Warning,
-        Some(_) => UsageStatus::Healthy,
-        None => UsageStatus::Unknown,
-    };
-
-    UsageWindow {
-        used_percent,
-        window_minutes,
-        reset_at,
-        status,
-        exact,
-    }
 }
 
 fn snapshot_from_rate_limit_snapshot(
@@ -521,32 +235,17 @@ fn snapshot_from_rate_limit_snapshot(
     snapshot
 }
 
-fn app_server_window(window: Option<AppServerRateLimitWindow>) -> UsageWindow {
+fn app_server_window(window: Option<AppServerRateLimitWindow>) -> crate::models::UsageWindow {
     let Some(window) = window else {
-        return UsageWindow {
-            used_percent: None,
-            window_minutes: None,
-            reset_at: None,
-            status: UsageStatus::Unknown,
-            exact: false,
-        };
+        return unknown_usage_window(None);
     };
 
-    build_window(
+    build_usage_window(
         window.used_percent,
         window.window_minutes,
         window.resets_at.and_then(timestamp_to_datetime),
         true,
     )
-}
-
-fn next_reset_at(session: &UsageWindow, weekly: &UsageWindow) -> Option<DateTime<Utc>> {
-    match (session.reset_at, weekly.reset_at) {
-        (Some(session_reset), Some(weekly_reset)) => Some(session_reset.min(weekly_reset)),
-        (Some(session_reset), None) => Some(session_reset),
-        (None, Some(weekly_reset)) => Some(weekly_reset),
-        (None, None) => None,
-    }
 }
 
 fn parse_latest_usage_from_file(path: &Path) -> Result<Option<LocalUsageReading>, RelayError> {
@@ -649,10 +348,6 @@ fn collect_jsonl_files_recursive(
 
 fn timestamp_to_datetime(timestamp: i64) -> Option<DateTime<Utc>> {
     Utc.timestamp_opt(timestamp, 0).single()
-}
-
-fn is_usage_stale(timestamp: DateTime<Utc>) -> bool {
-    Utc::now() - timestamp > Duration::minutes(SNAPSHOT_STALE_AFTER_MINUTES)
 }
 
 fn looks_like_real_codex_auth(path: &Path) -> bool {
@@ -772,34 +467,4 @@ struct AppServerRateLimitWindow {
     window_minutes: Option<i64>,
     #[serde(default)]
     resets_at: Option<i64>,
-}
-
-struct HttpResponse {
-    http_code: u16,
-    body: String,
-}
-
-#[derive(Deserialize)]
-struct OfficialUsageResponse {
-    rate_limit: OfficialRateLimit,
-}
-
-#[derive(Deserialize)]
-struct OfficialRateLimit {
-    primary_window: Option<OfficialRateLimitWindow>,
-    secondary_window: Option<OfficialRateLimitWindow>,
-}
-
-#[derive(Deserialize)]
-struct OfficialRateLimitWindow {
-    used_percent: Option<f64>,
-    limit_window_seconds: Option<i64>,
-    reset_after_seconds: Option<i64>,
-}
-
-#[derive(Deserialize)]
-struct OfficialRefreshResponse {
-    access_token: String,
-    refresh_token: Option<String>,
-    id_token: Option<String>,
 }
