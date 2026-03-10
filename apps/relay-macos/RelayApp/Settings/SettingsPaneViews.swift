@@ -371,16 +371,7 @@ struct NativeDetailRow: View {
     let value: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(title)
-                .font(NativePreferencesTheme.Typography.detail.weight(.medium))
-                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-                .frame(width: NativePreferencesTheme.Metrics.detailLabelWidth, alignment: .leading)
-
-            Text(value)
-                .font(NativePreferencesTheme.Typography.body)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        LabeledContent(title, value: value)
     }
 }
 
@@ -392,14 +383,15 @@ struct NativeStepperRow: View {
     var step: Int = 1
 
     var body: some View {
-        HStack(spacing: 10) {
+        LabeledContent {
+            HStack(spacing: 10) {
+                Text(valueText)
+                    .monospacedDigit()
+                Stepper("", value: $value, in: range, step: step)
+                    .labelsHidden()
+            }
+        } label: {
             Text(title)
-            Spacer()
-            Text(valueText)
-                .monospacedDigit()
-                .foregroundStyle(.primary)
-            Stepper("", value: $value, in: range, step: step)
-                .labelsHidden()
         }
     }
 }
