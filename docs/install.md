@@ -88,6 +88,14 @@ relay autoswitch disable --json
 relay autoswitch set --json --input-json autoswitch.json
 ```
 
+Programmatic daemon transport:
+
+```bash
+relay daemon --stdio
+```
+
+`relay daemon --stdio` exposes a single-client stdio JSON-RPC session intended for host programs such as the macOS menu bar app. The macOS app keeps this process alive, consumes push updates, and supervises restarts when needed.
+
 Observability:
 
 ```bash

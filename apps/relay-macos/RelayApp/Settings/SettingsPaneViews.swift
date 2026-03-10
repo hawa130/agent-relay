@@ -144,6 +144,35 @@ private struct GeneralSettingsDetailView: View {
                 )
 
                 LaunchAtLogin.Toggle("Launch at login")
+
+                Stepper(
+                    value: Binding(
+                        get: { model.refreshIntervalSeconds },
+                        set: { seconds in
+                            Task {
+                                await model.setRefreshInterval(seconds: seconds)
+                            }
+                        }
+                    ),
+                    in: 15...900,
+                    step: 15
+                ) {
+                    NativeDetailRow(
+                        title: "Background refresh",
+                        value: "\(model.refreshIntervalSeconds) sec"
+                    )
+                }
+            }
+
+            Section("Engine") {
+                NativeDetailRow(title: "Connection", value: engineStateLabel)
+
+                Button("Restart Relay Engine") {
+                    Task {
+                        await model.restartEngine()
+                    }
+                }
+                .disabled(model.engineConnectionState == .starting)
             }
 
             Section("Application") {
@@ -180,6 +209,17 @@ private struct GeneralSettingsDetailView: View {
             return build
         default:
             return "Development"
+        }
+    }
+
+    private var engineStateLabel: String {
+        switch model.engineConnectionState {
+        case .starting:
+            return "Starting"
+        case .ready:
+            return "Connected"
+        case .degraded:
+            return "Degraded"
         }
     }
 }

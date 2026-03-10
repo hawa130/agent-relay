@@ -21,9 +21,11 @@ public final class SettingsPaneModel: ObservableObject {
     }
 
     var autoSwitchEnabled: Bool { session.autoSwitchEnabled }
+    var refreshIntervalSeconds: Int { session.refreshIntervalSeconds }
     var profilesCount: Int { session.status?.profileCount ?? session.profiles.count }
     var agents: [AgentSettingsDescriptor] { AgentSettingsCatalog.supportedAgents }
     var codexSettings: CodexSettings? { session.codexSettings }
+    var engineConnectionState: EngineConnectionState { session.engineConnectionState }
     var lastErrorMessage: String? { session.lastErrorMessage }
 
     func selectItem(_ item: SettingsSidebarSelection) {
@@ -40,6 +42,14 @@ public final class SettingsPaneModel: ObservableObject {
 
     func setUsageSourceMode(_ mode: UsageSourceMode) async {
         await session.setCodexUsageSourceMode(mode)
+    }
+
+    func setRefreshInterval(seconds: Int) async {
+        await session.setRefreshInterval(seconds: seconds)
+    }
+
+    func restartEngine() async {
+        await session.restartEngine()
     }
 
     public func refreshIfStale() async {

@@ -23,6 +23,7 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 use tracing_subscriber::EnvFilter;
 
+mod daemon;
 mod dispatch;
 mod render;
 
@@ -57,6 +58,8 @@ enum Commands {
     Activity(ActivityCommand),
     #[command(about = "Inspect relay environment, paths, and binary health")]
     Doctor,
+    #[command(about = "Run the relay daemon over stdio JSON-RPC")]
+    Daemon(DaemonCommand),
     #[command(about = "Inspect relay settings")]
     Settings(SettingsCommand),
     #[command(about = "Inspect or change automatic switching behavior")]
@@ -69,6 +72,12 @@ enum Commands {
     Disable(ProfileIdArgs),
     #[command(about = "Remove a managed profile")]
     Remove(ProfileIdArgs),
+}
+
+#[derive(Debug, Args)]
+struct DaemonCommand {
+    #[arg(long, help = "Serve the daemon over stdio JSON-RPC")]
+    stdio: bool,
 }
 
 #[derive(Debug, Args)]
@@ -356,6 +365,9 @@ fn init_tracing() -> Result<(), String> {
 
 async fn run() -> Result<(), RelayError> {
     let cli = Cli::parse();
+    if let Commands::Daemon(command) = &cli.command {
+        return daemon::run(command).await;
+    }
     let json = cli.json;
 
     match dispatch::execute(cli).await {
@@ -547,6 +559,8 @@ fn system_settings_request_from_args(
         let payload: AutoSwitchInput = read_json_input(input_json)?;
         return Ok(SystemSettingsUpdateRequest {
             auto_switch_enabled: Some(payload.enabled),
+            cooldown_seconds: None,
+            refresh_interval_seconds: None,
         });
     }
 
@@ -555,6 +569,8 @@ fn system_settings_request_from_args(
             args.enabled,
             "autoswitch enabled value is required",
         )?),
+        cooldown_seconds: None,
+        refresh_interval_seconds: None,
     })
 }
 

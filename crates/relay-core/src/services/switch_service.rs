@@ -1,5 +1,7 @@
 use crate::adapters::AgentAdapter;
-use crate::models::{ActiveState, FailureReason, Profile, RelayError, SwitchOutcome, SwitchReport};
+use crate::models::{
+    ActiveState, FailureReason, Profile, RelayError, SwitchOutcome, SwitchReport, SwitchTrigger,
+};
 use crate::platform::RelayPaths;
 use crate::store::{FileLogStore, FileStateStore, SqliteStore, SwitchHistoryRecord};
 use chrono::{Duration, Utc};
@@ -11,6 +13,7 @@ pub async fn switch_to_profile(
     adapter: &dyn AgentAdapter,
     paths: &RelayPaths,
     profile: &Profile,
+    trigger: SwitchTrigger,
 ) -> Result<SwitchReport, RelayError> {
     if !profile.enabled {
         return Err(RelayError::Conflict(format!(
@@ -47,7 +50,7 @@ pub async fn switch_to_profile(
                     profile_id: Some(profile.id.clone()),
                     previous_profile_id: previous_profile_id.clone(),
                     outcome: SwitchOutcome::Success,
-                    reason: Some("manual".into()),
+                    reason: Some(stringify_trigger(trigger).into()),
                     checkpoint_id: Some(checkpoint.checkpoint_id.clone()),
                     rollback_performed: false,
                 })
@@ -106,6 +109,13 @@ pub async fn switch_to_profile(
             log_store.append("error", "switch.failed", error.to_string())?;
             Err(error)
         }
+    }
+}
+
+fn stringify_trigger(trigger: SwitchTrigger) -> &'static str {
+    match trigger {
+        SwitchTrigger::Manual => "manual",
+        SwitchTrigger::Auto => "auto",
     }
 }
 
@@ -200,9 +210,17 @@ mod tests {
             updated_at: Utc::now().to_rfc3339(),
         };
 
-        let error = switch_to_profile(&store, &state_store, &log_store, &adapter, &paths, &profile)
-            .await
-            .expect_err("switch should fail when switch history persistence breaks");
+        let error = switch_to_profile(
+            &store,
+            &state_store,
+            &log_store,
+            &adapter,
+            &paths,
+            &profile,
+            SwitchTrigger::Manual,
+        )
+        .await
+        .expect_err("switch should fail when switch history persistence breaks");
         assert!(matches!(error, RelayError::Store(_)));
 
         let restored_state = state_store.load().expect("load state");

@@ -7,6 +7,7 @@ mod overview;
 mod probe_identity;
 mod profile;
 mod protocol;
+mod rpc;
 mod settings;
 mod state;
 mod switch;
@@ -24,9 +25,23 @@ pub use overview::{
 pub use probe_identity::{ProbeProvider, ProfileProbeIdentity};
 pub use profile::{AgentKind, AuthMode, Profile};
 pub use protocol::JsonResponse;
+pub use rpc::{
+    ActiveStateUpdatedPayload, ActivityEventsParams, ActivityEventsResult, AppSettingsPatch,
+    AddProfileParams, CodexSettingsPatch, CodexSettingsParams, EditProfileParams,
+    EngineConnectionState, EngineState, HealthUpdatedPayload, ImportProfileParams,
+    InitializeParams, InitializeResult, InitialState, LoginProfileParams, LogsTailParams,
+    LogsTailResult, ProfileIdParams, ProfileResult, RefreshUsageParams, RefreshUsageResult,
+    RelayRpcTopic, RpcClientCapabilities, RpcClientInfo, RpcErrorData, RpcErrorObject,
+    RpcErrorResponse, RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo,
+    RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
+    SettingsUpdateParams, SubscribeParams, SubscribeResult, SwitchCompletedPayload,
+    SwitchFailedPayload, SystemSettingsParams, UsageGetParams, UsageResult,
+    UsageUpdateTrigger, UsageUpdatedPayload, rpc_from_error, rpc_internal_error,
+    rpc_invalid_params, rpc_invalid_request, rpc_method_not_found,
+};
 pub use settings::AppSettings;
 pub use state::{ActiveState, StatusReport, SwitchCheckpoint, SwitchOutcome};
-pub use switch::{SwitchHistoryEntry, SwitchReport};
+pub use switch::{SwitchHistoryEntry, SwitchReport, SwitchTrigger};
 pub use usage::{
     UsageCache, UsageConfidence, UsageSnapshot, UsageSource, UsageSourceMode, UsageStatus,
     UsageWindow,

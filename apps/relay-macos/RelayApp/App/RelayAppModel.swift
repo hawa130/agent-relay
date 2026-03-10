@@ -1,6 +1,6 @@
+import Defaults
 import Foundation
 import SwiftUI
-import Defaults
 
 @MainActor
 public final class RelayAppModel: ObservableObject {
@@ -14,18 +14,20 @@ public final class RelayAppModel: ObservableObject {
     @Published private(set) var logTail: LogTail?
     @Published private(set) var diagnosticsExport: DiagnosticsExport?
     @Published private(set) var lastRefresh: Date?
+    @Published private(set) var engineConnectionState: EngineConnectionState = .starting
     @Published private(set) var isRefreshing = false
     @Published private(set) var isSwitching = false
-    @Published private(set) var isAutoSwitching = false
     @Published private(set) var isMutatingProfiles = false
     @Published private(set) var isRefreshingEnabledUsage = false
     @Published private(set) var refreshingUsageProfileIds: Set<String> = []
     @Published var selectedProfileId: String?
     @Published var lastErrorMessage: String?
-    private let client = RelayCLIClient()
+
+    private let daemonClient = RelayDaemonClient()
+    private let legacyClient = RelayCLIClient()
     private let notificationService = RelayNotificationService()
-    private var lastAutoSwitchConflictSignature: String?
     private var hasStarted = false
+    private var daemonNotificationsTask: Task<Void, Never>?
 
     public init() {
         selectedProfileId = Defaults[.selectedProfileId]
@@ -64,6 +66,10 @@ public final class RelayAppModel: ObservableObject {
         status?.settings.autoSwitchEnabled ?? false
     }
 
+    var refreshIntervalSeconds: Int {
+        status?.settings.refreshIntervalSeconds ?? 60
+    }
+
     func usageSnapshot(for profileId: String) -> UsageSnapshot? {
         usageSnapshots.first { $0.profileId == profileId }
     }
@@ -84,7 +90,7 @@ public final class RelayAppModel: ObservableObject {
 
         hasStarted = true
         Task {
-            await refresh()
+            await startDaemonSession()
         }
     }
 
@@ -110,12 +116,12 @@ public final class RelayAppModel: ObservableObject {
         }
 
         do {
-            async let statusTask = client.fetchStatus()
-            async let codexSettingsTask = client.fetchCodexSettings()
-            async let profileListTask = client.fetchProfileList()
-            async let doctorTask = client.fetchDoctor()
-            async let eventsTask = client.fetchEvents(limit: 10)
-            async let logsTask = client.fetchLogs(lines: 25)
+            async let statusTask = daemonClient.fetchStatus()
+            async let codexSettingsTask = daemonClient.fetchCodexSettings()
+            async let profileListTask = daemonClient.fetchProfileList()
+            async let doctorTask = daemonClient.fetchDoctor()
+            async let eventsTask = daemonClient.fetchEvents(limit: 10)
+            async let logsTask = daemonClient.fetchLogs(lines: 25)
 
             status = try await statusTask
             codexSettings = try await codexSettingsTask
@@ -127,7 +133,6 @@ public final class RelayAppModel: ObservableObject {
             logTail = try await logsTask
             normalizeSelection()
             synchronizeActiveUsage()
-            resetAutoSwitchConflictSuppressionIfNeeded()
             lastRefresh = Date()
             lastErrorMessage = nil
         } catch {
@@ -152,7 +157,7 @@ public final class RelayAppModel: ObservableObject {
         }
 
         do {
-            let report = try await client.switchToProfile(profileId)
+            let report = try await daemonClient.switchToProfile(profileId)
             selectProfile(profileId)
             await refresh()
             await notificationService.post(
@@ -170,7 +175,20 @@ public final class RelayAppModel: ObservableObject {
 
     func setAutoSwitch(enabled: Bool) async {
         do {
-            _ = try await client.setAutoSwitch(enabled: enabled)
+            _ = try await daemonClient.setAutoSwitch(enabled: enabled)
+            await refresh()
+        } catch {
+            lastErrorMessage = error.localizedDescription
+            await notificationService.post(
+                title: "Relay settings update failed",
+                body: error.localizedDescription
+            )
+        }
+    }
+
+    func setRefreshInterval(seconds: Int) async {
+        do {
+            _ = try await daemonClient.setRefreshInterval(seconds: seconds)
             await refresh()
         } catch {
             lastErrorMessage = error.localizedDescription
@@ -194,7 +212,7 @@ public final class RelayAppModel: ObservableObject {
         }
 
         do {
-            let snapshot = try await client.refreshUsage(profileId: profileId)
+            let snapshot = try await daemonClient.refreshUsage(profileId: profileId)
             mergeUsageSnapshot(snapshot)
             finalizeUsageRefresh()
         } catch {
@@ -213,42 +231,45 @@ public final class RelayAppModel: ObservableObject {
         }
 
         do {
-            let snapshots = try await client.refreshEnabledUsage()
+            let snapshots = try await daemonClient.refreshEnabledUsage()
             for snapshot in snapshots {
                 mergeUsageSnapshot(snapshot)
             }
             finalizeUsageRefresh()
-            await attemptAutoSwitchIfNeeded()
         } catch {
             lastErrorMessage = error.localizedDescription
         }
     }
 
     func refreshForMenuOpen() async {
-        await refreshEnabledUsage()
+        await refreshIfStale(maxAge: 15)
     }
 
     func setProfileEnabled(_ profileId: String, enabled: Bool) async {
         await performProfileMutation { [self] in
-            _ = try await self.client.setProfileEnabled(profileId: profileId, enabled: enabled)
+            _ = try await self.daemonClient.setProfileEnabled(profileId: profileId, enabled: enabled)
         }
     }
 
     func editProfile(profileId: String, draft: ProfileDraft) async {
         await performProfileMutation { [self] in
-            _ = try await self.client.editProfile(profileId: profileId, draft: draft)
+            _ = try await self.daemonClient.editProfile(profileId: profileId, draft: draft)
         }
     }
 
     func removeProfile(_ profileId: String) async {
         await performProfileMutation { [self] in
-            _ = try await self.client.removeProfile(profileId: profileId)
+            _ = try await self.daemonClient.removeProfile(profileId: profileId)
         }
     }
 
     func importProfile(agent: AgentKind, nickname: String?, priority: Int) async {
         await performProfileMutation { [self] in
-            let profile = try await self.client.importProfile(agent: agent, nickname: nickname, priority: priority)
+            let profile = try await self.daemonClient.importProfile(
+                agent: agent,
+                nickname: nickname,
+                priority: priority
+            )
             await MainActor.run {
                 self.selectProfile(profile.id)
             }
@@ -266,7 +287,11 @@ public final class RelayAppModel: ObservableObject {
         }
 
         do {
-            let result = try await client.loginProfile(agent: agent, nickname: nickname, priority: priority)
+            let result = try await legacyClient.loginProfile(
+                agent: agent,
+                nickname: nickname,
+                priority: priority
+            )
             selectProfile(result.profile.id)
             await refresh()
             lastErrorMessage = nil
@@ -277,9 +302,7 @@ public final class RelayAppModel: ObservableObject {
         } catch {
             let outcome = addAccountResult(for: error, agent: agent)
             switch outcome {
-            case .success:
-                lastErrorMessage = nil
-            case .cancelled:
+            case .success, .cancelled:
                 lastErrorMessage = nil
             case let .notSignedIn(detail):
                 lastErrorMessage = "\(agent.rawValue): Not signed in. \(detail)"
@@ -300,12 +323,28 @@ public final class RelayAppModel: ObservableObject {
 
     func exportDiagnostics() async {
         do {
-            diagnosticsExport = try await client.exportDiagnostics()
+            diagnosticsExport = try await daemonClient.exportDiagnostics()
             await refresh()
         } catch {
             lastErrorMessage = error.localizedDescription
             await notificationService.post(
                 title: "Relay diagnostics export failed",
+                body: error.localizedDescription
+            )
+        }
+    }
+
+    func restartEngine() async {
+        engineConnectionState = .starting
+        do {
+            let initial = try await daemonClient.restart()
+            apply(initialState: initial)
+            await refresh()
+        } catch {
+            engineConnectionState = .degraded
+            lastErrorMessage = error.localizedDescription
+            await notificationService.post(
+                title: "Relay engine restart failed",
                 body: error.localizedDescription
             )
         }
@@ -338,7 +377,7 @@ public final class RelayAppModel: ObservableObject {
 
     private func updateCodexSettings(_ draft: CodexSettingsDraft) async {
         do {
-            codexSettings = try await client.setCodexSettings(draft)
+            codexSettings = try await daemonClient.setCodexSettings(draft)
             await refresh()
         } catch {
             lastErrorMessage = error.localizedDescription
@@ -346,6 +385,89 @@ public final class RelayAppModel: ObservableObject {
                 title: "Relay Codex settings update failed",
                 body: error.localizedDescription
             )
+        }
+    }
+
+    private func startDaemonSession() async {
+        do {
+            let initial = try await daemonClient.start()
+            apply(initialState: initial)
+            startNotificationStreamIfNeeded()
+            await refresh()
+        } catch {
+            engineConnectionState = .degraded
+            lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func startNotificationStreamIfNeeded() {
+        guard daemonNotificationsTask == nil else {
+            return
+        }
+
+        daemonNotificationsTask = Task { [weak self] in
+            guard let self else {
+                return
+            }
+            for await update in daemonClient.notifications {
+                await MainActor.run {
+                    self.handle(update)
+                }
+            }
+        }
+    }
+
+    private func apply(initialState: RPCInitialState) {
+        status = initialState.status
+        codexSettings = initialState.codexSettings
+        profiles = initialState.profiles.map(\.profile)
+        usageSnapshots = initialState.profiles.compactMap(\.usageSummary)
+        engineConnectionState = initialState.engine.connectionState
+        normalizeSelection()
+        synchronizeActiveUsage()
+        lastRefresh = Date()
+        lastErrorMessage = nil
+    }
+
+    private func handle(_ update: RelaySessionUpdate) {
+        switch update {
+        case let .usageUpdated(payload):
+            for snapshot in payload.snapshots {
+                mergeUsageSnapshot(snapshot)
+            }
+            finalizeUsageRefresh()
+        case let .activeStateUpdated(payload):
+            if var status {
+                status.activeState = payload.activeState
+                self.status = status
+            }
+            normalizeSelection()
+            synchronizeActiveUsage()
+        case let .switchCompleted(payload):
+            lastErrorMessage = nil
+            if payload.trigger == .auto {
+                Task {
+                    await notificationService.post(
+                        title: "Relay auto-switched profile",
+                        body: payload.report.message
+                    )
+                }
+            }
+        case let .switchFailed(payload):
+            lastErrorMessage = "\(payload.errorCode): \(payload.message)"
+            if payload.trigger == .auto {
+                Task {
+                    await notificationService.post(
+                        title: "Relay auto-switch failed",
+                        body: payload.message
+                    )
+                }
+            }
+        case let .healthUpdated(payload):
+            engineConnectionState = payload.state
+            if let detail = payload.detail, payload.state == .degraded {
+                lastErrorMessage = detail
+            }
         }
     }
 
@@ -398,101 +520,7 @@ public final class RelayAppModel: ObservableObject {
 
     private func finalizeUsageRefresh() {
         synchronizeActiveUsage()
-        resetAutoSwitchConflictSuppressionIfNeeded()
         lastRefresh = Date()
         lastErrorMessage = nil
-    }
-
-    private func attemptAutoSwitchIfNeeded() async {
-        guard autoSwitchEnabled else {
-            lastAutoSwitchConflictSignature = nil
-            return
-        }
-        guard !isSwitching, !isAutoSwitching else {
-            return
-        }
-        guard let activeProfileId else {
-            lastAutoSwitchConflictSignature = nil
-            return
-        }
-        guard let activeSnapshot = usageSnapshot(for: activeProfileId), activeSnapshot.canAutoSwitch else {
-            lastAutoSwitchConflictSignature = nil
-            return
-        }
-
-        let conflictSignature = autoSwitchConflictSignature(activeProfileId: activeProfileId)
-        if lastAutoSwitchConflictSignature == conflictSignature {
-            return
-        }
-
-        isAutoSwitching = true
-        defer {
-            isAutoSwitching = false
-        }
-
-        do {
-            let report = try await client.switchToNextProfile()
-            lastAutoSwitchConflictSignature = nil
-            selectProfile(report.profileId)
-            await refresh()
-            await notificationService.post(
-                title: "Relay auto-switched profile",
-                body: report.message
-            )
-        } catch {
-            lastErrorMessage = error.localizedDescription
-            if isAutoSwitchExhaustedConflict(error) {
-                lastAutoSwitchConflictSignature = conflictSignature
-                await notificationService.post(
-                    title: "Relay auto-switch paused",
-                    body: "All enabled profiles are exhausted or unavailable for auto-switch. Staying on current profile."
-                )
-                return
-            }
-
-            lastAutoSwitchConflictSignature = nil
-            await notificationService.post(
-                title: "Relay auto-switch failed",
-                body: error.localizedDescription
-            )
-        }
-    }
-
-    private func resetAutoSwitchConflictSuppressionIfNeeded() {
-        guard autoSwitchEnabled, let activeProfileId else {
-            lastAutoSwitchConflictSignature = nil
-            return
-        }
-        guard let activeSnapshot = usageSnapshot(for: activeProfileId), activeSnapshot.canAutoSwitch else {
-            lastAutoSwitchConflictSignature = nil
-            return
-        }
-
-        let currentSignature = autoSwitchConflictSignature(activeProfileId: activeProfileId)
-        if lastAutoSwitchConflictSignature != currentSignature {
-            lastAutoSwitchConflictSignature = nil
-        }
-    }
-
-    private func autoSwitchConflictSignature(activeProfileId: String) -> String {
-        let enabledState = profiles
-            .filter(\.enabled)
-            .map { profile -> String in
-                let snapshot = usageSnapshot(for: profile.id)
-                let confidence = snapshot?.confidence.rawValue ?? "missing"
-                let stale = snapshot.map { String($0.stale) } ?? "missing"
-                let session = snapshot?.session.status.rawValue ?? "missing"
-                let weekly = snapshot?.weekly.status.rawValue ?? "missing"
-                return "\(profile.id):\(confidence):\(stale):\(session):\(weekly)"
-            }
-            .joined(separator: "|")
-        return "\(activeProfileId)|\(enabledState)"
-    }
-
-    private func isAutoSwitchExhaustedConflict(_ error: Error) -> Bool {
-        guard case let RelayCLIClientError.commandFailed(code, _) = error else {
-            return false
-        }
-        return code == "RELAY_CONFLICT"
     }
 }

@@ -22,6 +22,12 @@ impl SqliteStore {
             &defaults.cooldown_seconds.to_string(),
         )
         .await?;
+        self.set_setting_value(
+            connection,
+            "refresh_interval_seconds",
+            &defaults.refresh_interval_seconds.to_string(),
+        )
+        .await?;
 
         if let Some(model) = app_settings::Entity::find_by_id("usage_source_mode")
             .one(connection)
@@ -72,10 +78,16 @@ impl SqliteStore {
             .await?
             .and_then(|value| value.value.parse::<i64>().ok())
             .unwrap_or(600);
+        let refresh_interval_seconds = app_settings::Entity::find_by_id("refresh_interval_seconds")
+            .one(connection)
+            .await?
+            .and_then(|value| value.value.parse::<i64>().ok())
+            .unwrap_or(60);
 
         Ok(AppSettings {
             auto_switch_enabled,
             cooldown_seconds,
+            refresh_interval_seconds,
         })
     }
 
@@ -93,6 +105,16 @@ impl SqliteStore {
     pub async fn set_cooldown_seconds(&self, value: i64) -> Result<AppSettings, RelayError> {
         let connection = self.require_connection()?;
         self.set_setting_value(connection, "cooldown_seconds", &value.to_string())
+            .await?;
+        self.get_settings().await
+    }
+
+    pub async fn set_refresh_interval_seconds(
+        &self,
+        value: i64,
+    ) -> Result<AppSettings, RelayError> {
+        let connection = self.require_connection()?;
+        self.set_setting_value(connection, "refresh_interval_seconds", &value.to_string())
             .await?;
         self.get_settings().await
     }

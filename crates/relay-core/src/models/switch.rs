@@ -2,6 +2,12 @@ use crate::models::SwitchOutcome;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SwitchTrigger {
+    Manual,
+    Auto,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SwitchHistoryEntry {
     pub id: String,
