@@ -81,7 +81,7 @@ public struct ProfilesSettingsPaneView: View {
                 .tag(item)
         }
         .listStyle(.sidebar)
-        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 240)
+        .navigationSplitViewColumnWidth(140)
     }
 
     private var contentColumn: some View {
@@ -105,9 +105,9 @@ public struct ProfilesSettingsPaneView: View {
             }
         }
         .listStyle(.inset)
-        .navigationSplitViewColumnWidth(min: 300, ideal: 360)
+        .navigationSplitViewColumnWidth(min: 260, ideal: 340, max: 400)
         .toolbar {
-            ToolbarItem(placement: .navigation) {
+            ToolbarItemGroup(placement: .navigation) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(model.selectedFilter.title)
                         .font(.headline)
@@ -119,7 +119,11 @@ public struct ProfilesSettingsPaneView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .secondaryAction) {
+                Text("")
+            }
+
+            ToolbarItemGroup(placement: .confirmationAction) {
                 Button {
                     model.presentAddSheet()
                 } label: {
@@ -186,9 +190,24 @@ public struct ProfilesSettingsPaneView: View {
                 .background(NativePreferencesTheme.Colors.paneBackground)
             }
         }
+        .navigationSplitViewColumnWidth(min: 400, ideal: 560)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Toggle(isOn: selectedProfileActiveBinding) {
+                    Label(
+                        selectedProfileIsActive ? "Profile is active" : "Activate Profile",
+                        systemImage: selectedProfileIsActive ? "checkmark.circle.fill" : "checkmark.circle"
+                    )
+                }
+                .labelStyle(.iconOnly)
+                .toggleStyle(.button)
+                .disabled(isActiveToggleDisabled)
+                .help(selectedProfileIsActive ? "Profile is active" : "Activate Profile")
+                .accessibilityLabel(selectedProfileIsActive ? "Profile is active" : "Activate Profile")
+            }
+
+            ToolbarItemGroup(placement: .confirmationAction) {
                 Button {
                     model.presentEditForSelectedProfile()
                 } label: {
@@ -196,6 +215,15 @@ public struct ProfilesSettingsPaneView: View {
                 }
                 .accessibilityLabel("Edit Profile")
                 .help("Edit Profile")
+                .disabled(selectedProfile == nil || model.isMutatingProfiles)
+
+                Button(role: .destructive) {
+                    deletingProfile = selectedProfile
+                } label: {
+                    Label("Delete Profile", systemImage: "trash")
+                }
+                .accessibilityLabel("Delete Profile")
+                .help("Delete Profile")
                 .disabled(selectedProfile == nil || model.isMutatingProfiles)
             }
         }
@@ -241,21 +269,12 @@ public struct ProfilesSettingsPaneView: View {
                     Spacer(minLength: 16)
 
                     VStack(alignment: .trailing, spacing: 8) {
-                        Toggle(
-                            "Enabled",
-                            isOn: Binding(
-                                get: { profile.enabled },
-                                set: { enabled in
-                                    Task {
-                                        await model.setProfileEnabled(profile.id, enabled: enabled)
-                                    }
-                                }
-                            )
-                        )
-                        .toggleStyle(.switch)
-                        .labelsHidden()
-                        .disabled(model.isMutatingProfiles)
+                        Toggle("Enabled", isOn: selectedProfileEnabledBinding)
+                            .toggleStyle(.switch)
+                            .labelsHidden()
+                            .disabled(model.isMutatingProfiles)
                     }
+
                 }
 
                 Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
@@ -265,27 +284,10 @@ public struct ProfilesSettingsPaneView: View {
                     }
                 }
 
-                HStack(alignment: .center, spacing: 10) {
-                    Button(model.activeProfileId == profile.id ? "Activated" : "Activate") {
-                        Task {
-                            await model.switchToProfile(profile.id)
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(model.activeProfileId == profile.id || !profile.enabled || model.isSwitching)
-
-                    Button("Remove", role: .destructive) {
-                        deletingProfile = profile
-                    }
-                    .disabled(model.isMutatingProfiles)
-
-                    Spacer()
-
-                    if let failure = selectedFailureEvent {
-                        Label(failure.reason.rawValue.replacingOccurrences(of: "_", with: " "), systemImage: "exclamationmark.triangle.fill")
-                            .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
-                            .foregroundStyle(.orange)
-                    }
+                if let failure = selectedFailureEvent {
+                    Label(failure.reason.rawValue.replacingOccurrences(of: "_", with: " "), systemImage: "exclamationmark.triangle.fill")
+                        .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
+                        .foregroundStyle(.orange)
                 }
             }
         }
@@ -335,6 +337,52 @@ public struct ProfilesSettingsPaneView: View {
 
     private var selectedProfile: Profile? {
         model.selectedProfile
+    }
+
+    private var selectedProfileIsActive: Bool {
+        guard let profile = selectedProfile else {
+            return false
+        }
+
+        return model.activeProfileId == profile.id
+    }
+
+    private var isActiveToggleDisabled: Bool {
+        guard let profile = selectedProfile else {
+            return true
+        }
+
+        return model.isMutatingProfiles || model.isSwitching || !profile.enabled || model.activeProfileId == profile.id
+    }
+
+    private var selectedProfileActiveBinding: Binding<Bool> {
+        Binding(
+            get: { selectedProfileIsActive },
+            set: { isActive in
+                guard isActive, let profile = selectedProfile else {
+                    return
+                }
+
+                Task {
+                    await model.switchToProfile(profile.id)
+                }
+            }
+        )
+    }
+
+    private var selectedProfileEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { selectedProfile?.enabled ?? false },
+            set: { enabled in
+                guard let profile = selectedProfile else {
+                    return
+                }
+
+                Task {
+                    await model.setProfileEnabled(profile.id, enabled: enabled)
+                }
+            }
+        )
     }
 
     private var selectedFailureEvent: FailureEvent? {
