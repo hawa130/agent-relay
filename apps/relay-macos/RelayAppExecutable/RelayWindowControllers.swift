@@ -46,7 +46,7 @@ enum RelayWindowStyle {
     var titlebarTransparent: Bool {
         switch self {
         case .manager:
-            return false
+            return true
         case .settings:
             return true
         }
@@ -55,7 +55,7 @@ enum RelayWindowStyle {
     var usesFullSizeContentView: Bool {
         switch self {
         case .manager:
-            return false
+            return true
         case .settings:
             return true
         }

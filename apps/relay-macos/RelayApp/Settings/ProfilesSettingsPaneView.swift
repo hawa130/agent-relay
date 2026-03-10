@@ -1,8 +1,34 @@
 import SwiftUI
 
 public struct ProfilesSettingsPaneView: View {
+    private enum SidebarItem: String, CaseIterable, Hashable, Identifiable {
+        case all
+        case codex
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .all:
+                return "All"
+            case .codex:
+                return "Codex"
+            }
+        }
+
+        var icon: String {
+            switch self {
+            case .all:
+                return "square.grid.2x2"
+            case .codex:
+                return "command.square"
+            }
+        }
+    }
+
     @ObservedObject var model: ProfilesPaneModel
     @State private var deletingProfile: Profile?
+    @State private var selectedSidebarItem: SidebarItem? = .all
 
     public init(model: ProfilesPaneModel) {
         self.model = model
@@ -11,10 +37,21 @@ public struct ProfilesSettingsPaneView: View {
     public var body: some View {
         NavigationSplitView {
             sidebar
+        } content: {
+            contentColumn
         } detail: {
             detail
         }
         .navigationSplitViewStyle(.balanced)
+        .onAppear {
+            reconcileSelection()
+        }
+        .onChange(of: selectedSidebarItem) {
+            reconcileSelection()
+        }
+        .onChange(of: filteredProfileIDs) {
+            reconcileSelection()
+        }
         .sheet(
             isPresented: Binding(
                 get: { model.isPresentingAddSheet },
@@ -73,38 +110,55 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private var sidebar: some View {
+        List(selection: $selectedSidebarItem) {
+            ForEach(SidebarItem.allCases) { item in
+                SidebarFilterRow(
+                    title: item.title,
+                    icon: item.icon,
+                    count: profileCount(for: item)
+                )
+                .tag(Optional(item))
+            }
+        }
+        .listStyle(.sidebar)
+        .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 240)
+    }
+
+    private var contentColumn: some View {
         List(selection: selectedProfileBinding) {
-            ForEach(model.profiles) { profile in
+            ForEach(filteredProfiles) { profile in
                 ProfileListRow(
                     profile: profile,
                     usage: model.usageSnapshot(for: profile.id),
                     isActive: model.activeProfileId == profile.id
                 )
                 .tag(Optional(profile.id))
-                .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8))
-                .listRowBackground(Color.clear)
             }
 
-            if model.profiles.isEmpty {
+            if filteredProfiles.isEmpty {
                 ContentUnavailableView(
                     "No Profiles",
                     systemImage: "person.crop.square",
-                    description: Text("Add an account from the toolbar to create your first profile.")
+                    description: Text(emptyStateDescription)
                 )
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
                 .disabled(true)
             }
         }
-        .listStyle(.sidebar)
-        .frame(
-            minWidth: NativePreferencesTheme.Metrics.sidebarWidth,
-            idealWidth: NativePreferencesTheme.Metrics.sidebarWidth,
-            maxWidth: NativePreferencesTheme.Metrics.sidebarWidth + 24,
-            maxHeight: .infinity
-        )
+        .listStyle(.inset)
+        .navigationSplitViewColumnWidth(min: 300, ideal: 360)
         .toolbar {
+            ToolbarItem(placement: .navigation) {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(selectedSidebarItem?.title ?? SidebarItem.all.title)
+                        .font(.headline)
+
+                    Text(profileCountSummary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     model.presentAddSheet()
@@ -119,7 +173,14 @@ public struct ProfilesSettingsPaneView: View {
 
     private var selectedProfileBinding: Binding<String?> {
         Binding(
-            get: { model.selectedProfileId },
+            get: {
+                guard let selectedProfileId = model.selectedProfileId,
+                      filteredProfiles.contains(where: { $0.id == selectedProfileId })
+                else {
+                    return nil
+                }
+                return selectedProfileId
+            },
             set: { profileId in
                 model.selectProfile(profileId)
             }
@@ -164,8 +225,35 @@ public struct ProfilesSettingsPaneView: View {
                 }
                 .accessibilityLabel("Edit Profile")
                 .help("Edit Profile")
-                .disabled(model.selectedProfileId == nil || model.isMutatingProfiles)
+                .disabled(selectedProfile == nil || model.isMutatingProfiles)
             }
+        }
+    }
+
+    private var filteredProfiles: [Profile] {
+        switch selectedSidebarItem ?? .all {
+        case .all:
+            return model.profiles
+        case .codex:
+            return model.profiles.filter { $0.agent == .codex }
+        }
+    }
+
+    private var filteredProfileIDs: [String] {
+        filteredProfiles.map(\.id)
+    }
+
+    private var profileCountSummary: String {
+        let count = filteredProfiles.count
+        return count == 1 ? "1 profile" : "\(count) profiles"
+    }
+
+    private var emptyStateDescription: String {
+        switch selectedSidebarItem ?? .all {
+        case .all:
+            return "Add an account from the toolbar to create your first profile."
+        case .codex:
+            return "No Codex profiles are available in this view yet."
         }
     }
 
@@ -293,7 +381,10 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private var selectedProfile: Profile? {
-        model.selectedProfile
+        guard let selectedProfileId = model.selectedProfileId else {
+            return nil
+        }
+        return filteredProfiles.first { $0.id == selectedProfileId }
     }
 
     private var selectedFailureEvent: FailureEvent? {
@@ -301,6 +392,31 @@ public struct ProfilesSettingsPaneView: View {
             return nil
         }
         return model.recentFailureEvent(for: profileId)
+    }
+
+    private func profileCount(for item: SidebarItem) -> Int {
+        switch item {
+        case .all:
+            return model.profiles.count
+        case .codex:
+            return model.profiles.filter { $0.agent == .codex }.count
+        }
+    }
+
+    private func reconcileSelection() {
+        guard !filteredProfiles.isEmpty else {
+            if model.selectedProfileId != nil {
+                model.selectProfile(nil)
+            }
+            return
+        }
+
+        if let selectedProfileId = model.selectedProfileId,
+           filteredProfiles.contains(where: { $0.id == selectedProfileId }) {
+            return
+        }
+
+        model.selectProfile(filteredProfiles.first?.id)
     }
 }
 
@@ -428,6 +544,29 @@ private struct ProfileListRow: View {
         parts.append("\(minutes)m")
 
         return "in \(parts.joined(separator: " "))"
+    }
+}
+
+private struct SidebarFilterRow: View {
+    let title: String
+    let icon: String
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon)
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 16)
+
+            Text(title)
+
+            Spacer()
+
+            Text("\(count)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 3)
     }
 }
 
