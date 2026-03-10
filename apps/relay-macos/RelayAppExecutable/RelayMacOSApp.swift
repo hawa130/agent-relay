@@ -25,7 +25,7 @@ struct RelayMacOSApp: App {
         .restorationBehavior(.disabled)
         .defaultSize(width: 760, height: 620)
         .windowResizability(.contentMinSize)
-        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
+        .windowToolbarStyle(.unifiedCompact(showsTitle: true))
     }
 }
 

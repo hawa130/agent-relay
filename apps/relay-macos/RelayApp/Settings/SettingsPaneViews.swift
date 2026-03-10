@@ -16,7 +16,6 @@ public struct SettingsPaneView: View {
         }
         .navigationSplitViewStyle(.balanced)
         .navigationTitle(titleText)
-        .toolbar(removing: .sidebarToggle)
     }
 
     private var sidebar: some View {
@@ -40,6 +39,7 @@ public struct SettingsPaneView: View {
         }
         .listStyle(.sidebar)
         .frame(minWidth: 220, idealWidth: 260, maxWidth: 300, maxHeight: .infinity)
+        .toolbar(removing: .sidebarToggle)
     }
 
     private var detail: some View {
