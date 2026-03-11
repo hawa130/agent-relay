@@ -31,6 +31,20 @@ pub enum UsageStatus {
     Unknown,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum UsageRemoteErrorKind {
+    Account,
+    Network,
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct UsageRemoteError {
+    pub kind: UsageRemoteErrorKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_status: Option<u16>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageWindow {
     pub used_percent: Option<f64>,
@@ -54,6 +68,8 @@ pub struct UsageSnapshot {
     pub auto_switch_reason: Option<FailureReason>,
     pub can_auto_switch: bool,
     pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remote_error: Option<UsageRemoteError>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

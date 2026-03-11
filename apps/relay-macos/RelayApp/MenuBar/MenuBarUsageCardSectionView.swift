@@ -2,7 +2,7 @@ import SwiftUI
 
 struct MenuBarUsageCardSectionView: View {
     let metrics: [MenuBarMetricRowModel]
-    let usageNotes: [String]
+    let usageNotes: [UsageCardNote]
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
@@ -13,10 +13,10 @@ struct MenuBarUsageCardSectionView: View {
 
             if !usageNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
-                    ForEach(usageNotes, id: \.self) { note in
-                        Text(note)
+                    ForEach(Array(usageNotes.enumerated()), id: \.offset) { _, note in
+                        Text(note.text)
                             .font(.system(size: 10.5))
-                            .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
+                            .foregroundStyle(MenuBarHighlightStyle.note(isHighlighted, note: note))
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
                     }

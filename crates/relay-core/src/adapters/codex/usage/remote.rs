@@ -2,9 +2,8 @@ use crate::internal::usage_policy::{
     apply_auto_switch_policy, build_usage_window, next_reset_at, unknown_usage_window,
 };
 use crate::models::{
-    AppSettings, Profile, ProfileProbeIdentity, RelayError, UsageConfidence, UsageSnapshot,
-    UsageSource,
-    UsageWindow,
+    AppSettings, Profile, ProfileProbeIdentity, RelayError, UsageConfidence, UsageRemoteError,
+    UsageRemoteErrorKind, UsageSnapshot, UsageSource, UsageWindow,
 };
 use crate::store::SqliteStore;
 use base64::Engine;
@@ -13,6 +12,7 @@ use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderName
 use reqwest::{Client, ClientBuilder};
 use serde::Deserialize;
 use serde_json::Value;
+use std::borrow::Cow;
 use std::env;
 use std::fs;
 use std::time::Duration as StdDuration;
@@ -21,6 +21,7 @@ const OFFICIAL_HTTP_TIMEOUT_SECS: u64 = 10;
 const OFFICIAL_USAGE_URL: &str = "https://chatgpt.com/backend-api/wham/usage";
 const OFFICIAL_REFRESH_URL: &str = "https://auth.openai.com/oauth/token";
 const OFFICIAL_REFRESH_CLIENT_ID: &str = "app_EMoamEEZ73f0CkXaXp7hrann";
+const ERROR_BODY_PREVIEW_LIMIT: usize = 512;
 
 pub(crate) async fn collect_remote(
     store: &SqliteStore,
@@ -46,24 +47,52 @@ async fn fetch_official_usage_snapshot(
             .refresh_token()
             .is_some_and(|token| !token.is_empty())
     {
-        identity = refresh_probe_identity(store, &identity).await?;
+        identity = match refresh_probe_identity(store, &identity).await {
+            Ok(identity) => identity,
+            Err(RefreshProbeIdentityError::Remote(failure)) => {
+                return Ok(remote_error_snapshot(profile, &failure));
+            }
+            Err(RefreshProbeIdentityError::Relay(error)) => return Err(error),
+        };
     }
 
-    let mut response = official_usage_request(&identity).await?;
+    let mut response = match official_usage_request(&identity).await {
+        Ok(response) => response,
+        Err(failure) => return Ok(remote_error_snapshot(profile, &failure)),
+    };
     if should_refresh_official_response(&response)
         && identity
             .refresh_token()
             .is_some_and(|token| !token.is_empty())
     {
-        identity = refresh_probe_identity(store, &identity).await?;
-        response = official_usage_request(&identity).await?;
+        identity = match refresh_probe_identity(store, &identity).await {
+            Ok(identity) => identity,
+            Err(RefreshProbeIdentityError::Remote(failure)) => {
+                return Ok(remote_error_snapshot(profile, &failure));
+            }
+            Err(RefreshProbeIdentityError::Relay(error)) => return Err(error),
+        };
+        response = match official_usage_request(&identity).await {
+            Ok(response) => response,
+            Err(failure) => return Ok(remote_error_snapshot(profile, &failure)),
+        };
     }
     if response.http_code != 200 {
-        return Ok(remote_error_snapshot(profile));
+        return Ok(remote_error_snapshot(
+            profile,
+            &http_failure("failed to fetch codex rate limits", &response),
+        ));
     }
 
-    let payload: OfficialUsageResponse = serde_json::from_str(&response.body)
-        .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
+    let payload: OfficialUsageResponse = match serde_json::from_str(&response.body) {
+        Ok(payload) => payload,
+        Err(error) => {
+            return Ok(remote_error_snapshot(
+                profile,
+                &decode_failure("failed to decode codex rate limits response", error),
+            ));
+        }
+    };
     let session = official_window(payload.rate_limit.primary_window.as_ref());
     let weekly = official_window(payload.rate_limit.secondary_window.as_ref());
     let mut snapshot = UsageSnapshot {
@@ -79,6 +108,7 @@ async fn fetch_official_usage_snapshot(
         auto_switch_reason: None,
         can_auto_switch: false,
         message: None,
+        remote_error: None,
     };
     apply_auto_switch_policy(&mut snapshot);
     Ok(snapshot)
@@ -130,11 +160,15 @@ fn jwt_expiry(token: &str) -> Option<chrono::DateTime<Utc>> {
 async fn refresh_probe_identity(
     store: &SqliteStore,
     identity: &ProfileProbeIdentity,
-) -> Result<ProfileProbeIdentity, RelayError> {
+) -> Result<ProfileProbeIdentity, RefreshProbeIdentityError> {
     let refresh_token = identity
         .refresh_token()
         .map(ToOwned::to_owned)
-        .ok_or_else(|| RelayError::Validation("probe identity is missing refresh_token".into()))?;
+        .ok_or_else(|| {
+            RefreshProbeIdentityError::Relay(RelayError::Validation(
+                "probe identity is missing refresh_token".into(),
+            ))
+        })?;
     let body = serde_json::json!({
         "client_id": OFFICIAL_REFRESH_CLIENT_ID,
         "grant_type": "refresh_token",
@@ -145,27 +179,38 @@ async fn refresh_probe_identity(
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     let response = run_http_json(
+        "failed to refresh codex access token",
         &official_refresh_url(),
         reqwest::Method::POST,
         headers,
         Some(body),
     )
-    .await?;
+    .await
+    .map_err(RefreshProbeIdentityError::Remote)?;
     if response.http_code != 200 {
-        return Err(RelayError::ExternalCommand(format!(
-            "official refresh returned HTTP {}",
-            response.http_code
+        return Err(RefreshProbeIdentityError::Remote(http_failure(
+            "failed to refresh codex access token",
+            &response,
         )));
     }
 
-    let refreshed: OfficialRefreshResponse = serde_json::from_str(&response.body)
-        .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
+    let refreshed: OfficialRefreshResponse =
+        serde_json::from_str(&response.body).map_err(|error| {
+            RefreshProbeIdentityError::Remote(decode_failure(
+                "failed to decode codex refresh token response",
+                error,
+            ))
+        })?;
     let updated = ProfileProbeIdentity::codex_official(
         identity.profile_id.clone(),
         identity
             .account_id()
             .map(ToOwned::to_owned)
-            .ok_or_else(|| RelayError::Validation("probe identity is missing account_id".into()))?,
+            .ok_or_else(|| {
+                RefreshProbeIdentityError::Relay(RelayError::Validation(
+                    "probe identity is missing account_id".into(),
+                ))
+            })?,
         refreshed.access_token,
         refreshed
             .refresh_token
@@ -179,48 +224,75 @@ async fn refresh_probe_identity(
         Utc::now().to_rfc3339(),
     );
 
-    store.upsert_probe_identity(&updated).await
+    store
+        .upsert_probe_identity(&updated)
+        .await
+        .map_err(RefreshProbeIdentityError::Relay)
 }
 
 async fn official_usage_request(
     identity: &ProfileProbeIdentity,
-) -> Result<HttpResponse, RelayError> {
-    let access_token = identity
-        .access_token()
-        .ok_or_else(|| RelayError::Validation("probe identity is missing access_token".into()))?;
-    let account_id = identity
-        .account_id()
-        .ok_or_else(|| RelayError::Validation("probe identity is missing account_id".into()))?;
+) -> Result<HttpResponse, RemoteUsageFailure> {
+    let access_token = identity.access_token().ok_or_else(|| {
+        other_failure(
+            "failed to fetch codex rate limits",
+            "probe identity is missing access_token".into(),
+        )
+    })?;
+    let account_id = identity.account_id().ok_or_else(|| {
+        other_failure(
+            "failed to fetch codex rate limits",
+            "probe identity is missing account_id".into(),
+        )
+    })?;
     let mut headers = HeaderMap::new();
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
     headers.insert(
         AUTHORIZATION,
-        header_value(&format!("Bearer {access_token}"))?,
+        header_value(&format!("Bearer {access_token}")).map_err(|error| {
+            other_failure("failed to fetch codex rate limits", error.to_string())
+        })?,
     );
     headers.insert(
         HeaderName::from_static("chatgpt-account-id"),
-        header_value(account_id)?,
+        header_value(account_id).map_err(|error| {
+            other_failure("failed to fetch codex rate limits", error.to_string())
+        })?,
     );
 
-    run_http_json(&official_usage_url(), reqwest::Method::GET, headers, None).await
+    run_http_json(
+        "failed to fetch codex rate limits",
+        &official_usage_url(),
+        reqwest::Method::GET,
+        headers,
+        None,
+    )
+    .await
 }
 
 async fn run_http_json(
+    operation: &'static str,
     url: &str,
     method: reqwest::Method,
     headers: HeaderMap,
     body: Option<String>,
-) -> Result<HttpResponse, RelayError> {
+) -> Result<HttpResponse, RemoteUsageFailure> {
     if let Some(path) = url.strip_prefix("file://") {
-        let body = fs::read_to_string(path)?;
+        let body = fs::read_to_string(path)
+            .map_err(|error| other_failure(operation, error.to_string()))?;
         return Ok(HttpResponse {
+            method,
+            url: url.to_string(),
             http_code: 200,
+            reason_phrase: "OK".into(),
+            content_type: Some("application/json".into()),
             body,
         });
     }
 
-    let client = official_http_client()?;
-    let mut request = client.request(method, url).headers(headers);
+    let client =
+        official_http_client().map_err(|error| other_failure(operation, error.to_string()))?;
+    let mut request = client.request(method.clone(), url).headers(headers);
     if let Some(body) = body {
         request = request.body(body);
     }
@@ -228,14 +300,31 @@ async fn run_http_json(
     let response = request
         .send()
         .await
-        .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
+        .map_err(|error| transport_failure(operation, method.as_str(), url, error))?;
     let http_code = response.status().as_u16();
+    let reason_phrase = response
+        .status()
+        .canonical_reason()
+        .unwrap_or("Unknown Status")
+        .to_string();
+    let content_type = response
+        .headers()
+        .get(CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .map(ToOwned::to_owned);
     let body = response
         .text()
         .await
-        .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
+        .map_err(|error| transport_failure(operation, method.as_str(), url, error))?;
 
-    Ok(HttpResponse { http_code, body })
+    Ok(HttpResponse {
+        method,
+        url: url.to_string(),
+        http_code,
+        reason_phrase,
+        content_type,
+        body,
+    })
 }
 
 fn official_http_client() -> Result<Client, RelayError> {
@@ -258,6 +347,73 @@ fn header_value(value: &str) -> Result<HeaderValue, RelayError> {
     HeaderValue::from_str(value).map_err(|error| RelayError::Validation(error.to_string()))
 }
 
+fn transport_failure(
+    operation: &str,
+    method: &str,
+    url: &str,
+    error: reqwest::Error,
+) -> RemoteUsageFailure {
+    RemoteUsageFailure {
+        message: format!("Codex connection failed: {operation}: {method} {url} failed: {error}"),
+        remote_error: UsageRemoteError {
+            kind: UsageRemoteErrorKind::Network,
+            http_status: None,
+        },
+    }
+}
+
+fn http_failure(operation: &str, response: &HttpResponse) -> RemoteUsageFailure {
+    let content_type = response.content_type.as_deref().unwrap_or("unknown");
+    RemoteUsageFailure {
+        message: format!(
+            "Codex connection failed: {operation}: {} {} failed: {} {}; content-type={content_type}; body={}",
+            response.method.as_str(),
+            response.url,
+            response.http_code,
+            response.reason_phrase,
+            body_preview(&response.body),
+        ),
+        remote_error: UsageRemoteError {
+            kind: match response.http_code {
+                401..=403 => UsageRemoteErrorKind::Account,
+                _ => UsageRemoteErrorKind::Other,
+            },
+            http_status: Some(response.http_code),
+        },
+    }
+}
+
+fn decode_failure(operation: &str, error: impl std::fmt::Display) -> RemoteUsageFailure {
+    other_failure(operation, error.to_string())
+}
+
+fn other_failure(operation: &str, detail: String) -> RemoteUsageFailure {
+    RemoteUsageFailure {
+        message: format!("Codex connection failed: {operation}: {detail}"),
+        remote_error: UsageRemoteError {
+            kind: UsageRemoteErrorKind::Other,
+            http_status: None,
+        },
+    }
+}
+
+fn body_preview(body: &str) -> Cow<'_, str> {
+    let normalized = body.split_whitespace().collect::<Vec<_>>().join(" ");
+    if normalized.is_empty() {
+        return Cow::Borrowed("<empty>");
+    }
+    if normalized.chars().count() <= ERROR_BODY_PREVIEW_LIMIT {
+        return Cow::Owned(normalized);
+    }
+
+    let mut truncated = normalized
+        .chars()
+        .take(ERROR_BODY_PREVIEW_LIMIT)
+        .collect::<String>();
+    truncated.push_str("...");
+    Cow::Owned(truncated)
+}
+
 fn official_window(window: Option<&OfficialRateLimitWindow>) -> UsageWindow {
     let Some(window) = window else {
         return unknown_usage_window(None);
@@ -274,7 +430,7 @@ fn official_window(window: Option<&OfficialRateLimitWindow>) -> UsageWindow {
     )
 }
 
-fn remote_error_snapshot(profile: &Profile) -> UsageSnapshot {
+fn remote_error_snapshot(profile: &Profile, failure: &RemoteUsageFailure) -> UsageSnapshot {
     UsageSnapshot {
         profile_id: Some(profile.id.clone()),
         profile_name: Some(profile.nickname.clone()),
@@ -287,13 +443,29 @@ fn remote_error_snapshot(profile: &Profile) -> UsageSnapshot {
         weekly: unknown_usage_window(Some(10080)),
         auto_switch_reason: None,
         can_auto_switch: false,
-        message: Some("Enhanced usage is currently unavailable.".into()),
+        message: Some(failure.message.clone()),
+        remote_error: Some(failure.remote_error.clone()),
     }
 }
 
 struct HttpResponse {
+    method: reqwest::Method,
+    url: String,
     http_code: u16,
+    reason_phrase: String,
+    content_type: Option<String>,
     body: String,
+}
+
+#[derive(Debug, Clone)]
+struct RemoteUsageFailure {
+    message: String,
+    remote_error: UsageRemoteError,
+}
+
+enum RefreshProbeIdentityError {
+    Remote(RemoteUsageFailure),
+    Relay(RelayError),
 }
 
 #[derive(Deserialize)]
@@ -323,11 +495,17 @@ struct OfficialRefreshResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::{jwt_expiry, should_refresh_probe_identity, token_refresh_threshold};
-    use crate::models::{AppSettings, ProfileProbeIdentity};
+    use super::{
+        HttpResponse, body_preview, http_failure, jwt_expiry, should_refresh_probe_identity,
+        token_refresh_threshold, transport_failure,
+    };
+    use crate::models::{
+        AppSettings, ProfileProbeIdentity, UsageRemoteError, UsageRemoteErrorKind,
+    };
     use crate::store::SqliteStore;
     use base64::Engine;
     use chrono::{Duration, Utc};
+    use reqwest::Method;
     use tempfile::tempdir;
 
     #[test]
@@ -344,13 +522,19 @@ mod tests {
             refresh_interval_seconds: 60,
             ..AppSettings::default()
         };
-        assert_eq!(token_refresh_threshold(short_interval), Duration::minutes(10));
+        assert_eq!(
+            token_refresh_threshold(short_interval),
+            Duration::minutes(10)
+        );
 
         let long_interval = AppSettings {
             refresh_interval_seconds: 900,
             ..AppSettings::default()
         };
-        assert_eq!(token_refresh_threshold(long_interval), Duration::minutes(15));
+        assert_eq!(
+            token_refresh_threshold(long_interval),
+            Duration::minutes(15)
+        );
     }
 
     #[tokio::test]
@@ -402,6 +586,72 @@ mod tests {
         );
     }
 
+    #[test]
+    fn http_failure_includes_status_headers_and_body_preview() {
+        let error = http_failure(
+            "failed to fetch codex rate limits",
+            &HttpResponse {
+                method: Method::GET,
+                url: "https://chatgpt.com/backend-api/wham/usage".into(),
+                http_code: 402,
+                reason_phrase: "Payment Required".into(),
+                content_type: Some("application/json".into()),
+                body: "{\"detail\":{\"code\":\"deactivated_workspace\"}}".into(),
+            },
+        );
+
+        assert_eq!(
+            error.message,
+            "Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required; content-type=application/json; body={\"detail\":{\"code\":\"deactivated_workspace\"}}"
+        );
+        assert_eq!(
+            error.remote_error,
+            UsageRemoteError {
+                kind: UsageRemoteErrorKind::Account,
+                http_status: Some(402),
+            }
+        );
+    }
+
+    #[test]
+    fn body_preview_normalizes_and_truncates() {
+        let body = format!("{}\n{}", "a".repeat(400), "b".repeat(400));
+        let preview = body_preview(&body);
+        assert!(preview.contains(" "));
+        assert!(preview.ends_with("..."));
+        assert!(preview.len() <= 515);
+    }
+
+    #[test]
+    fn body_preview_uses_empty_marker() {
+        assert_eq!(body_preview(" \n\t ").as_ref(), "<empty>");
+    }
+
+    #[test]
+    fn transport_failure_is_prefixed_consistently() {
+        let client = reqwest::Client::new();
+        let error = transport_failure(
+            "failed to fetch codex rate limits",
+            "GET",
+            "https://chatgpt.com/backend-api/wham/usage",
+            client
+                .get("http://[::1")
+                .build()
+                .expect_err("invalid URL should fail"),
+        );
+
+        assert!(error
+            .message
+            .starts_with("Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: "));
+        assert_eq!(
+            error.remote_error,
+            UsageRemoteError {
+                kind: UsageRemoteErrorKind::Network,
+                http_status: None,
+            }
+        );
+    }
+
     fn probe_identity(access_token: &str, refresh_token: Option<&str>) -> ProfileProbeIdentity {
         let now = Utc::now().to_rfc3339();
         ProfileProbeIdentity::codex_official(
@@ -420,9 +670,8 @@ mod tests {
     fn jwt_with_expiry(expiry: chrono::DateTime<Utc>) -> String {
         let header = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(br#"{"alg":"HS256","typ":"JWT"}"#);
-        let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
-            format!(r#"{{"exp":{}}}"#, expiry.timestamp()).as_bytes(),
-        );
+        let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(format!(r#"{{"exp":{}}}"#, expiry.timestamp()).as_bytes());
         format!("{header}.{payload}.signature")
     }
 }

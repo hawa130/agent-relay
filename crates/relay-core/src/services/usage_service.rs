@@ -3,8 +3,8 @@ use crate::internal::usage_policy::{
     apply_auto_switch_policy, is_usage_stale, unknown_usage_window,
 };
 use crate::models::{
-    FailureReason, Profile, RelayError, UsageConfidence, UsageSnapshot, UsageSource,
-    UsageSourceMode, UsageStatus,
+    FailureReason, Profile, RelayError, UsageConfidence, UsageRemoteError, UsageSnapshot,
+    UsageSource, UsageSourceMode, UsageStatus,
 };
 use crate::store::{FileUsageStore, SqliteStore};
 use chrono::Utc;
@@ -39,19 +39,38 @@ pub async fn refresh_profile(
     allow_cache_writes: bool,
 ) -> Result<UsageSnapshot, RelayError> {
     let providers = provider_order(source_mode.clone());
+    let mut remote_failure: Option<RemoteFailureContext> = None;
 
     for current in providers {
         let snapshot = match current {
             Provider::Local => provider.collect_local_usage(target_profile, active_profile)?,
-            Provider::WebEnhanced => provider.collect_remote_usage(store, target_profile).await?,
+            Provider::WebEnhanced => {
+                match provider.collect_remote_usage(store, target_profile).await {
+                    Ok(snapshot) => snapshot,
+                    Err(error) => {
+                        remote_failure = Some(RemoteFailureContext {
+                            message: error.to_string(),
+                            remote_error: None,
+                        });
+                        continue;
+                    }
+                }
+            }
             Provider::Fallback => collect_fallback_snapshot(store, target_profile).await?,
         };
 
         if let Some(mut snapshot) = snapshot {
+            if matches!(current, Provider::WebEnhanced)
+                && snapshot.source == UsageSource::WebEnhanced
+                && snapshot.remote_error.is_some()
+            {
+                remote_failure = Some(RemoteFailureContext::from_snapshot(&snapshot));
+                continue;
+            }
             if should_continue_to_next_provider(current, source_mode.clone(), &snapshot) {
                 continue;
             }
-            maybe_note_fallback(&mut snapshot, source_mode.clone());
+            maybe_note_fallback(&mut snapshot, source_mode.clone(), remote_failure.as_ref());
             if allow_cache_writes && snapshot.profile_id.is_some() {
                 usage_store.save_profile(&snapshot)?;
             }
@@ -64,7 +83,14 @@ pub async fn refresh_profile(
             refresh_cache_metadata(&mut snapshot);
             snapshot.can_auto_switch = false;
             snapshot.auto_switch_reason = None;
-            snapshot.message = Some("Usage may be outdated.".into());
+            snapshot.message = Some(cache_fallback_message(
+                remote_failure
+                    .as_ref()
+                    .map(|failure| failure.message.as_str()),
+            ));
+            snapshot.remote_error = remote_failure
+                .as_ref()
+                .and_then(|failure| failure.remote_error.clone());
             return Ok(snapshot);
         }
     }
@@ -73,7 +99,14 @@ pub async fn refresh_profile(
         target_profile,
         UsageSource::Fallback,
         true,
-        Some("Usage is currently unavailable.".into()),
+        Some(unavailable_message(
+            remote_failure
+                .as_ref()
+                .map(|failure| failure.message.as_str()),
+        )),
+        remote_failure
+            .as_ref()
+            .and_then(|failure| failure.remote_error.clone()),
     );
     if allow_cache_writes && snapshot.profile_id.is_some() {
         usage_store.save_profile(&snapshot)?;
@@ -96,6 +129,7 @@ pub fn load_profile_snapshot(
         UsageSource::Fallback,
         true,
         Some("Usage has not been fetched yet.".into()),
+        None,
     ))
 }
 
@@ -123,6 +157,7 @@ pub fn list_profile_snapshots(
                 UsageSource::Fallback,
                 true,
                 Some("Usage has not been fetched yet.".into()),
+                None,
             ));
         }
     }
@@ -147,13 +182,28 @@ fn provider_order(mode: UsageSourceMode) -> [Provider; 3] {
     }
 }
 
-fn maybe_note_fallback(snapshot: &mut UsageSnapshot, source_mode: UsageSourceMode) {
+fn maybe_note_fallback(
+    snapshot: &mut UsageSnapshot,
+    source_mode: UsageSourceMode,
+    remote_failure: Option<&RemoteFailureContext>,
+) {
+    if let Some(failure) = remote_failure {
+        snapshot.message = Some(match snapshot.source {
+            UsageSource::Local => local_fallback_message(&failure.message),
+            UsageSource::Fallback | UsageSource::WebEnhanced => {
+                cache_fallback_message(Some(&failure.message))
+            }
+        });
+        snapshot.remote_error = failure.remote_error.clone();
+        return;
+    }
+
     if matches!(
         source_mode,
         UsageSourceMode::Auto | UsageSourceMode::WebEnhanced
     ) && snapshot.source == UsageSource::Local
     {
-        snapshot.message = Some("Using local usage because enhanced usage is unavailable.".into());
+        snapshot.message = Some(local_fallback_message_without_detail());
     }
 }
 
@@ -175,6 +225,7 @@ async fn collect_fallback_snapshot(
         UsageSource::Fallback,
         is_usage_stale(event.created_at),
         Some("Usage may be unavailable due to a recent failure.".into()),
+        None,
     );
     snapshot.last_refreshed_at = event.created_at;
     snapshot.confidence = UsageConfidence::Medium;
@@ -206,6 +257,32 @@ fn refresh_cache_metadata(snapshot: &mut UsageSnapshot) {
     }
 }
 
+fn local_fallback_message(detail: &str) -> String {
+    format!(
+        "{} {}",
+        local_fallback_message_without_detail(),
+        detail.trim()
+    )
+}
+
+fn local_fallback_message_without_detail() -> String {
+    "Using local usage because enhanced usage is unavailable.".into()
+}
+
+fn cache_fallback_message(detail: Option<&str>) -> String {
+    match detail.map(str::trim).filter(|detail| !detail.is_empty()) {
+        Some(detail) => format!("Usage may be outdated. {detail}"),
+        None => "Usage may be outdated.".into(),
+    }
+}
+
+fn unavailable_message(detail: Option<&str>) -> String {
+    match detail.map(str::trim).filter(|detail| !detail.is_empty()) {
+        Some(detail) => format!("Usage is currently unavailable. {detail}"),
+        None => "Usage is currently unavailable.".into(),
+    }
+}
+
 fn should_continue_to_next_provider(
     provider: Provider,
     mode: UsageSourceMode,
@@ -227,6 +304,7 @@ fn empty_snapshot(
     source: UsageSource,
     stale: bool,
     message: Option<String>,
+    remote_error: Option<UsageRemoteError>,
 ) -> UsageSnapshot {
     let now = Utc::now();
     UsageSnapshot {
@@ -242,6 +320,22 @@ fn empty_snapshot(
         auto_switch_reason: None,
         can_auto_switch: false,
         message,
+        remote_error,
+    }
+}
+
+#[derive(Clone)]
+struct RemoteFailureContext {
+    message: String,
+    remote_error: Option<UsageRemoteError>,
+}
+
+impl RemoteFailureContext {
+    fn from_snapshot(snapshot: &UsageSnapshot) -> Self {
+        Self {
+            message: snapshot.message.clone().unwrap_or_default(),
+            remote_error: snapshot.remote_error.clone(),
+        }
     }
 }
 
@@ -251,8 +345,9 @@ mod tests {
     use crate::adapters::UsageProvider;
     use crate::adapters::codex::CodexAdapter;
     use crate::models::{
-        AuthMode, FailureReason, RelayError, UsageConfidence, UsageSnapshot, UsageSource,
-        UsageSourceMode, UsageStatus, UsageWindow,
+        AuthMode, FailureReason, RelayError, UsageConfidence, UsageRemoteError,
+        UsageRemoteErrorKind, UsageSnapshot, UsageSource, UsageSourceMode, UsageStatus,
+        UsageWindow,
     };
     use crate::store::{FileUsageStore, SqliteStore};
     use chrono::{Duration, Utc};
@@ -290,8 +385,8 @@ mod tests {
     }
 
     struct FakeUsageProvider {
-        local: Option<UsageSnapshot>,
-        remote: Option<UsageSnapshot>,
+        local: Result<Option<UsageSnapshot>, RelayError>,
+        remote: Result<Option<UsageSnapshot>, RelayError>,
     }
 
     #[async_trait::async_trait(?Send)]
@@ -301,7 +396,7 @@ mod tests {
             _target_profile: Option<&crate::models::Profile>,
             _active_profile: Option<&crate::models::Profile>,
         ) -> Result<Option<UsageSnapshot>, RelayError> {
-            Ok(self.local.clone())
+            self.local.clone()
         }
 
         async fn collect_remote_usage(
@@ -309,7 +404,7 @@ mod tests {
             _store: &SqliteStore,
             _target_profile: Option<&crate::models::Profile>,
         ) -> Result<Option<UsageSnapshot>, RelayError> {
-            Ok(self.remote.clone())
+            self.remote.clone()
         }
     }
 
@@ -339,7 +434,20 @@ mod tests {
             auto_switch_reason: None,
             can_auto_switch: false,
             message: message.map(str::to_string),
+            remote_error: None,
         }
+    }
+
+    fn remote_error_snapshot(
+        message: &str,
+        kind: UsageRemoteErrorKind,
+        http_status: Option<u16>,
+    ) -> UsageSnapshot {
+        let mut snapshot = synthetic_snapshot(UsageSource::WebEnhanced, Some(message));
+        snapshot.stale = true;
+        snapshot.confidence = UsageConfidence::Medium;
+        snapshot.remote_error = Some(UsageRemoteError { kind, http_status });
+        snapshot
     }
 
     #[tokio::test]
@@ -381,8 +489,11 @@ mod tests {
         make_home(&home, "home", 0);
         let profile = profile("p_web", "web", &home);
         let provider = FakeUsageProvider {
-            local: Some(synthetic_snapshot(UsageSource::Local, Some("local usage"))),
-            remote: Some(synthetic_snapshot(UsageSource::WebEnhanced, None)),
+            local: Ok(Some(synthetic_snapshot(
+                UsageSource::Local,
+                Some("local usage"),
+            ))),
+            remote: Ok(Some(synthetic_snapshot(UsageSource::WebEnhanced, None))),
         };
 
         let snapshot = refresh_profile(
@@ -411,8 +522,8 @@ mod tests {
         make_home(&home, "home", 0);
         let profile = profile("p_local", "local", &home);
         let provider = FakeUsageProvider {
-            local: Some(synthetic_snapshot(UsageSource::Local, None)),
-            remote: None,
+            local: Ok(Some(synthetic_snapshot(UsageSource::Local, None))),
+            remote: Ok(None),
         };
 
         let snapshot = refresh_profile(
@@ -450,8 +561,8 @@ mod tests {
         stale_remote.stale = true;
         stale_remote.confidence = UsageConfidence::Medium;
         let provider = FakeUsageProvider {
-            local: Some(synthetic_snapshot(UsageSource::Local, None)),
-            remote: Some(stale_remote),
+            local: Ok(Some(synthetic_snapshot(UsageSource::Local, None))),
+            remote: Ok(Some(stale_remote)),
         };
 
         let snapshot = refresh_profile(
@@ -470,6 +581,147 @@ mod tests {
         assert_eq!(
             snapshot.message.as_deref(),
             Some("Using local usage because enhanced usage is unavailable.")
+        );
+    }
+
+    #[tokio::test]
+    async fn auto_mode_uses_local_snapshot_and_includes_remote_failure_detail() {
+        let temp = tempdir().expect("tempdir");
+        let relay_db = temp.path().join("relay.db");
+        let store = SqliteStore::new(&relay_db).await.expect("store");
+        let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
+        let home = temp.path().join("home");
+        make_home(&home, "home", 0);
+        let profile = profile("p_local", "local", &home);
+        let provider = FakeUsageProvider {
+            local: Ok(Some(synthetic_snapshot(UsageSource::Local, None))),
+            remote: Ok(Some(remote_error_snapshot(
+                "Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required; content-type=application/json; body={\"detail\":{\"code\":\"deactivated_workspace\"}}",
+                UsageRemoteErrorKind::Account,
+                Some(402),
+            ))),
+        };
+
+        let snapshot = refresh_profile(
+            &store,
+            &usage_store,
+            &provider,
+            Some(&profile),
+            None,
+            UsageSourceMode::Auto,
+            true,
+        )
+        .await
+        .expect("snapshot");
+
+        assert_eq!(snapshot.source, UsageSource::Local);
+        assert_eq!(
+            snapshot.message.as_deref(),
+            Some(
+                "Using local usage because enhanced usage is unavailable. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required; content-type=application/json; body={\"detail\":{\"code\":\"deactivated_workspace\"}}"
+            )
+        );
+        assert_eq!(
+            snapshot.remote_error,
+            Some(UsageRemoteError {
+                kind: UsageRemoteErrorKind::Account,
+                http_status: Some(402),
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn web_enhanced_mode_falls_back_to_local_on_remote_failure() {
+        let temp = tempdir().expect("tempdir");
+        let relay_db = temp.path().join("relay.db");
+        let store = SqliteStore::new(&relay_db).await.expect("store");
+        let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
+        let home = temp.path().join("home");
+        make_home(&home, "home", 0);
+        let profile = profile("p_local", "local", &home);
+        let provider = FakeUsageProvider {
+            local: Ok(Some(synthetic_snapshot(UsageSource::Local, None))),
+            remote: Ok(Some(remote_error_snapshot(
+                "Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: operation timed out",
+                UsageRemoteErrorKind::Network,
+                None,
+            ))),
+        };
+
+        let snapshot = refresh_profile(
+            &store,
+            &usage_store,
+            &provider,
+            Some(&profile),
+            None,
+            UsageSourceMode::WebEnhanced,
+            true,
+        )
+        .await
+        .expect("snapshot");
+
+        assert_eq!(snapshot.source, UsageSource::Local);
+        assert_eq!(
+            snapshot.message.as_deref(),
+            Some(
+                "Using local usage because enhanced usage is unavailable. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: operation timed out"
+            )
+        );
+        assert_eq!(
+            snapshot.remote_error,
+            Some(UsageRemoteError {
+                kind: UsageRemoteErrorKind::Network,
+                http_status: None,
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn remote_failure_uses_cached_snapshot_message_when_no_fresh_provider_succeeds() {
+        let temp = tempdir().expect("tempdir");
+        let relay_db = temp.path().join("relay.db");
+        let store = SqliteStore::new(&relay_db).await.expect("store");
+        let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
+        let home = temp.path().join("home");
+        make_home(&home, "home", 0);
+        let profile = profile("p_cached", "cached", &home);
+        let mut cached = synthetic_snapshot(UsageSource::Local, Some("local usage"));
+        cached.profile_id = Some(profile.id.clone());
+        cached.profile_name = Some(profile.nickname.clone());
+        usage_store.save_profile(&cached).expect("save cache");
+        let provider = FakeUsageProvider {
+            local: Ok(None),
+            remote: Ok(Some(remote_error_snapshot(
+                "Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: dns error",
+                UsageRemoteErrorKind::Network,
+                None,
+            ))),
+        };
+
+        let snapshot = refresh_profile(
+            &store,
+            &usage_store,
+            &provider,
+            Some(&profile),
+            None,
+            UsageSourceMode::Auto,
+            true,
+        )
+        .await
+        .expect("snapshot");
+
+        assert_eq!(
+            snapshot.message.as_deref(),
+            Some(
+                "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: dns error"
+            )
+        );
+        assert_eq!(
+            snapshot.remote_error,
+            Some(UsageRemoteError {
+                kind: UsageRemoteErrorKind::Network,
+                http_status: None,
+            })
         );
     }
 

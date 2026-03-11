@@ -98,7 +98,11 @@ final class ModelDecodingTests: XCTestCase {
           },
           "auto_switch_reason": null,
           "can_auto_switch": false,
-          "message": "codex app-server rate limit RPC"
+          "message": "codex app-server rate limit RPC",
+          "remote_error": {
+            "kind": "Account",
+            "http_status": 402
+          }
         }
         """.data(using: .utf8)!
 
@@ -107,6 +111,7 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(snapshot.profileId, "p_usage")
         XCTAssertEqual(snapshot.source, .local)
         XCTAssertEqual(snapshot.confidence, .high)
+        XCTAssertEqual(snapshot.remoteError, UsageRemoteError(kind: .account, httpStatus: 402))
     }
 
     func testAppSettingsDecodeCurrentFields() throws {
@@ -308,7 +313,8 @@ final class ModelDecodingTests: XCTestCase {
             ),
             autoSwitchReason: nil,
             canAutoSwitch: false,
-            message: "Usage is currently unavailable."
+            message: "Usage is currently unavailable.",
+            remoteError: nil
         )
         let localFallback = UsageSnapshot(
             profileId: "p_2",
@@ -334,7 +340,8 @@ final class ModelDecodingTests: XCTestCase {
             ),
             autoSwitchReason: nil,
             canAutoSwitch: false,
-            message: "Using local usage because enhanced usage is unavailable."
+            message: "Using local usage because enhanced usage is unavailable.",
+            remoteError: nil
         )
         let official = UsageSnapshot(
             profileId: "p_3",
@@ -360,7 +367,8 @@ final class ModelDecodingTests: XCTestCase {
             ),
             autoSwitchReason: nil,
             canAutoSwitch: false,
-            message: nil
+            message: nil,
+            remoteError: nil
         )
 
         XCTAssertEqual(fallback.userFacingNote, "Usage is currently unavailable.")

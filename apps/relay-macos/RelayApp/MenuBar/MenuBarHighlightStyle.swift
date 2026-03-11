@@ -17,6 +17,18 @@ enum MenuBarHighlightStyle {
         highlighted ? selectionText : normalSecondaryText
     }
 
+    static func severity(_ highlighted: Bool, severity: UsageAlertSeverity) -> Color {
+        highlighted ? selectionText : NativePreferencesTheme.Colors.semanticAccent(severity.badgeKind)
+    }
+
+    static func note(_ highlighted: Bool, note: UsageCardNote) -> Color {
+        guard let severity = note.severity else {
+            return secondary(highlighted)
+        }
+
+        return self.severity(highlighted, severity: severity)
+    }
+
     static func progressTrack(_ highlighted: Bool) -> Color {
         highlighted ? selectionText.opacity(0.22) : Color(nsColor: .tertiaryLabelColor).opacity(0.22)
     }
