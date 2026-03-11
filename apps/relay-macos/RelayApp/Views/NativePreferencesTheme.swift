@@ -33,6 +33,10 @@ public enum NativePreferencesTheme {
         public static let rowBackground = Color(nsColor: .controlBackgroundColor)
         public static let mutedText = Color.secondary
         public static let sectionBorder = Color(nsColor: .separatorColor).opacity(0.55)
+        public static let subtleFill = Color.secondary.opacity(0.12)
+        public static let pendingFill = Color.secondary.opacity(0.10)
+        public static let progressTrack = Color.secondary.opacity(0.14)
+        public static let disabledIndicator = Color.secondary.opacity(0.7)
 
         static func usageTint(_ status: UsageStatus) -> Color {
             switch status {
@@ -45,6 +49,14 @@ public enum NativePreferencesTheme {
             case .unknown:
                 return .gray
             }
+        }
+
+        static func semanticAccent(_ kind: Badge.Kind) -> Color {
+            NativePreferencesTheme.Badge.text(kind)
+        }
+
+        static func semanticFill(_ kind: Badge.Kind) -> Color {
+            NativePreferencesTheme.Badge.fill(kind)
         }
     }
 
