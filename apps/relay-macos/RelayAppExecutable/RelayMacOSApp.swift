@@ -11,7 +11,7 @@ struct RelayMacOSApp: App {
         }
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
-        .defaultSize(width: 980, height: 680)
+        .defaultSize(width: 920, height: 600)
         .windowResizability(.contentMinSize)
         .windowToolbarStyle(.unified(showsTitle: false))
         .commands {
@@ -23,7 +23,7 @@ struct RelayMacOSApp: App {
         }
         .defaultLaunchBehavior(.suppressed)
         .restorationBehavior(.disabled)
-        .defaultSize(width: 700, height: 620)
+        .defaultSize(width: 700, height: 500)
         .windowResizability(.contentSize)
         .windowToolbarStyle(.unifiedCompact(showsTitle: true))
     }

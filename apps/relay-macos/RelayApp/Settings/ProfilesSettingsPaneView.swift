@@ -270,7 +270,7 @@ public struct ProfilesSettingsPaneView: View {
                 .background(NativePreferencesTheme.Colors.paneBackground)
             }
         }
-        .navigationSplitViewColumnWidth(min: 400, ideal: 560)
+        .navigationSplitViewColumnWidth(min: 380, ideal: 460)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
@@ -343,7 +343,7 @@ public struct ProfilesSettingsPaneView: View {
                         .padding(.top, 4)
                     }
 
-                    Spacer(minLength: 16)
+                    Spacer(minLength: 0)
 
                     VStack(alignment: .trailing, spacing: 8) {
                         Toggle("Enabled", isOn: selectedProfileEnabledBinding)
