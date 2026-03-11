@@ -259,20 +259,6 @@ struct MenuBarPresenter {
         session.menuBarTitle
     }
 
-    var currentCardSubtitle: String {
-        if session.isRefreshingUsageList {
-            return "Refreshing…"
-        }
-
-        if let lastRefresh = session.lastRefresh {
-            let formatter = RelativeDateTimeFormatter()
-            formatter.unitsStyle = .short
-            return "Updated \(formatter.localizedString(for: lastRefresh, relativeTo: Date()))"
-        }
-
-        return "Waiting for refresh"
-    }
-
     func currentCardNotes(usage: UsageSnapshot?) -> [String] {
         usage?.userFacingNote.map { [$0] } ?? []
     }
@@ -334,42 +320,5 @@ struct MenuBarPresenter {
         }
 
         return "\(title) \(window.menuBarDisplayValue)"
-    }
-
-    func preciseResetDescription(for date: Date, roundsToHourWhenDaysPresent: Bool = false) -> String {
-        let interval = date.timeIntervalSinceNow
-
-        if interval <= 0 {
-            return "now"
-        }
-
-        let totalMinutes = max(1, Int(ceil(interval / 60)))
-
-        if roundsToHourWhenDaysPresent && totalMinutes >= (24 * 60) {
-            let totalHours = (totalMinutes + 59) / 60
-            let days = totalHours / 24
-            let hours = totalHours % 24
-
-            if hours > 0 {
-                return "in \(days)d \(hours)h"
-            }
-
-            return "in \(days)d"
-        }
-
-        let days = totalMinutes / (24 * 60)
-        let hours = (totalMinutes % (24 * 60)) / 60
-        let minutes = totalMinutes % 60
-
-        var parts: [String] = []
-        if days > 0 {
-            parts.append("\(days)d")
-        }
-        if hours > 0 || !parts.isEmpty {
-            parts.append("\(hours)h")
-        }
-        parts.append("\(minutes)m")
-
-        return "in \(parts.joined(separator: " "))"
     }
 }

@@ -348,7 +348,7 @@ public struct ProfilesSettingsPaneView: View {
 
                         VStack(alignment: .trailing, spacing: 2) {
                             Text("Source: \(usage.source.displayName)")
-                            Text("Updated: \(usage.lastRefreshedAt.formatted())")
+                            Text("Updated: \(usage.lastRefreshedAt.formatted(date: .abbreviated, time: .standard))")
                         }
                         .font(.system(size: 10))
                         .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
@@ -499,13 +499,13 @@ private struct ProfileListRow: View {
                         ProfileListUsageLine(
                             title: "Session",
                             value: usage.session.menuBarDisplayValue,
-                            resetText: usage.session.resetAt.map { "Resets \(preciseResetDescription(for: $0))" }
+                            resetDate: usage.session.resetAt
                         )
 
                         ProfileListUsageLine(
                             title: "Weekly",
                             value: usage.weekly.menuBarDisplayValue,
-                            resetText: usage.weekly.resetAt.map { "Resets \(preciseResetDescription(for: $0, roundsToHourWhenDaysPresent: true))" }
+                            resetDate: usage.weekly.resetAt
                         )
 
                         HStack {
@@ -516,7 +516,7 @@ private struct ProfileListRow: View {
                                     ProfileListRowStatusIndicator(indicator: indicator)
                                 }
 
-                                Text(updatedText(for: usage))
+                                updatedText(for: usage)
                                     .font(.system(size: 10))
                                     .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
                             }
@@ -556,48 +556,14 @@ private struct ProfileListRow: View {
         )
     }
 
-    private func updatedText(for usage: UsageSnapshot) -> String {
-        let relativeFormatter = RelativeDateTimeFormatter()
-        relativeFormatter.unitsStyle = .short
-        return "Updated \(relativeFormatter.localizedString(for: usage.lastRefreshedAt, relativeTo: Date()))"
+    private func updatedText(for usage: UsageSnapshot) -> some View {
+        AdaptiveRelativeDateText(
+            prefix: "Updated ",
+            date: usage.lastRefreshedAt,
+            style: .named
+        )
     }
 
-    private func preciseResetDescription(for date: Date, roundsToHourWhenDaysPresent: Bool = false) -> String {
-        let interval = date.timeIntervalSinceNow
-
-        if interval <= 0 {
-            return "now"
-        }
-
-        let totalMinutes = max(1, Int(ceil(interval / 60)))
-
-        if roundsToHourWhenDaysPresent && totalMinutes >= (24 * 60) {
-            let totalHours = (totalMinutes + 59) / 60
-            let days = totalHours / 24
-            let hours = totalHours % 24
-
-            if hours > 0 {
-                return "in \(days)d \(hours)h"
-            }
-
-            return "in \(days)d"
-        }
-
-        let days = totalMinutes / (24 * 60)
-        let hours = (totalMinutes % (24 * 60)) / 60
-        let minutes = totalMinutes % 60
-
-        var parts: [String] = []
-        if days > 0 {
-            parts.append("\(days)d")
-        }
-        if hours > 0 || !parts.isEmpty {
-            parts.append("\(hours)h")
-        }
-        parts.append("\(minutes)m")
-
-        return "in \(parts.joined(separator: " "))"
-    }
 }
 
 struct ProfileListRowStatusIndicator: View {
@@ -646,7 +612,7 @@ struct ProfileListRowStatusIndicator: View {
 private struct ProfileListUsageLine: View {
     let title: String
     let value: String
-    let resetText: String?
+    let resetDate: Date?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -656,10 +622,10 @@ private struct ProfileListUsageLine: View {
 
             Spacer(minLength: 2)
 
-            if let resetText {
-                Text(resetText)
-                    .font(.system(size: 10))
-                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+            if let resetDate {
+                ResetRelativeDateText(date: resetDate)
+                .font(.system(size: 10))
+                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

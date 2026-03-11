@@ -33,16 +33,14 @@ struct MenuBarProfilePickerItem: View {
                         if let sessionText = presenter.usageText(title: "Session", window: usage?.session) {
                             usageLine(
                                 left: sessionText,
-                                right: usage?.session.resetAt.map { "Resets \(presenter.preciseResetDescription(for: $0))" }
+                                rightDate: usage?.session.resetAt
                             )
                         }
 
                         if let weeklyText = presenter.usageText(title: "Weekly", window: usage?.weekly) {
                             usageLine(
                                 left: weeklyText,
-                                right: usage?.weekly.resetAt.map {
-                                    "Resets \(presenter.preciseResetDescription(for: $0, roundsToHourWhenDaysPresent: true))"
-                                }
+                                rightDate: usage?.weekly.resetAt
                             )
                         }
 
@@ -64,7 +62,10 @@ struct MenuBarProfilePickerItem: View {
     }
 
     @ViewBuilder
-    private func usageLine(left: String, right: String?) -> some View {
+    private func usageLine(
+        left: String,
+        rightDate: Date?
+    ) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(left)
                 .font(.system(size: 10, weight: .medium))
@@ -74,8 +75,8 @@ struct MenuBarProfilePickerItem: View {
 
             Spacer(minLength: 8)
 
-            if let right {
-                Text(right)
+            if let rightDate {
+                ResetRelativeDateText(date: rightDate)
                     .font(.system(size: 10))
                     .monospacedDigit()
                     .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
