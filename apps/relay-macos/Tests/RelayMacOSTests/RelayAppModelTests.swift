@@ -171,6 +171,44 @@ final class RelayAppModelTests: XCTestCase {
         XCTAssertTrue(commands.contains("rpc initialize"))
         XCTAssertTrue(commands.contains("rpc relay/usage/refresh"))
     }
+
+    func testRemoveProfileDoesNotBlockOnFollowupRefresh() async throws {
+        let fixture = try RelayAppModelFixture.make(mode: .removeDelayedRefresh)
+        defer { fixture.cleanup() }
+        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+        let originalFixtureMode = getenv("RELAY_FIXTURE_MODE").map { String(cString: $0) }
+        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        setenv("RELAY_FIXTURE_MODE", "remove_delayed_refresh", 1)
+        defer {
+            if let originalRelayCLIPath {
+                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+            } else {
+                unsetenv("RELAY_CLI_PATH")
+            }
+            if let originalFixtureMode {
+                setenv("RELAY_FIXTURE_MODE", originalFixtureMode, 1)
+            } else {
+                unsetenv("RELAY_FIXTURE_MODE")
+            }
+        }
+
+        let model = RelayAppModel()
+        let clock = ContinuousClock()
+        let elapsed = await clock.measure {
+            await model.removeProfile("p_alt")
+        }
+
+        XCTAssertLessThan(elapsed, .milliseconds(400))
+        XCTAssertFalse(model.isMutatingProfiles)
+
+        try await Task.sleep(for: .milliseconds(900))
+
+        let commands = try fixture.commands()
+        XCTAssertEqual(commands.first, "daemon --stdio")
+        XCTAssertTrue(commands.contains("rpc relay/profiles/remove"))
+        XCTAssertTrue(commands.contains("rpc relay/status/get"))
+        XCTAssertTrue(commands.contains("rpc relay/profiles/list"))
+    }
 }
 
 private struct RelayAppModelFixture {
@@ -178,6 +216,7 @@ private struct RelayAppModelFixture {
         case refresh
         case loginCancelled
         case loginFailed
+        case removeDelayedRefresh
     }
 
     let root: URL
@@ -237,6 +276,13 @@ case "$*" in
       case "$method" in
         initialize)
           printf '%s\n' 'rpc initialize' >> "$script_dir/commands.log"
+          mode="${RELAY_FIXTURE_MODE:-refresh}"
+          if [ "$mode" = "remove_delayed_refresh" ]; then
+            cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[{"profile":{"id":"p_active","nickname":"active","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/active-home","config_path":"/tmp/active-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":true,"usage_summary":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}},{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":110,"enabled":true,"agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":false,"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
+EOF
+            continue
+          fi
           cat <<EOF
 {"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
 EOF
@@ -252,6 +298,58 @@ EOF
           sleep 0.2
           cat <<EOF
 {"jsonrpc":"2.0","id":"$id","result":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}]}}
+EOF
+          ;;
+        relay/profiles/remove)
+          printf '%s\n' 'rpc relay/profiles/remove' >> "$script_dir/commands.log"
+          cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":110,"enabled":true,"agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"}}
+EOF
+          ;;
+        relay/status/get)
+          printf '%s\n' 'rpc relay/status/get' >> "$script_dir/commands.log"
+          if [ "${RELAY_FIXTURE_MODE:-refresh}" = "remove_delayed_refresh" ]; then
+            sleep 0.6
+            cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}}}
+EOF
+            continue
+          fi
+          cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}}}
+EOF
+          ;;
+        relay/settings/get)
+          printf '%s\n' 'rpc relay/settings/get' >> "$script_dir/commands.log"
+          cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"app":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60},"codex":{"usage_source_mode":"Auto"}}}
+EOF
+          ;;
+        relay/profiles/list)
+          printf '%s\n' 'rpc relay/profiles/list' >> "$script_dir/commands.log"
+          if [ "${RELAY_FIXTURE_MODE:-refresh}" = "remove_delayed_refresh" ]; then
+            sleep 0.6
+          fi
+          cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":[{"profile":{"id":"p_active","nickname":"active","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/active-home","config_path":"/tmp/active-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":true,"usage_summary":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}]}
+EOF
+          ;;
+        relay/doctor/get)
+          printf '%s\n' 'rpc relay/doctor/get' >> "$script_dir/commands.log"
+          cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"relay_home":"/tmp/relay","database_path":"/tmp/relay/relay.db","profiles_dir":"/tmp/relay/profiles","live_agent_home":"/Users/test/.codex","live_config_path":"/Users/test/.codex/config.toml","live_auth_path":"/Users/test/.codex/auth.json","cli_binary_path":"/usr/local/bin/relay","agent_binary_path":"/usr/local/bin/codex","database_exists":true,"database_writable":true,"profiles_dir_exists":true,"profiles_dir_writable":true,"live_agent_home_exists":true,"live_config_exists":true,"live_auth_exists":true,"agent_binary_found":true}}
+EOF
+          ;;
+        relay/activity/events/list)
+          printf '%s\n' 'rpc relay/activity/events/list' >> "$script_dir/commands.log"
+          cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"events":[]}}
+EOF
+          ;;
+        relay/activity/logs/tail)
+          printf '%s\n' 'rpc relay/activity/logs/tail' >> "$script_dir/commands.log"
+          cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"logs":[]}}
 EOF
           ;;
         shutdown)
