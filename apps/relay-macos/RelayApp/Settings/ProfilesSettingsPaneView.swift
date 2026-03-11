@@ -728,16 +728,7 @@ private struct UsageMetricRow: View {
     }
 
     private var tint: Color {
-        switch window.status {
-        case .healthy:
-            return .green
-        case .warning:
-            return .orange
-        case .exhausted:
-            return .red
-        case .unknown:
-            return .gray
-        }
+        NativePreferencesTheme.Colors.usageTint(window.status)
     }
 
     private func barWidth(for totalWidth: CGFloat) -> CGFloat {

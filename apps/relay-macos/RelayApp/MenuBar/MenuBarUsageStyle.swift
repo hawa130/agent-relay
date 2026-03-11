@@ -21,15 +21,6 @@ extension UsageWindow {
 
 extension UsageStatus {
     var menuBarTint: Color {
-        switch self {
-        case .healthy:
-            return .green
-        case .warning:
-            return .orange
-        case .exhausted:
-            return .red
-        case .unknown:
-            return .gray
-        }
+        NativePreferencesTheme.Colors.usageTint(self)
     }
 }
