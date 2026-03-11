@@ -207,6 +207,10 @@ public final class ProfilesPaneModel: ObservableObject {
         await session.refreshEnabledUsage()
     }
 
+    func refreshAllUsage() async {
+        await session.refreshAllUsage()
+    }
+
     public func refreshIfStale() async {
         await session.refreshIfStale(maxAge: 30)
     }

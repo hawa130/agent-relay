@@ -137,6 +137,7 @@ final class RelayAppModelTests: XCTestCase {
         XCTAssertEqual(commands.first, "daemon --stdio")
         XCTAssertTrue(commands.contains("rpc initialize"))
         XCTAssertTrue(commands.contains("rpc relay/usage/refresh"))
+        XCTAssertTrue(commands.contains("rpc relay/usage/refresh include_disabled=false"))
     }
 
     func testRefreshEnabledUsageOnlyRunsBulkRefreshCommand() async throws {
@@ -273,6 +274,33 @@ final class RelayAppModelTests: XCTestCase {
         XCTAssertEqual(commands.first, "daemon --stdio")
         XCTAssertTrue(commands.contains("rpc initialize"))
         XCTAssertEqual(commands.filter { $0 == "rpc relay/usage/refresh" }.count, 1)
+    }
+
+    func testRefreshAllUsageUsesBulkRefreshWithIncludeDisabledTrue() async throws {
+        let fixture = try RelayAppModelFixture.make()
+        defer { fixture.cleanup() }
+        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        defer {
+            if let originalRelayCLIPath {
+                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+            } else {
+                unsetenv("RELAY_CLI_PATH")
+            }
+        }
+
+        let model = RelayAppModel()
+
+        await model.refreshAllUsage()
+        try await waitUntil {
+            model.usageSnapshot(for: "p_alt")?.profileId == "p_alt"
+        }
+
+        let commands = try fixture.commands()
+        XCTAssertEqual(commands.first, "daemon --stdio")
+        XCTAssertTrue(commands.contains("rpc initialize"))
+        XCTAssertTrue(commands.contains("rpc relay/usage/refresh"))
+        XCTAssertTrue(commands.contains("rpc relay/usage/refresh include_disabled=true"))
     }
 
     func testRemoveProfileDoesNotBlockOnFollowupRefresh() async throws {
@@ -435,6 +463,8 @@ EOF
           ;;
         relay/usage/refresh)
           printf '%s\n' 'rpc relay/usage/refresh' >> "$script_dir/commands.log"
+          include_disabled="$(python3 -c 'import json,sys; params=json.loads(sys.argv[1]).get("params", {}); print(str(params.get("include_disabled", False)).lower())' "$line")"
+          printf '%s\n' "rpc relay/usage/refresh include_disabled=$include_disabled" >> "$script_dir/commands.log"
           cat <<EOF
 {"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":3,"timestamp":"2026-03-08T12:27:12Z","payload":{"states":[{"key":{"kind":"UsageProfile","profile_id":"p_alt"},"status":"Pending","trigger":"Manual","updated_at":"2026-03-08T12:27:12Z"}]}}}
 EOF

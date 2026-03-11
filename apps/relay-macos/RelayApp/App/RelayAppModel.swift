@@ -304,6 +304,18 @@ public final class RelayAppModel: ObservableObject {
         }
     }
 
+    func refreshAllUsage() async {
+        guard !isFetchingEnabledUsage, !queryPending.contains(.usageAll) else {
+            return
+        }
+        do {
+            try await ensureSessionStateLoaded()
+            triggerRefreshAllUsage(notifyOnFailure: false)
+        } catch {
+            return
+        }
+    }
+
     func refreshForMenuOpen() async {
         await refreshIfStale(maxAge: 15)
     }
@@ -607,6 +619,13 @@ public final class RelayAppModel: ObservableObject {
         bulkUsageRefreshRequested = true
         triggerBackgroundQuery([.usageAll], failureTitle: notifyOnFailure ? "Relay refresh failed" : nil) { [daemonClient] in
             _ = try await daemonClient.refreshEnabledUsage()
+        }
+    }
+
+    private func triggerRefreshAllUsage(notifyOnFailure: Bool) {
+        bulkUsageRefreshRequested = true
+        triggerBackgroundQuery([.usageAll], failureTitle: notifyOnFailure ? "Relay refresh failed" : nil) { [daemonClient] in
+            _ = try await daemonClient.refreshAllUsage()
         }
     }
 
