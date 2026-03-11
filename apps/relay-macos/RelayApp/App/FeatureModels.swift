@@ -105,6 +105,10 @@ public final class ProfilesPaneModel: ObservableObject {
     var selectedFilterEmptyStateDescription: String { selectedFilter.emptyStateDescription }
     func isRefreshingUsage(profileId: String) -> Bool { session.isRefreshingUsage(profileId: profileId) }
 
+    func usageRefreshError(profileId: String) -> String? {
+        session.usageRefreshError(profileId: profileId)
+    }
+
     func usageSnapshot(for profileId: String) -> UsageSnapshot? {
         session.usageSnapshot(for: profileId)
     }
