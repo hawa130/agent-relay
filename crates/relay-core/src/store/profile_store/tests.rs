@@ -125,12 +125,17 @@ async fn app_settings_persist_across_store_reopen() {
         .await
         .expect("set refresh interval");
     assert_eq!(updated.refresh_interval_seconds, 120);
+    let updated = store
+        .set_refresh_interval_seconds(0)
+        .await
+        .expect("disable refresh interval");
+    assert_eq!(updated.refresh_interval_seconds, 0);
     drop(store);
 
     let reopened = SqliteStore::new(&db_path).await.expect("reopened store");
     let settings = reopened.get_settings().await.expect("reloaded settings");
     assert!(settings.auto_switch_enabled);
-    assert_eq!(settings.refresh_interval_seconds, 120);
+    assert_eq!(settings.refresh_interval_seconds, 0);
 }
 
 #[tokio::test]

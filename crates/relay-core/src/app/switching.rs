@@ -63,9 +63,9 @@ impl RelayApp {
         &self,
         value: i64,
     ) -> Result<AppSettings, RelayError> {
-        if !(15..=900).contains(&value) {
+        if value != 0 && !(15..=900).contains(&value) {
             return Err(RelayError::InvalidInput(
-                "refresh interval must be between 15 and 900 seconds".into(),
+                "refresh interval must be 0 or between 15 and 900 seconds".into(),
             ));
         }
         let settings = self.store.set_refresh_interval_seconds(value).await?;
@@ -82,9 +82,9 @@ impl RelayApp {
         request: SystemSettingsUpdateRequest,
     ) -> Result<AppSettings, RelayError> {
         if let Some(value) = request.refresh_interval_seconds {
-            if !(15..=900).contains(&value) {
+            if value != 0 && !(15..=900).contains(&value) {
                 return Err(RelayError::InvalidInput(
-                    "refresh interval must be between 15 and 900 seconds".into(),
+                    "refresh interval must be 0 or between 15 and 900 seconds".into(),
                 ));
             }
         }
