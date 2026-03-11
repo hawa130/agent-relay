@@ -104,7 +104,7 @@ final class UsageCardNoteResolverTests: XCTestCase {
         )
     }
 
-    func testAccountRemoteErrorUsesDangerSeverity() {
+    func testLegacyAccountRemoteErrorDecodesAsWarningSeverity() {
         let usage = UsageSnapshot(
             profileId: "p_1",
             profileName: "work",
@@ -130,7 +130,7 @@ final class UsageCardNoteResolverTests: XCTestCase {
             autoSwitchReason: nil,
             canAutoSwitch: false,
             message: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required",
-            remoteError: UsageRemoteError(kind: .account, httpStatus: 402)
+            remoteError: UsageRemoteError(kind: .other, httpStatus: 402)
         )
 
         XCTAssertEqual(
@@ -140,7 +140,7 @@ final class UsageCardNoteResolverTests: XCTestCase {
             ),
             UsageCardNote(
                 text: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required",
-                severity: .danger
+                severity: .warning
             )
         )
     }

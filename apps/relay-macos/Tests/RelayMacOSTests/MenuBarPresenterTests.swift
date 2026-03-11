@@ -31,7 +31,7 @@ final class MenuBarPresenterTests: XCTestCase {
             autoSwitchReason: nil,
             canAutoSwitch: false,
             message: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required",
-            remoteError: UsageRemoteError(kind: .account, httpStatus: 402)
+            remoteError: UsageRemoteError(kind: .other, httpStatus: 402)
         )
 
         XCTAssertEqual(
@@ -39,7 +39,7 @@ final class MenuBarPresenterTests: XCTestCase {
             [
                 UsageCardNote(
                     text: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required",
-                    severity: .danger
+                    severity: .warning
                 )
             ]
         )

@@ -374,10 +374,7 @@ fn http_failure(operation: &str, response: &HttpResponse) -> RemoteUsageFailure 
             body_preview(&response.body),
         ),
         remote_error: UsageRemoteError {
-            kind: match response.http_code {
-                401..=403 => UsageRemoteErrorKind::Account,
-                _ => UsageRemoteErrorKind::Other,
-            },
+            kind: UsageRemoteErrorKind::Other,
             http_status: Some(response.http_code),
         },
     }
@@ -607,7 +604,7 @@ mod tests {
         assert_eq!(
             error.remote_error,
             UsageRemoteError {
-                kind: UsageRemoteErrorKind::Account,
+                kind: UsageRemoteErrorKind::Other,
                 http_status: Some(402),
             }
         );

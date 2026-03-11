@@ -100,7 +100,7 @@ final class ModelDecodingTests: XCTestCase {
           "can_auto_switch": false,
           "message": "codex app-server rate limit RPC",
           "remote_error": {
-            "kind": "Account",
+            "kind": "Other",
             "http_status": 402
           }
         }
@@ -111,7 +111,7 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(snapshot.profileId, "p_usage")
         XCTAssertEqual(snapshot.source, .local)
         XCTAssertEqual(snapshot.confidence, .high)
-        XCTAssertEqual(snapshot.remoteError, UsageRemoteError(kind: .account, httpStatus: 402))
+        XCTAssertEqual(snapshot.remoteError, UsageRemoteError(kind: .other, httpStatus: 402))
     }
 
     func testAppSettingsDecodeCurrentFields() throws {

@@ -318,7 +318,7 @@ struct MenuBarPresenter {
 
         if let severity = profileStatusSeverity(profile: profile, usage: usage, isActive: isActive) {
             switch severity {
-            case .warning, .danger:
+            case .warning:
                 return "exclamationmark.triangle.fill"
             }
         }

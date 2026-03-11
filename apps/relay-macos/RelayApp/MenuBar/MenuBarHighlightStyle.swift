@@ -18,7 +18,10 @@ enum MenuBarHighlightStyle {
     }
 
     static func severity(_ highlighted: Bool, severity: UsageAlertSeverity) -> Color {
-        highlighted ? selectionText : NativePreferencesTheme.Colors.semanticAccent(severity.badgeKind)
+        switch severity {
+        case .warning:
+            return highlighted ? selectionText : NativePreferencesTheme.Colors.semanticAccent(.warning)
+        }
     }
 
     static func note(_ highlighted: Bool, note: UsageCardNote) -> Color {
