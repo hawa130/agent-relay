@@ -304,29 +304,24 @@ public struct ProfilesSettingsPaneView: View {
         return SettingsSurfaceCard(
             "Usage",
             headerAccessory: AnyView(
-                HStack(spacing: 8) {
-                    if isFetchingUsage {
-                        HStack(spacing: 6) {
+                Button {
+                    Task {
+                        await model.refreshUsage(profileId: profile.id)
+                    }
+                } label: {
+                    Group {
+                        if isFetchingUsage {
                             ProgressView()
                                 .controlSize(.small)
-                            Text("Refreshing")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
                         }
                     }
-
-                    Button {
-                        Task {
-                            await model.refreshUsage(profileId: profile.id)
-                        }
-                    } label: {
-                        Label("Refresh Usage", systemImage: "arrow.clockwise")
-                    }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.bordered)
-                    .disabled(isFetchingUsage)
-                    .help("Refresh Usage")
+                    .frame(width: 14, height: 14)
                 }
+                .buttonStyle(.bordered)
+                .disabled(isFetchingUsage)
+                .help("Refresh Usage")
             )
         ) {
             if let usage = model.usageSnapshot(for: profile.id) {
@@ -515,14 +510,26 @@ private struct ProfileListRow: View {
                         HStack {
                             Spacer(minLength: 0)
 
+                            if let indicator = statusIndicator {
+                                ProfileListRowStatusIndicator(indicator: indicator)
+                            }
+
                             Text(updatedText(for: usage))
                                 .font(.system(size: 10))
                                 .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
                         }
                     } else {
-                        Text("Waiting for refresh")
-                            .font(NativePreferencesTheme.Typography.detail)
-                            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                        HStack(spacing: 6) {
+                            Text("Waiting for refresh")
+                                .font(NativePreferencesTheme.Typography.detail)
+                                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+
+                            Spacer(minLength: 0)
+
+                            if let indicator = statusIndicator {
+                                ProfileListRowStatusIndicator(indicator: indicator)
+                            }
+                        }
                     }
                 }
             }
@@ -534,14 +541,6 @@ private struct ProfileListRow: View {
                 ProfileStateBadge(title: "Current", kind: .info)
                     .padding(.top, 4)
                     .padding(.trailing, 4)
-            }
-        }
-        .overlay(alignment: .bottomLeading) {
-            if let indicator = statusIndicator {
-                ProfileListRowStatusIndicator(indicator: indicator)
-                    .padding(.leading, usage == nil ? 0 : 34)
-                    .padding(.top, 4)
-                    .padding(.bottom, 2)
             }
         }
     }
