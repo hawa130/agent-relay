@@ -25,8 +25,8 @@ struct MenuBarMetricRow: View {
 
                     Spacer()
 
-                    if let resetText = model.resetText {
-                        Text(resetText)
+                    if let resetDate = model.resetDate {
+                        ResetRelativeDateText(date: resetDate)
                             .font(.system(size: 10.5))
                             .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                             .lineLimit(1)

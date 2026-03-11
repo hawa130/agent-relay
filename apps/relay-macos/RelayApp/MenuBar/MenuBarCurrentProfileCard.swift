@@ -9,7 +9,7 @@ struct MenuBarCurrentProfileCard: View {
                 MenuBarUsageCardHeaderView(
                     providerName: activeProfile.agent.rawValue,
                     nickname: activeProfile.nickname,
-                    subtitleText: presenter.currentCardSubtitle,
+                    subtitle: subtitle,
                     planText: usage?.source.displayName
                 )
 
@@ -40,7 +40,7 @@ struct MenuBarCurrentProfileCard: View {
     }
 
     private var hasDetails: Bool {
-        !metrics.isEmpty || !presenter.currentCardNotes(usage: usage).isEmpty || usage == nil
+        usage != nil || !presenter.currentCardNotes(usage: usage).isEmpty
     }
 
     private var presenter: MenuBarPresenter {
@@ -58,6 +58,16 @@ struct MenuBarCurrentProfileCard: View {
         return session.usageSnapshot(for: activeProfile.id)
     }
 
+    private var subtitle: MenuBarHeaderSubtitle {
+        if session.isRefreshingUsageList {
+            return .refreshing
+        }
+        if let lastRefresh = session.lastRefresh {
+            return .updated(lastRefresh)
+        }
+        return .waiting
+    }
+
     private var metrics: [MenuBarMetricRowModel] {
         guard let usage else {
             return []
@@ -69,7 +79,7 @@ struct MenuBarCurrentProfileCard: View {
                 title: "Session",
                 percent: usage.session.menuBarProgressPercent,
                 percentLabel: "\(usage.session.menuBarDisplayValue) used",
-                resetText: usage.session.resetAt.map { "Resets \(presenter.preciseResetDescription(for: $0))" },
+                resetDate: usage.session.resetAt,
                 detailLeftText: nil,
                 detailRightText: nil,
                 tint: usage.session.status.menuBarTint
@@ -79,9 +89,7 @@ struct MenuBarCurrentProfileCard: View {
                 title: "Weekly",
                 percent: usage.weekly.menuBarProgressPercent,
                 percentLabel: "\(usage.weekly.menuBarDisplayValue) used",
-                resetText: usage.weekly.resetAt.map {
-                    "Resets \(presenter.preciseResetDescription(for: $0, roundsToHourWhenDaysPresent: true))"
-                },
+                resetDate: usage.weekly.resetAt,
                 detailLeftText: nil,
                 detailRightText: nil,
                 tint: usage.weekly.status.menuBarTint

@@ -1,9 +1,15 @@
 import SwiftUI
 
+enum MenuBarHeaderSubtitle {
+    case refreshing
+    case updated(Date)
+    case waiting
+}
+
 struct MenuBarUsageCardHeaderView: View {
     let providerName: String
     let nickname: String
-    let subtitleText: String
+    let subtitle: MenuBarHeaderSubtitle
     let planText: String?
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -26,10 +32,7 @@ struct MenuBarUsageCardHeaderView: View {
             }
 
             HStack(alignment: .firstTextBaseline) {
-                Text(subtitleText)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
-                    .lineLimit(1)
+                subtitleView
                     .layoutPriority(1)
 
                 Spacer()
@@ -41,6 +44,27 @@ struct MenuBarUsageCardHeaderView: View {
                         .lineLimit(1)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var subtitleView: some View {
+        switch subtitle {
+        case .refreshing:
+            Text("Refreshing…")
+                .font(.system(size: 10.5))
+                .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
+                .lineLimit(1)
+        case let .updated(date):
+            AdaptiveRelativeDateText(prefix: "Updated ", date: date, style: .named)
+                .font(.system(size: 10.5))
+                .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
+                .lineLimit(1)
+        case .waiting:
+            Text("Waiting for refresh")
+                .font(.system(size: 10.5))
+                .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
+                .lineLimit(1)
         }
     }
 }

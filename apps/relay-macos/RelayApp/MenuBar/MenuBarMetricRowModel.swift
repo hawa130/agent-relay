@@ -5,7 +5,7 @@ struct MenuBarMetricRowModel: Identifiable {
     let title: String
     let percent: Double
     let percentLabel: String
-    let resetText: String?
+    let resetDate: Date?
     let detailLeftText: String?
     let detailRightText: String?
     let tint: Color
