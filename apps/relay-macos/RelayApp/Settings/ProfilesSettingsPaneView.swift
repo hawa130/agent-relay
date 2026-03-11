@@ -120,7 +120,7 @@ public struct ProfilesSettingsPaneView: View {
             }
 
             ToolbarItemGroup(placement: .secondaryAction) {
-                Text("")
+                Spacer(minLength: 0)
             }
 
             ToolbarItemGroup(placement: .confirmationAction) {
@@ -477,8 +477,6 @@ private struct ProfileListRow: View {
                             .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
                     }
                 }
-
-                Spacer(minLength: 0)
             }
         }
         .padding(4)
