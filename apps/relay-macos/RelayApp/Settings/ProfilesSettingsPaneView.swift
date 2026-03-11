@@ -94,7 +94,7 @@ public struct ProfilesSettingsPaneView: View {
                     profile: profile,
                     usage: model.usageSnapshot(for: profile.id),
                     isActive: model.activeProfileId == profile.id,
-                    isRefreshingUsage: model.isRefreshingUsage(profileId: profile.id),
+                    isFetchingUsage: model.isFetchingUsage(profileId: profile.id),
                     usageRefreshError: model.usageRefreshError(profileId: profile.id)
                 )
                 .tag(Optional(profile.id))
@@ -129,7 +129,7 @@ public struct ProfilesSettingsPaneView: View {
             }
 
             ToolbarItemGroup(placement: .confirmationAction) {
-                if model.isRefreshingEnabledUsage {
+                if model.isFetchingEnabledUsage {
                     ProgressView()
                         .controlSize(.small)
                         .frame(width: 28, height: 28)
@@ -192,13 +192,6 @@ public struct ProfilesSettingsPaneView: View {
                     VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
                         profileHero(profile)
                         usageCard(profile)
-                        if let error = model.lastErrorMessage {
-                            SettingsSurfaceCard("Last Error") {
-                                Text(error)
-                                    .foregroundStyle(.red)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                        }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -306,13 +299,13 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private func usageCard(_ profile: Profile) -> some View {
-        let isRefreshingUsage = model.isRefreshingUsage(profileId: profile.id)
+        let isFetchingUsage = model.isFetchingUsage(profileId: profile.id)
         let usageRefreshError = model.usageRefreshError(profileId: profile.id)
         return SettingsSurfaceCard(
             "Usage",
             headerAccessory: AnyView(
                 HStack(spacing: 8) {
-                    if isRefreshingUsage {
+                    if isFetchingUsage {
                         HStack(spacing: 6) {
                             ProgressView()
                                 .controlSize(.small)
@@ -331,7 +324,7 @@ public struct ProfilesSettingsPaneView: View {
                     }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.bordered)
-                    .disabled(isRefreshingUsage)
+                    .disabled(isFetchingUsage)
                     .help("Refresh Usage")
                 }
             )
@@ -368,7 +361,7 @@ public struct ProfilesSettingsPaneView: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    if isRefreshingUsage {
+                    if isFetchingUsage {
                         HStack(spacing: 8) {
                             ProgressView()
                                 .controlSize(.small)
@@ -483,7 +476,7 @@ private struct ProfileListRow: View {
     let profile: Profile
     let usage: UsageSnapshot?
     let isActive: Bool
-    let isRefreshingUsage: Bool
+    let isFetchingUsage: Bool
     let usageRefreshError: String?
 
     var body: some View {
@@ -531,7 +524,7 @@ private struct ProfileListRow: View {
                                 .font(.system(size: 10))
                                 .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
                         }
-                    } else if isRefreshingUsage {
+                    } else if isFetchingUsage {
                         HStack(spacing: 6) {
                             ProgressView()
                                 .controlSize(.mini)

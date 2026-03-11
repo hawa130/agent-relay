@@ -13,8 +13,7 @@ final class ModelDecodingTests: XCTestCase {
             "active_profile_id": "p_active",
             "last_switch_at": "2026-03-08T12:27:12Z",
             "last_switch_result": "Success",
-            "auto_switch_enabled": true,
-            "last_error": null
+            "auto_switch_enabled": true
           },
           "settings": {
             "auto_switch_enabled": true,

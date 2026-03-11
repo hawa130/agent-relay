@@ -212,7 +212,6 @@ impl RelayApp {
         if state.active_profile_id.as_deref() == Some(profile.id.as_str()) {
             state.active_profile_id = None;
             state.last_switch_result = crate::models::SwitchOutcome::NotRun;
-            state.last_error = None;
             self.state_store.save(&state)?;
         }
         self.log_store

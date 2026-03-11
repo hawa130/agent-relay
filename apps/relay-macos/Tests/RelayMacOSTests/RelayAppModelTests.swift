@@ -31,10 +31,6 @@ final class RelayAppModelTests: XCTestCase {
             result,
             .notSignedIn(detail: "Browser sign-in was cancelled or did not complete.")
         )
-        XCTAssertEqual(
-            model.lastErrorMessage,
-            "Codex: Not signed in. Browser sign-in was cancelled or did not complete."
-        )
         XCTAssertFalse(model.isMutatingProfiles)
         let commands = try fixture.commands()
         XCTAssertEqual(commands.first, "daemon --stdio")
@@ -65,7 +61,6 @@ final class RelayAppModelTests: XCTestCase {
         let result = await model.addAccount(agent: .codex, priority: 100)
 
         XCTAssertEqual(result, .failed(detail: "RELAY_EXTERNAL_COMMAND: codex binary not found"))
-        XCTAssertEqual(model.lastErrorMessage, "RELAY_EXTERNAL_COMMAND: codex binary not found")
         XCTAssertFalse(model.isMutatingProfiles)
         let commands = try fixture.commands()
         XCTAssertEqual(commands.first, "daemon --stdio")
@@ -137,7 +132,6 @@ final class RelayAppModelTests: XCTestCase {
             model.usageSnapshot(for: "p_alt")?.profileId == "p_alt"
         }
 
-        XCTAssertNil(model.lastErrorMessage)
         XCTAssertEqual(model.usageSnapshot(for: "p_alt")?.profileId, "p_alt")
         let commands = try fixture.commands()
         XCTAssertEqual(commands.first, "daemon --stdio")
@@ -165,7 +159,6 @@ final class RelayAppModelTests: XCTestCase {
             model.usageSnapshot(for: "p_alt")?.profileId == "p_alt"
         }
 
-        XCTAssertNil(model.lastErrorMessage)
         XCTAssertEqual(model.usageSnapshot(for: "p_alt")?.profileId, "p_alt")
         let commands = try fixture.commands()
         XCTAssertEqual(commands.first, "daemon --stdio")
@@ -194,12 +187,12 @@ final class RelayAppModelTests: XCTestCase {
         _ = await (first, second)
 
         try await waitUntil {
-            !model.isRefreshingUsage(profileId: "p_alt")
+            (try? fixture.commands().filter { $0 == "rpc relay/usage/refresh" }.count) == 1
         }
         let commands = try fixture.commands()
         XCTAssertEqual(commands.first, "daemon --stdio")
         XCTAssertTrue(commands.contains("rpc initialize"))
-        XCTAssertTrue(commands.contains("rpc relay/usage/refresh"))
+        XCTAssertEqual(commands.filter { $0 == "rpc relay/usage/refresh" }.count, 1)
     }
 
     func testRefreshEnabledUsageIgnoresConcurrentDuplicateRequests() async throws {
@@ -223,12 +216,12 @@ final class RelayAppModelTests: XCTestCase {
         _ = await (first, second)
 
         try await waitUntil {
-            !model.isRefreshingEnabledUsage
+            (try? fixture.commands().filter { $0 == "rpc relay/usage/refresh" }.count) == 1
         }
         let commands = try fixture.commands()
         XCTAssertEqual(commands.first, "daemon --stdio")
         XCTAssertTrue(commands.contains("rpc initialize"))
-        XCTAssertTrue(commands.contains("rpc relay/usage/refresh"))
+        XCTAssertEqual(commands.filter { $0 == "rpc relay/usage/refresh" }.count, 1)
     }
 
     func testRemoveProfileDoesNotBlockOnFollowupRefresh() async throws {
@@ -362,12 +355,12 @@ case "$*" in
           mode="${RELAY_FIXTURE_MODE:-refresh}"
           if [ "$mode" = "remove_delayed_refresh" ]; then
             cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[{"profile":{"id":"p_active","nickname":"active","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/active-home","config_path":"/tmp/active-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":true,"usage_summary":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}},{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":110,"enabled":true,"agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":false,"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
+{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[{"profile":{"id":"p_active","nickname":"active","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/active-home","config_path":"/tmp/active-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":true,"usage_summary":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}},{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":110,"enabled":true,"agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":false,"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
 EOF
             continue
           fi
           cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
+{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
 EOF
           ;;
         session/subscribe)

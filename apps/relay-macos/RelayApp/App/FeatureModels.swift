@@ -23,11 +23,10 @@ public final class SettingsPaneModel: ObservableObject {
     var autoSwitchEnabled: Bool { session.autoSwitchEnabled }
     var refreshIntervalSeconds: Int { session.refreshIntervalSeconds }
     var networkQueryConcurrency: Int { session.networkQueryConcurrency }
-    var profilesCount: Int { session.status?.profileCount ?? session.profiles.count }
+    var profilesCount: Int { session.profiles.count }
     var agents: [AgentSettingsDescriptor] { AgentSettingsCatalog.supportedAgents }
     var codexSettings: CodexSettings? { session.codexSettings }
     var engineConnectionState: EngineConnectionState { session.engineConnectionState }
-    var lastErrorMessage: String? { session.lastErrorMessage }
 
     func selectItem(_ item: SettingsSidebarSelection) {
         guard selectedItem != item else {
@@ -103,14 +102,13 @@ public final class ProfilesPaneModel: ObservableObject {
         }
         return filteredProfiles.first { $0.id == selectedProfileId }
     }
-    var lastErrorMessage: String? { session.lastErrorMessage }
     var isSwitching: Bool { session.isSwitching }
     var isMutatingProfiles: Bool { session.isMutatingProfiles }
     var isLoggingIn: Bool { session.isLoggingIn }
-    var isRefreshingEnabledUsage: Bool { session.isRefreshingEnabledUsage }
+    var isFetchingEnabledUsage: Bool { session.isFetchingEnabledUsage }
     var selectedFilterProfileCount: Int { filteredProfiles.count }
     var selectedFilterEmptyStateDescription: String { selectedFilter.emptyStateDescription }
-    func isRefreshingUsage(profileId: String) -> Bool { session.isRefreshingUsage(profileId: profileId) }
+    func isFetchingUsage(profileId: String) -> Bool { session.isFetchingUsage(profileId: profileId) }
 
     func usageRefreshError(profileId: String) -> String? {
         session.usageRefreshError(profileId: profileId)

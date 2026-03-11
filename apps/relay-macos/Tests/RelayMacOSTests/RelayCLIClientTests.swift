@@ -170,7 +170,7 @@ script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 case "$cmd" in
   "--json status")
     cat <<'EOF'
-{"success":true,"error_code":null,"message":"status loaded","data":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600}}}
+{"success":true,"error_code":null,"message":"status loaded","data":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600}}}
 EOF
     ;;
   "--json show")

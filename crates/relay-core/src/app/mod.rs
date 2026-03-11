@@ -233,7 +233,6 @@ impl RelayApp {
 
         state.active_profile_id = None;
         state.last_switch_result = crate::models::SwitchOutcome::NotRun;
-        state.last_error = None;
         self.state_store.save(&state)?;
         Ok(())
     }
@@ -245,7 +244,6 @@ impl RelayApp {
         }
 
         state.active_profile_id = Some(profile.id.clone());
-        state.last_error = None;
         self.state_store.save(&state)
     }
 }

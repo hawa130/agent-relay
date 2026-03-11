@@ -20,7 +20,6 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
 
         try await waitUntil {
             model.engineConnectionState == .degraded
-                && model.lastErrorMessage == "Relay engine degraded for test."
         }
     }
 
@@ -39,7 +38,7 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
         model.start()
 
         try await waitUntil {
-            model.lastErrorMessage == "RELAY_CONFLICT: no eligible profile available"
+            model.status?.activeState.lastSwitchResult == .failed
         }
     }
 
@@ -80,7 +79,7 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
 
         try await waitUntil {
             model.usageRefreshError(profileId: "p_alt") == "remote usage timed out"
-                && !model.isRefreshingUsage(profileId: "p_alt")
+                && !model.isFetchingUsage(profileId: "p_alt")
         }
     }
 }
@@ -176,7 +175,7 @@ case "$*" in
       case "$method" in
         initialize)
           cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","server_info":{"name":"relay","version":"0.1.0"},"capabilities":{"supports_subscriptions":true,"supports_health_updates":true},"initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[$active_profile_item,$alt_profile_item],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
+{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","server_info":{"name":"relay","version":"0.1.0"},"capabilities":{"supports_subscriptions":true,"supports_health_updates":true},"initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[$active_profile_item,$alt_profile_item],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
 EOF
           ;;
         session/subscribe)
@@ -203,7 +202,7 @@ EOF
 EOF
               sleep 0.05
               cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"active_state.updated","seq":2,"timestamp":"2026-03-08T12:27:13Z","payload":{"active_state":{"active_profile_id":"p_alt","last_switch_at":"2026-03-08T12:27:13Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"active_profile":$alt_profile_item}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"active_state.updated","seq":2,"timestamp":"2026-03-08T12:27:13Z","payload":{"active_state":{"active_profile_id":"p_alt","last_switch_at":"2026-03-08T12:27:13Z","last_switch_result":"Success","auto_switch_enabled":false},"active_profile":$alt_profile_item}}}
 EOF
               ;;
             query_state_error)
@@ -220,7 +219,7 @@ EOF
           ;;
         relay/status/get)
           cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}}}
+{"jsonrpc":"2.0","id":"$id","result":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}}}
 EOF
           ;;
         relay/settings/get)
