@@ -101,7 +101,10 @@ struct SettingsSetArgs {
     auto_switch_enabled: Option<bool>,
     #[arg(long, help = "Set the cooldown in seconds")]
     cooldown_seconds: Option<i64>,
-    #[arg(long, help = "Set automatic usage refresh interval in seconds, or 0 to disable")]
+    #[arg(
+        long,
+        help = "Set automatic usage refresh interval in seconds, or 0 to disable"
+    )]
     refresh_interval_seconds: Option<i64>,
     #[arg(long, help = "Set the maximum number of concurrent network queries")]
     network_query_concurrency: Option<i64>,
@@ -600,7 +603,9 @@ fn system_settings_request_from_args(
     })
 }
 
-fn settings_request_from_args(args: SettingsSetArgs) -> Result<SystemSettingsUpdateRequest, RelayError> {
+fn settings_request_from_args(
+    args: SettingsSetArgs,
+) -> Result<SystemSettingsUpdateRequest, RelayError> {
     if let Some(input_json) = args.input_json.as_ref() {
         ensure_json_input_is_exclusive(
             input_json,

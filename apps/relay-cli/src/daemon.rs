@@ -7,9 +7,9 @@ use std::io::{self, BufRead, BufWriter, Write};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
+use tokio::sync::Notify;
 use tokio::sync::mpsc;
 use tokio::task::{JoinSet, LocalSet};
-use tokio::sync::Notify;
 use tokio::time::{Duration, Instant, sleep_until};
 
 #[derive(Clone, Copy)]
@@ -175,10 +175,7 @@ async fn run_local() -> Result<(), RelayError> {
     Ok(())
 }
 
-async fn run_refresh_scheduler(
-    service: DaemonService,
-    runtime_signals: Arc<RuntimeSignals>,
-) {
+async fn run_refresh_scheduler(service: DaemonService, runtime_signals: Arc<RuntimeSignals>) {
     loop {
         if service.shutdown_requested() {
             break;

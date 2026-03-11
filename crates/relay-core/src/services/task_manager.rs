@@ -79,11 +79,27 @@ impl TaskManager {
         }
     }
 
-    pub fn finish_succeeded(&self, task_id: &str, result: Value, message: Option<String>) -> Option<TaskUpdate> {
-        self.finish(task_id, RelayTaskStatus::Succeeded, message, None, Some(result))
+    pub fn finish_succeeded(
+        &self,
+        task_id: &str,
+        result: Value,
+        message: Option<String>,
+    ) -> Option<TaskUpdate> {
+        self.finish(
+            task_id,
+            RelayTaskStatus::Succeeded,
+            message,
+            None,
+            Some(result),
+        )
     }
 
-    pub fn finish_failed(&self, task_id: &str, error_code: String, message: String) -> Option<TaskUpdate> {
+    pub fn finish_failed(
+        &self,
+        task_id: &str,
+        error_code: String,
+        message: String,
+    ) -> Option<TaskUpdate> {
         self.finish(
             task_id,
             RelayTaskStatus::Failed,

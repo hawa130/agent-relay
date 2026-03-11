@@ -86,7 +86,9 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 ))
             }
             Some(SettingsSubcommand::Set(args)) => {
-                let settings = app.update_system_settings(settings_request_from_args(args)?).await?;
+                let settings = app
+                    .update_system_settings(settings_request_from_args(args)?)
+                    .await?;
                 Ok(Output::success_rendered(
                     "settings updated",
                     settings.clone(),
