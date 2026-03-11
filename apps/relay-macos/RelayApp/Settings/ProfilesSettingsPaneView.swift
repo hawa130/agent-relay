@@ -272,7 +272,7 @@ public struct ProfilesSettingsPaneView: View {
                         HStack(spacing: 6) {
                             ProfileStatusBadge(
                                 title: profile.enabled ? "Enabled" : "Disabled",
-                                dotColor: profile.enabled ? .green : .secondary.opacity(0.7)
+                                dotColor: profile.enabled ? NativePreferencesTheme.Colors.semanticAccent(.success) : NativePreferencesTheme.Colors.disabledIndicator
                             )
                             ProfileInfoBadge(title: "Priority", value: "\(profile.priority)")
                         }
@@ -292,7 +292,7 @@ public struct ProfilesSettingsPaneView: View {
                 if let failure = selectedFailureEvent {
                     Label(failure.reason.rawValue.replacingOccurrences(of: "_", with: " "), systemImage: "exclamationmark.triangle.fill")
                         .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
                 }
             }
         }
@@ -329,7 +329,7 @@ public struct ProfilesSettingsPaneView: View {
                     if let usageRefreshError {
                         Label(usageRefreshError, systemImage: "exclamationmark.triangle.fill")
                             .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -339,7 +339,7 @@ public struct ProfilesSettingsPaneView: View {
                     if let note = usage.userFacingNote {
                         Text(note)
                             .font(NativePreferencesTheme.Typography.detail)
-                            .foregroundStyle(usage.stale ? .orange : .secondary)
+                            .foregroundStyle(usage.stale ? NativePreferencesTheme.Colors.semanticAccent(.warning) : .secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -365,7 +365,7 @@ public struct ProfilesSettingsPaneView: View {
                         }
                     } else if let usageRefreshError {
                         Label(usageRefreshError, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
                     } else {
                         Text("Usage data unavailable.")
                             .foregroundStyle(.secondary)
@@ -446,7 +446,7 @@ private struct ProfileHeroAgentIcon: View {
             if let descriptor = AgentSettingsCatalog.descriptor(for: agent) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.secondary.opacity(0.12))
+                        .fill(NativePreferencesTheme.Colors.subtleFill)
                         .frame(width: 40, height: 40)
 
                     AgentBrandIcon(descriptor: descriptor, size: 20)
@@ -454,7 +454,7 @@ private struct ProfileHeroAgentIcon: View {
             } else {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color.secondary.opacity(0.12))
+                        .fill(NativePreferencesTheme.Colors.subtleFill)
                         .frame(width: 40, height: 40)
 
                     Image(systemName: "terminal")
@@ -630,7 +630,7 @@ struct ProfileListRowStatusIndicator: View {
             case let .warning(message):
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
                     .help(message)
             case .stale:
                 Image(systemName: "exclamationmark.triangle")
@@ -707,7 +707,7 @@ private struct UsageMetricRow: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 999, style: .continuous)
-                        .fill(Color.secondary.opacity(0.14))
+                        .fill(NativePreferencesTheme.Colors.progressTrack)
                     RoundedRectangle(cornerRadius: 999, style: .continuous)
                         .fill(tint.opacity(stale ? 0.45 : 0.8))
                         .frame(width: barWidth(for: geometry.size.width))
@@ -975,7 +975,7 @@ private struct AddProfileSheet: View {
         HStack(alignment: .top, spacing: 6) {
             ZStack {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(Color.secondary.opacity(0.12))
+                    .fill(NativePreferencesTheme.Colors.subtleFill)
                     .frame(width: 28, height: 28)
 
                 AgentBrandIcon(descriptor: descriptor, size: 16, tint: .secondary)
@@ -1225,20 +1225,20 @@ private struct AddProfileSheet: View {
             case .requesting:
                 return .secondary
             case .notSignedIn:
-                return .orange
+                return NativePreferencesTheme.Colors.semanticAccent(.warning)
             case .failed:
-                return .red
+                return NativePreferencesTheme.Colors.semanticAccent(.danger)
             }
         }
 
         var backgroundColor: Color {
             switch self {
             case .requesting:
-                return Color.secondary.opacity(0.10)
+                return NativePreferencesTheme.Colors.pendingFill
             case .notSignedIn:
-                return Color.orange.opacity(0.12)
+                return NativePreferencesTheme.Colors.semanticFill(.warning)
             case .failed:
-                return Color.red.opacity(0.10)
+                return NativePreferencesTheme.Colors.semanticFill(.danger)
             }
         }
     }
