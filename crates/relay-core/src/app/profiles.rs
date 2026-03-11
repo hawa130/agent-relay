@@ -10,6 +10,8 @@ use crate::services::{profile_service, usage_service};
 use crate::store::{AddProfileRecord, ProfileUpdateRecord};
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 impl RelayApp {
     pub async fn list_profiles(&self) -> Result<Vec<Profile>, RelayError> {
@@ -126,6 +128,15 @@ impl RelayApp {
         &self,
         request: AgentLoginRequest,
     ) -> Result<AgentLinkResult, RelayError> {
+        self.login_profile_cancellable(request, Arc::new(AtomicBool::new(false)))
+            .await
+    }
+
+    pub async fn login_profile_cancellable(
+        &self,
+        request: AgentLoginRequest,
+        cancel_requested: Arc<AtomicBool>,
+    ) -> Result<AgentLinkResult, RelayError> {
         let adapter = self.adapters.adapter(&request.agent);
         let result = adapter
             .login_profile(
@@ -134,6 +145,7 @@ impl RelayApp {
                 request.nickname,
                 request.priority,
                 request.mode,
+                cancel_requested,
             )
             .await?;
         let _ = self.refresh_usage_profile(&result.profile.id).await;

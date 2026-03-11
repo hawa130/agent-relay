@@ -38,7 +38,7 @@ final class RelayAppModelTests: XCTestCase {
         XCTAssertFalse(model.isMutatingProfiles)
         let commands = try fixture.commands()
         XCTAssertEqual(commands.first, "daemon --stdio")
-        XCTAssertTrue(commands.contains("rpc relay/profiles/login"))
+        XCTAssertTrue(commands.contains("rpc relay/profiles/login/start"))
     }
 
     func testAddAccountReturnsFailedForUnexpectedLoginError() async throws {
@@ -69,7 +69,52 @@ final class RelayAppModelTests: XCTestCase {
         XCTAssertFalse(model.isMutatingProfiles)
         let commands = try fixture.commands()
         XCTAssertEqual(commands.first, "daemon --stdio")
-        XCTAssertTrue(commands.contains("rpc relay/profiles/login"))
+        XCTAssertTrue(commands.contains("rpc relay/profiles/login/start"))
+    }
+
+    func testAddAccountCancellationDoesNotLeaveProfileMutationPending() async throws {
+        let fixture = try RelayAppModelFixture.make(mode: .loginWaitsForCancel)
+        defer { fixture.cleanup() }
+        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+        let originalFixtureMode = getenv("RELAY_FIXTURE_MODE").map { String(cString: $0) }
+        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        setenv("RELAY_FIXTURE_MODE", "login_waits_for_cancel", 1)
+        defer {
+            if let originalRelayCLIPath {
+                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+            } else {
+                unsetenv("RELAY_CLI_PATH")
+            }
+            if let originalFixtureMode {
+                setenv("RELAY_FIXTURE_MODE", originalFixtureMode, 1)
+            } else {
+                unsetenv("RELAY_FIXTURE_MODE")
+            }
+        }
+
+        let model = RelayAppModel()
+        let task = Task { @MainActor in
+            await model.addAccount(agent: .codex, priority: 100)
+        }
+
+        try await waitUntil {
+            model.isLoggingIn
+        }
+        await model.cancelLogin()
+        let clock = ContinuousClock()
+        let result = await clock.measure {
+            _ = await task.value
+        }
+
+        XCTAssertLessThan(result, .seconds(1))
+        XCTAssertFalse(model.isMutatingProfiles)
+        XCTAssertFalse(model.isLoggingIn)
+        try await waitUntil {
+            (try? fixture.commands().contains("rpc relay/tasks/cancel")) == true
+        }
+        let commands = try fixture.commands()
+        XCTAssertTrue(commands.contains("rpc relay/profiles/login/start"))
+        XCTAssertTrue(commands.contains("rpc relay/tasks/cancel"))
     }
 
     func testRefreshUsageOnlyRunsUsageRefreshCommand() async throws {
@@ -231,6 +276,7 @@ private struct RelayAppModelFixture {
         case refresh
         case loginCancelled
         case loginFailed
+        case loginWaitsForCancel
         case removeDelayedRefresh
     }
 
@@ -327,7 +373,7 @@ EOF
         session/subscribe)
           printf '%s\n' 'rpc session/subscribe' >> "$script_dir/commands.log"
           cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","query_state.updated","active_state.updated","settings.updated","profiles.updated","activity.events.updated","activity.logs.updated","doctor.updated","switch.completed","switch.failed","health.updated"]}}
+{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","query_state.updated","active_state.updated","settings.updated","profiles.updated","activity.events.updated","activity.logs.updated","doctor.updated","switch.completed","switch.failed","task.updated","health.updated"]}}
 EOF
           mode="${RELAY_FIXTURE_MODE:-refresh}"
           cat <<EOF
@@ -355,26 +401,51 @@ EOF
 {"jsonrpc":"2.0","id":"$id","result":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}]}}
 EOF
           ;;
-        relay/profiles/login)
-          printf '%s\n' 'rpc relay/profiles/login' >> "$script_dir/commands.log"
+        relay/profiles/login/start)
+          printf '%s\n' 'rpc relay/profiles/login/start' >> "$script_dir/commands.log"
           case "${RELAY_FIXTURE_MODE:-refresh}" in
             "login_cancelled")
               cat <<EOF
-{"jsonrpc":"2.0","id":"$id","error":{"code":-32000,"message":"codex login timed out waiting for browser sign-in","data":{"relay_error_code":"RELAY_EXTERNAL_COMMAND"}}}
+{"jsonrpc":"2.0","id":"$id","result":{"task_id":"task-login-1","kind":"ProfileLogin","accepted":true}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Pending","started_at":"2026-03-08T12:27:12Z","finished_at":null,"message":null,"error_code":null,"result":null}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":5,"timestamp":"2026-03-08T12:27:13Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Cancelled","started_at":"2026-03-08T12:27:12Z","finished_at":"2026-03-08T12:27:13Z","message":"Browser sign-in was cancelled or did not complete.","error_code":null,"result":null}}}}
 EOF
               ;;
             "login_failed")
               cat <<EOF
-{"jsonrpc":"2.0","id":"$id","error":{"code":-32000,"message":"codex binary not found","data":{"relay_error_code":"RELAY_EXTERNAL_COMMAND"}}}
+{"jsonrpc":"2.0","id":"$id","result":{"task_id":"task-login-1","kind":"ProfileLogin","accepted":true}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Pending","started_at":"2026-03-08T12:27:12Z","finished_at":null,"message":null,"error_code":null,"result":null}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":5,"timestamp":"2026-03-08T12:27:13Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Failed","started_at":"2026-03-08T12:27:12Z","finished_at":"2026-03-08T12:27:13Z","message":"codex binary not found","error_code":"RELAY_EXTERNAL_COMMAND","result":null}}}}
+EOF
+              ;;
+            "login_waits_for_cancel")
+              cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"task_id":"task-login-1","kind":"ProfileLogin","accepted":true}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Pending","started_at":"2026-03-08T12:27:12Z","finished_at":null,"message":null,"error_code":null,"result":null}}}}
 EOF
               ;;
             *)
               cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"probe_identity":{"profile_id":"p_browser","account_id":"acct-123","email":"browser@example.com","plan_hint":"team","provider":"CodexOfficial","principal_id":"acct-123","display_name":"browser@example.com"},"activated":false}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"profiles.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"profiles":[$active_profile_item,{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":false,"usage_summary":null}]}}}
+{"jsonrpc":"2.0","id":"$id","result":{"task_id":"task-login-1","kind":"ProfileLogin","accepted":true}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Pending","started_at":"2026-03-08T12:27:12Z","finished_at":null,"message":null,"error_code":null,"result":null}}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"profiles.updated","seq":5,"timestamp":"2026-03-08T12:27:12Z","payload":{"profiles":[$active_profile_item,{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":false,"usage_summary":null}]}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":6,"timestamp":"2026-03-08T12:27:13Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Succeeded","started_at":"2026-03-08T12:27:12Z","finished_at":"2026-03-08T12:27:13Z","message":null,"error_code":null,"result":{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"probe_identity":{"profile_id":"p_browser","account_id":"acct-123","email":"browser@example.com","plan_hint":"team","provider":"CodexOfficial","principal_id":"acct-123","display_name":"browser@example.com"},"activated":false}}}}}
 EOF
               ;;
           esac
+          ;;
+        relay/tasks/cancel)
+          printf '%s\n' 'rpc relay/tasks/cancel' >> "$script_dir/commands.log"
+          if [ "${RELAY_FIXTURE_MODE:-refresh}" = "login_waits_for_cancel" ]; then
+            cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"accepted":true}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":7,"timestamp":"2026-03-08T12:27:14Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Cancelled","started_at":"2026-03-08T12:27:12Z","finished_at":"2026-03-08T12:27:14Z","message":"Browser sign-in was cancelled or did not complete.","error_code":null,"result":null}}}}
+EOF
+          else
+            cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"accepted":true}}
+EOF
+          fi
           ;;
         relay/profiles/remove)
           printf '%s\n' 'rpc relay/profiles/remove' >> "$script_dir/commands.log"

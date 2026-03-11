@@ -13,9 +13,12 @@ use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
+use tokio::task;
 
 const CODEX_LOGIN_TIMEOUT_SECS: u64 = 300;
 const CODEX_LOGIN_POLL_MILLIS: u64 = 250;
@@ -67,9 +70,20 @@ pub(crate) async fn login_profile(
     nickname: Option<String>,
     priority: i32,
     mode: AgentLoginMode,
+    cancel_requested: Arc<AtomicBool>,
 ) -> Result<AgentLinkResult, RelayError> {
     let login_home = prepare_login_home()?;
-    run_codex_login(&login_home, mode)?;
+    let login_home_for_task = login_home.clone();
+    let cancel_for_task = cancel_requested.clone();
+    let result = task::spawn_blocking(move || {
+        run_codex_login(&login_home_for_task, mode, cancel_for_task)
+    })
+        .await
+        .map_err(|error| RelayError::Internal(format!("codex login task failed: {error}")))?;
+    if result.is_err() {
+        let _ = fs::remove_dir_all(&login_home);
+    }
+    result?;
     let identity = load_probe_identity_from_home("pending", &login_home)?;
 
     let snapshot_dir = profiles_dir.join(format!("login_{}", Utc::now().timestamp_millis()));
@@ -98,6 +112,8 @@ pub(crate) async fn login_profile(
             ..identity
         })
         .await?;
+
+    let _ = fs::remove_dir_all(&login_home);
 
     Ok(AgentLinkResult {
         profile,
@@ -128,7 +144,11 @@ fn prepare_login_home() -> Result<PathBuf, RelayError> {
     Ok(path)
 }
 
-fn run_codex_login(login_home: &Path, mode: AgentLoginMode) -> Result<(), RelayError> {
+fn run_codex_login(
+    login_home: &Path,
+    mode: AgentLoginMode,
+    cancel_requested: Arc<AtomicBool>,
+) -> Result<(), RelayError> {
     let Some(binary) = crate::platform::find_binary("codex") else {
         return Err(RelayError::ExternalCommand("codex binary not found".into()));
     };
@@ -159,6 +179,19 @@ fn run_codex_login(login_home: &Path, mode: AgentLoginMode) -> Result<(), RelayE
 
     let deadline = Instant::now() + Duration::from_secs(CODEX_LOGIN_TIMEOUT_SECS);
     let status = loop {
+        if cancel_requested.load(Ordering::SeqCst) {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = stdout_handle
+                .map(JoinHandle::join)
+                .transpose()
+                .map_err(|_| RelayError::Internal("codex login stdout reader panicked".into()))?;
+            let _ = stderr_handle
+                .map(JoinHandle::join)
+                .transpose()
+                .map_err(|_| RelayError::Internal("codex login stderr reader panicked".into()))?;
+            return Err(RelayError::ExternalCommand("codex login cancelled".into()));
+        }
         if let Some(status) = child
             .try_wait()
             .map_err(|error| RelayError::ExternalCommand(error.to_string()))?

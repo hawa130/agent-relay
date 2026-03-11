@@ -17,6 +17,7 @@ use chrono::Utc;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::Arc;
 
 pub use settings::{CodexSettings, CodexSettingsUpdateRequest};
 
@@ -307,8 +308,18 @@ impl AgentAdapter for CodexAdapter {
         nickname: Option<String>,
         priority: i32,
         mode: AgentLoginMode,
+        cancel_requested: Arc<std::sync::atomic::AtomicBool>,
     ) -> Result<AgentLinkResult, RelayError> {
-        login::login_profile(self, store, profiles_dir, nickname, priority, mode).await
+        login::login_profile(
+            self,
+            store,
+            profiles_dir,
+            nickname,
+            priority,
+            mode,
+            cancel_requested,
+        )
+        .await
     }
 
     async fn relink_profile(

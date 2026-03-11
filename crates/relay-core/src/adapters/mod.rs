@@ -11,6 +11,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 pub use codex::CodexAdapter;
 
@@ -38,6 +39,7 @@ pub trait AgentAdapter {
         nickname: Option<String>,
         priority: i32,
         mode: AgentLoginMode,
+        cancel_requested: Arc<AtomicBool>,
     ) -> Result<AgentLinkResult, RelayError>;
     async fn relink_profile(
         &self,

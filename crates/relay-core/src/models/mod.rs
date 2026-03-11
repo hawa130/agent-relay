@@ -38,9 +38,11 @@ pub use rpc::{
     RpcErrorResponse, RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo,
     RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
     SettingsUpdateParams, SettingsUpdatedPayload, SubscribeParams, SubscribeResult,
-    SwitchCompletedPayload, SwitchFailedPayload, SystemSettingsParams, UsageGetParams,
-    UsageResult, UsageUpdateTrigger, UsageUpdatedPayload, rpc_from_error, rpc_internal_error, rpc_invalid_params,
-    rpc_invalid_request, rpc_method_not_found,
+    SwitchCompletedPayload, SwitchFailedPayload, SystemSettingsParams, TaskCancelParams,
+    TaskCancelResult, TaskStartResult, TaskUpdate, TaskUpdatedPayload, UsageGetParams,
+    UsageResult, UsageUpdateTrigger, UsageUpdatedPayload, RelayTaskKind, RelayTaskStatus,
+    rpc_from_error, rpc_internal_error, rpc_invalid_params, rpc_invalid_request,
+    rpc_method_not_found,
 };
 pub use settings::AppSettings;
 pub use state::{ActiveState, StatusReport, SwitchCheckpoint, SwitchOutcome};

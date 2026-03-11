@@ -7,4 +7,5 @@ pub mod profile_service;
 pub mod query_coordinator;
 pub mod status_service;
 pub mod switch_service;
+pub mod task_manager;
 pub mod usage_service;

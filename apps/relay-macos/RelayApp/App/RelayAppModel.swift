@@ -2,6 +2,33 @@ import Defaults
 import Foundation
 import SwiftUI
 
+private final class TaskIDBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var taskID: String?
+    private var cancelRequested = false
+
+    func set(_ value: String) -> Bool {
+        lock.lock()
+        taskID = value
+        let shouldCancel = cancelRequested
+        lock.unlock()
+        return shouldCancel
+    }
+
+    func requestCancel() -> String? {
+        lock.lock()
+        cancelRequested = true
+        let value = taskID
+        lock.unlock()
+        return value
+    }
+}
+
+private enum TaskTerminalWaitOutcome {
+    case update(RelayTaskUpdate)
+    case daemonFailure(detail: String)
+}
+
 @MainActor
 public final class RelayAppModel: ObservableObject {
     @Published private(set) var status: StatusReport?
@@ -18,6 +45,7 @@ public final class RelayAppModel: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var isSwitching = false
     @Published private(set) var isMutatingProfiles = false
+    @Published private(set) var isLoggingIn = false
     @Published private(set) var isRefreshingEnabledUsage = false
     @Published private(set) var refreshingUsageProfileIds: Set<String> = []
     @Published var selectedProfileId: String?
@@ -34,6 +62,7 @@ public final class RelayAppModel: ObservableObject {
     private enum MutationPendingKey: Hashable {
         case switching
         case profileMutation
+        case loginTask
         case restartEngine
     }
 
@@ -44,6 +73,10 @@ public final class RelayAppModel: ObservableObject {
     private var queryPending: Set<QueryPendingKey> = []
     private var mutationPending: Set<MutationPendingKey> = []
     private var queryStates: [QueryStateKey: QueryStateItem] = [:]
+    private var taskUpdates: [String: RelayTaskUpdate] = [:]
+    private var taskWaiters: [String: CheckedContinuation<TaskTerminalWaitOutcome, Never>] = [:]
+    private var currentLoginTaskID: String?
+    private var loginCancellationRequested = false
 
     public init() {
         selectedProfileId = Defaults[.selectedProfileId]
@@ -319,45 +352,76 @@ public final class RelayAppModel: ObservableObject {
     }
 
     func loginProfile(agent: AgentKind, nickname: String?, priority: Int) async -> AddAccountResult {
-        guard !mutationPending.contains(.profileMutation) else {
+        guard !mutationPending.contains(.profileMutation), !mutationPending.contains(.loginTask) else {
             return .failed(detail: "Another profile change is already in progress.")
         }
 
-        beginMutation(.profileMutation)
+        beginMutation(.loginTask)
         defer {
-            endMutation(.profileMutation)
+            currentLoginTaskID = nil
+            loginCancellationRequested = false
+            endMutation(.loginTask)
         }
 
         do {
             try await ensureSessionStateLoaded()
-            let result = try await daemonClient.loginProfile(
-                agent: agent,
-                nickname: nickname,
-                priority: priority
-            )
-            selectProfile(result.profile.id)
-            lastErrorMessage = nil
-            return .success
+            loginCancellationRequested = false
+            currentLoginTaskID = nil
+            let taskIDBox = TaskIDBox()
+            let outcome = try await withTaskCancellationHandler {
+                let start = try await daemonClient.startLoginProfile(
+                    agent: agent,
+                    nickname: nickname,
+                    priority: priority
+                )
+                let shouldCancel = taskIDBox.set(start.taskId)
+                currentLoginTaskID = start.taskId
+                if loginCancellationRequested {
+                    _ = try? await daemonClient.cancelTask(taskId: start.taskId)
+                }
+                if shouldCancel {
+                    Task.detached { [daemonClient] in
+                        _ = try? await daemonClient.cancelTask(taskId: start.taskId)
+                    }
+                    try Task.checkCancellation()
+                }
+                let terminal = await waitForTaskTerminal(taskId: start.taskId)
+                switch terminal {
+                case let .update(taskUpdate):
+                    return handleLoginTaskUpdate(taskUpdate, agent: agent)
+                case let .daemonFailure(detail):
+                    return .failed(detail: detail)
+                }
+            } onCancel: {
+                guard let taskID = taskIDBox.requestCancel() else {
+                    return
+                }
+                Task.detached { [daemonClient] in
+                    _ = try? await daemonClient.cancelTask(taskId: taskID)
+                }
+            }
+            await applyAddAccountOutcome(outcome, agent: agent)
+            return outcome
         } catch {
             let outcome = addAccountResult(for: error, agent: agent)
-            switch outcome {
-            case .success, .cancelled:
-                lastErrorMessage = nil
-            case let .notSignedIn(detail):
-                lastErrorMessage = "\(agent.rawValue): Not signed in. \(detail)"
-            case let .failed(detail):
-                lastErrorMessage = detail
-                await notificationService.post(
-                    title: "Relay profile update failed",
-                    body: detail
-                )
-            }
+            await applyAddAccountOutcome(outcome, agent: agent)
             return outcome
         }
     }
 
     func addAccount(agent: AgentKind, priority: Int = 100) async -> AddAccountResult {
         await loginProfile(agent: agent, nickname: nil, priority: priority)
+    }
+
+    func cancelLogin() async {
+        guard mutationPending.contains(.loginTask), !loginCancellationRequested else {
+            return
+        }
+        loginCancellationRequested = true
+        guard let taskID = await waitForCurrentLoginTaskID() else {
+            return
+        }
+        _ = try? await daemonClient.cancelTask(taskId: taskID)
     }
 
     func exportDiagnostics() async {
@@ -545,10 +609,14 @@ public final class RelayAppModel: ObservableObject {
                     )
                 }
             }
+        case let .taskUpdated(payload):
+            applyTaskUpdate(payload.task)
+            finalizeStateUpdate()
         case let .healthUpdated(payload):
             engineConnectionState = payload.state
             if let detail = payload.detail, payload.state == .degraded {
                 lastErrorMessage = detail
+                failPendingTasks(detail: detail)
             }
             finalizeStateUpdate()
         }
@@ -557,6 +625,81 @@ public final class RelayAppModel: ObservableObject {
     private func triggerRefreshEnabledUsage(notifyOnFailure: Bool) {
         triggerBackgroundQuery([.usageAll], failureTitle: notifyOnFailure ? "Relay refresh failed" : nil) { [daemonClient] in
             _ = try await daemonClient.refreshEnabledUsage()
+        }
+    }
+
+    private func applyTaskUpdate(_ task: RelayTaskUpdate) {
+        taskUpdates[task.taskId] = task
+        if task.isTerminal, let waiter = taskWaiters.removeValue(forKey: task.taskId) {
+            waiter.resume(returning: .update(task))
+        }
+    }
+
+    private func waitForTaskTerminal(taskId: String) async -> TaskTerminalWaitOutcome {
+        if let existing = taskUpdates[taskId], existing.isTerminal {
+            return .update(existing)
+        }
+
+        return await withCheckedContinuation { continuation in
+            taskWaiters[taskId] = continuation
+        }
+    }
+
+    private func waitForCurrentLoginTaskID(
+        timeoutNanoseconds: UInt64 = 2_000_000_000
+    ) async -> String? {
+        if let currentLoginTaskID {
+            return currentLoginTaskID
+        }
+
+        let deadline = DispatchTime.now().uptimeNanoseconds + timeoutNanoseconds
+        while DispatchTime.now().uptimeNanoseconds < deadline {
+            if let currentLoginTaskID {
+                return currentLoginTaskID
+            }
+            if !mutationPending.contains(.loginTask) {
+                return nil
+            }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        return currentLoginTaskID
+    }
+
+    private func handleLoginTaskUpdate(
+        _ task: RelayTaskUpdate,
+        agent: AgentKind
+    ) -> AddAccountResult {
+        switch task.status {
+        case .pending:
+            return .failed(detail: "Login task did not complete.")
+        case .succeeded:
+            guard let result = task.profileLoginResult else {
+                lastErrorMessage = "\(agent.rawValue) login completed without a result."
+                return .failed(detail: "\(agent.rawValue) login completed without a result.")
+            }
+            selectProfile(result.profile.id)
+            lastErrorMessage = nil
+            return .success
+        case .cancelled:
+            return .notSignedIn(detail: "Browser sign-in was cancelled or did not complete.")
+        case .failed:
+            let detail =
+                task.message
+                ?? "\(task.errorCode ?? "RELAY_INTERNAL"): login failed"
+            if let errorCode = task.errorCode {
+                lastErrorMessage = "\(errorCode): \(detail)"
+            } else {
+                lastErrorMessage = detail
+            }
+            return .failed(detail: lastErrorMessage ?? detail)
+        }
+    }
+
+    private func failPendingTasks(detail: String) {
+        let pendingWaiters = taskWaiters
+        taskWaiters.removeAll()
+        for (_, waiter) in pendingWaiters {
+            waiter.resume(returning: .daemonFailure(detail: detail))
         }
     }
 
@@ -658,6 +801,7 @@ public final class RelayAppModel: ObservableObject {
         isRefreshing = !queryPending.isEmpty || isRefreshingEnabledUsage
         isSwitching = mutationPending.contains(.switching)
         isMutatingProfiles = mutationPending.contains(.profileMutation)
+        isLoggingIn = mutationPending.contains(.loginTask)
     }
 
     private func addAccountResult(for error: Error, agent: AgentKind) -> AddAccountResult {
@@ -676,6 +820,21 @@ public final class RelayAppModel: ObservableObject {
         }
 
         return .failed(detail: description.isEmpty ? "\(agent.rawValue) login failed." : description)
+    }
+
+    private func applyAddAccountOutcome(_ outcome: AddAccountResult, agent: AgentKind) async {
+        switch outcome {
+        case .success, .cancelled:
+            lastErrorMessage = nil
+        case let .notSignedIn(detail):
+            lastErrorMessage = "\(agent.rawValue): Not signed in. \(detail)"
+        case let .failed(detail):
+            lastErrorMessage = detail
+            await notificationService.post(
+                title: "Relay profile update failed",
+                body: detail
+            )
+        }
     }
 
     private func apply(initialState: RPCInitialState) {
