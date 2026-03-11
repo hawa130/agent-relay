@@ -168,6 +168,18 @@ struct UsageSnapshot: Decodable, Sendable {
     let autoSwitchReason: FailureReason?
     let canAutoSwitch: Bool
     let message: String?
+    let remoteError: UsageRemoteError?
+}
+
+struct UsageRemoteError: Decodable, Sendable, Equatable {
+    let kind: UsageRemoteErrorKind
+    let httpStatus: Int?
+}
+
+enum UsageRemoteErrorKind: String, Decodable, Sendable, Equatable {
+    case account = "Account"
+    case network = "Network"
+    case other = "Other"
 }
 
 struct CodexSettingsDraft: Encodable, Sendable {

@@ -11,7 +11,7 @@ struct MenuBarProfilePickerItem: View {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: presenter.profileSymbolName(profile: profile, usage: usage, isActive: isActive))
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
+                        .foregroundStyle(symbolColor)
                         .frame(width: 13, height: 13)
                         .padding(.top, 2)
 
@@ -26,7 +26,7 @@ struct MenuBarProfilePickerItem: View {
 
                             Text(presenter.profileStatusText(profile: profile, usage: usage, isActive: isActive))
                                 .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
+                                .foregroundStyle(statusColor)
                                 .lineLimit(1)
                         }
 
@@ -103,5 +103,37 @@ struct MenuBarProfilePickerItem: View {
 
     private var isDimmed: Bool {
         !(profile?.enabled ?? true)
+    }
+
+    private var symbolColor: Color {
+        guard let profile else {
+            return MenuBarHighlightStyle.primary(isHighlighted)
+        }
+
+        if let severity = presenter.profileStatusSeverity(
+            profile: profile,
+            usage: usage,
+            isActive: isActive
+        ) {
+            return MenuBarHighlightStyle.severity(isHighlighted, severity: severity)
+        }
+
+        return MenuBarHighlightStyle.primary(isHighlighted)
+    }
+
+    private var statusColor: Color {
+        guard let profile else {
+            return MenuBarHighlightStyle.secondary(isHighlighted)
+        }
+
+        if let severity = presenter.profileStatusSeverity(
+            profile: profile,
+            usage: usage,
+            isActive: isActive
+        ) {
+            return MenuBarHighlightStyle.severity(isHighlighted, severity: severity)
+        }
+
+        return MenuBarHighlightStyle.secondary(isHighlighted)
     }
 }

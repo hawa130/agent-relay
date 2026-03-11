@@ -70,7 +70,8 @@ final class MultiRingProgressViewTests: XCTestCase {
             ),
             autoSwitchReason: nil,
             canAutoSwitch: true,
-            message: nil
+            message: nil,
+            remoteError: nil
         )
 
         let items = snapshot.ringProgressItems

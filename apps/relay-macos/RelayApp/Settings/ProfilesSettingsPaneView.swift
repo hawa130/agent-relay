@@ -1,5 +1,69 @@
 import SwiftUI
 
+enum UsageAlertSeverity: Equatable {
+    case warning
+    case danger
+
+    var badgeKind: NativePreferencesTheme.Badge.Kind {
+        switch self {
+        case .warning:
+            return .warning
+        case .danger:
+            return .danger
+        }
+    }
+}
+
+struct UsageCardNote: Equatable {
+    let text: String
+    let severity: UsageAlertSeverity?
+}
+
+enum UsageCardNoteResolver {
+    static func note(usage: UsageSnapshot?, usageRefreshError: String?) -> UsageCardNote? {
+        if let note = usage?.userFacingNote {
+            return UsageCardNote(
+                text: note,
+                severity: severity(for: usage)
+            )
+        }
+
+        guard let error = usageRefreshError?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .nilIfEmpty
+        else {
+            return nil
+        }
+
+        return UsageCardNote(text: error, severity: .warning)
+    }
+
+    static func severity(for usage: UsageSnapshot?) -> UsageAlertSeverity? {
+        if let remoteError = usage?.remoteError {
+            switch remoteError.kind {
+            case .account:
+                return .danger
+            case .network, .other:
+                return .warning
+            }
+        }
+
+        if usage?.stale == true || usage?.source != .webEnhanced {
+            return .warning
+        }
+
+        return nil
+    }
+
+    static func color(for note: UsageCardNote) -> Color {
+        guard let severity = note.severity else {
+            return .secondary
+        }
+
+        return NativePreferencesTheme.Colors.semanticAccent(severity.badgeKind)
+    }
+}
+
 public struct ProfilesSettingsPaneView: View {
     @ObservedObject var model: ProfilesPaneModel
     @State private var deletingProfile: Profile?
@@ -301,6 +365,10 @@ public struct ProfilesSettingsPaneView: View {
     private func usageCard(_ profile: Profile) -> some View {
         let isFetchingUsage = model.isFetchingUsage(profileId: profile.id)
         let usageRefreshError = model.usageRefreshError(profileId: profile.id)
+        let note = UsageCardNoteResolver.note(
+            usage: model.usageSnapshot(for: profile.id),
+            usageRefreshError: usageRefreshError
+        )
         return SettingsSurfaceCard(
             "Usage",
             headerAccessory: AnyView(
@@ -326,20 +394,13 @@ public struct ProfilesSettingsPaneView: View {
         ) {
             if let usage = model.usageSnapshot(for: profile.id) {
                 VStack(alignment: .leading, spacing: 10) {
-                    if let usageRefreshError {
-                        Label(usageRefreshError, systemImage: "exclamationmark.triangle.fill")
-                            .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
-                            .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
                     UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
                     UsageMetricRow(title: "Weekly", window: usage.weekly, stale: usage.stale)
 
-                    if let note = usage.userFacingNote {
-                        Text(note)
+                    if let note {
+                        Text(note.text)
                             .font(NativePreferencesTheme.Typography.detail)
-                            .foregroundStyle(usage.stale ? NativePreferencesTheme.Colors.semanticAccent(.warning) : .secondary)
+                            .foregroundStyle(UsageCardNoteResolver.color(for: note))
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
@@ -363,9 +424,10 @@ public struct ProfilesSettingsPaneView: View {
                             Text("Refreshing usage…")
                                 .foregroundStyle(.secondary)
                         }
-                    } else if let usageRefreshError {
-                        Label(usageRefreshError, systemImage: "exclamationmark.triangle.fill")
-                            .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
+                    } else if let note {
+                        Text(note.text)
+                            .font(NativePreferencesTheme.Typography.detail)
+                            .foregroundStyle(UsageCardNoteResolver.color(for: note))
                     } else {
                         Text("Usage data unavailable.")
                             .foregroundStyle(.secondary)
@@ -435,6 +497,12 @@ public struct ProfilesSettingsPaneView: View {
 
     private func profileCount(for item: ProfilesSidebarFilter) -> Int {
         model.profileCount(for: item)
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        isEmpty ? nil : self
     }
 }
 
@@ -551,6 +619,7 @@ private struct ProfileListRow: View {
     var statusIndicator: ProfileListRowStatusIndicator.Kind? {
         ProfileListRowStatusIndicator.Kind(
             isFetchingUsage: isFetchingUsage,
+            usage: usage,
             usageRefreshError: usageRefreshError,
             isStale: usage?.stale == true
         )
@@ -570,11 +639,20 @@ struct ProfileListRowStatusIndicator: View {
     enum Kind: Equatable {
         case loading
         case warning(message: String)
+        case danger(message: String)
         case stale
 
-        init?(isFetchingUsage: Bool, usageRefreshError: String?, isStale: Bool) {
+        init?(isFetchingUsage: Bool, usage: UsageSnapshot?, usageRefreshError: String?, isStale: Bool) {
             if isFetchingUsage {
                 self = .loading
+            } else if let note = usage?.userFacingNote,
+                      let severity = UsageCardNoteResolver.severity(for: usage) {
+                switch severity {
+                case .warning:
+                    self = .warning(message: note)
+                case .danger:
+                    self = .danger(message: note)
+                }
             } else if let usageRefreshError, !usageRefreshError.isEmpty {
                 self = .warning(message: usageRefreshError)
             } else if isStale {
@@ -597,6 +675,11 @@ struct ProfileListRowStatusIndicator: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
+                    .help(message)
+            case let .danger(message):
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.danger))
                     .help(message)
             case .stale:
                 Image(systemName: "exclamationmark.triangle")

@@ -259,8 +259,8 @@ struct MenuBarPresenter {
         session.menuBarTitle
     }
 
-    func currentCardNotes(usage: UsageSnapshot?) -> [String] {
-        usage?.userFacingNote.map { [$0] } ?? []
+    func currentCardNotes(usage: UsageSnapshot?) -> [UsageCardNote] {
+        UsageCardNoteResolver.note(usage: usage, usageRefreshError: nil).map { [$0] } ?? []
     }
 
     func profileStatusText(profile: Profile, usage: UsageSnapshot?, isActive: Bool) -> String {
@@ -277,6 +277,14 @@ struct MenuBarPresenter {
         }
 
         return "Ready"
+    }
+
+    func profileStatusSeverity(profile: Profile, usage: UsageSnapshot?, isActive: Bool) -> UsageAlertSeverity? {
+        guard !isActive, profile.enabled else {
+            return nil
+        }
+
+        return UsageCardNoteResolver.severity(for: usage)
     }
 
     func profileFooterText(profile: Profile, usage: UsageSnapshot?) -> String? {
@@ -302,6 +310,13 @@ struct MenuBarPresenter {
 
         if !profile.enabled {
             return "slash.circle"
+        }
+
+        if let severity = profileStatusSeverity(profile: profile, usage: usage, isActive: isActive) {
+            switch severity {
+            case .warning, .danger:
+                return "exclamationmark.triangle.fill"
+            }
         }
 
         switch (usage?.weekly.status ?? usage?.session.status) ?? .unknown {

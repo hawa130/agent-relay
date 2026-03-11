@@ -261,6 +261,7 @@ mod tests {
             auto_switch_reason: None,
             can_auto_switch: false,
             message: Some("ok".into()),
+            remote_error: None,
         }
     }
 

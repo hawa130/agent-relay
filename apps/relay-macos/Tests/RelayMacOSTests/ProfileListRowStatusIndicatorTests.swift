@@ -5,6 +5,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
     func testLoadingIndicatorTakesPrecedenceOverWarning() {
         let indicator = ProfileListRowStatusIndicator.Kind(
             isFetchingUsage: true,
+            usage: nil,
             usageRefreshError: "remote usage timed out",
             isStale: true
         )
@@ -15,6 +16,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
     func testWarningIndicatorTakesPrecedenceOverStale() {
         let indicator = ProfileListRowStatusIndicator.Kind(
             isFetchingUsage: false,
+            usage: nil,
             usageRefreshError: "remote usage timed out",
             isStale: true
         )
@@ -25,6 +27,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
     func testWarningIndicatorUsesErrorMessage() {
         let indicator = ProfileListRowStatusIndicator.Kind(
             isFetchingUsage: false,
+            usage: nil,
             usageRefreshError: "remote usage timed out",
             isStale: false
         )
@@ -35,6 +38,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
     func testStaleIndicatorShowsWhenUsageIsOld() {
         let indicator = ProfileListRowStatusIndicator.Kind(
             isFetchingUsage: false,
+            usage: nil,
             usageRefreshError: nil,
             isStale: true
         )
@@ -45,6 +49,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
     func testIndicatorIsNilWithoutLoadingOrError() {
         let indicator = ProfileListRowStatusIndicator.Kind(
             isFetchingUsage: false,
+            usage: nil,
             usageRefreshError: nil,
             isStale: false
         )
@@ -55,10 +60,53 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
     func testIndicatorIgnoresEmptyErrorMessage() {
         let indicator = ProfileListRowStatusIndicator.Kind(
             isFetchingUsage: false,
+            usage: nil,
             usageRefreshError: "",
             isStale: false
         )
 
         XCTAssertNil(indicator)
+    }
+
+    func testDangerIndicatorUsesStructuredAccountError() {
+        let usage = UsageSnapshot(
+            profileId: "p_1",
+            profileName: "work",
+            source: .webEnhanced,
+            confidence: .medium,
+            stale: true,
+            lastRefreshedAt: Date(),
+            nextResetAt: nil,
+            session: UsageWindow(
+                usedPercent: nil,
+                windowMinutes: 300,
+                resetAt: nil,
+                status: .unknown,
+                exact: false
+            ),
+            weekly: UsageWindow(
+                usedPercent: nil,
+                windowMinutes: 10080,
+                resetAt: nil,
+                status: .unknown,
+                exact: false
+            ),
+            autoSwitchReason: nil,
+            canAutoSwitch: false,
+            message: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required",
+            remoteError: UsageRemoteError(kind: .account, httpStatus: 402)
+        )
+
+        let indicator = ProfileListRowStatusIndicator.Kind(
+            isFetchingUsage: false,
+            usage: usage,
+            usageRefreshError: nil,
+            isStale: true
+        )
+
+        XCTAssertEqual(
+            indicator,
+            .danger(message: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required")
+        )
     }
 }

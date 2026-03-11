@@ -201,6 +201,7 @@ fn collect_session_snapshot(
         auto_switch_reason: None,
         can_auto_switch: false,
         message: None,
+        remote_error: None,
     };
     if stale {
         snapshot.message = Some("Usage may be outdated.".into());
@@ -230,6 +231,7 @@ fn snapshot_from_rate_limit_snapshot(
         auto_switch_reason: None,
         can_auto_switch: false,
         message: message.map(str::to_string),
+        remote_error: None,
     };
     apply_auto_switch_policy(&mut snapshot);
     snapshot

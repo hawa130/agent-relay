@@ -57,7 +57,8 @@ final class MenuBarUsageIconTests: XCTestCase {
             ),
             autoSwitchReason: nil,
             canAutoSwitch: true,
-            message: nil
+            message: nil,
+            remoteError: nil
         )
     }
 }
