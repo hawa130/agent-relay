@@ -148,6 +148,8 @@ pub enum RelayRpcTopic {
     SwitchCompleted,
     #[serde(rename = "switch.failed")]
     SwitchFailed,
+    #[serde(rename = "task.updated")]
+    TaskUpdated,
     #[serde(rename = "health.updated")]
     HealthUpdated,
 }
@@ -209,6 +211,23 @@ pub struct ImportProfileParams {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoginProfileParams {
     pub request: AgentLoginRequest,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskCancelParams {
+    pub task_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskStartResult {
+    pub task_id: String,
+    pub kind: RelayTaskKind,
+    pub accepted: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskCancelResult {
+    pub accepted: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -380,6 +399,41 @@ pub struct SwitchFailedPayload {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub profile_id: Option<String>,
     pub trigger: SwitchTrigger,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RelayTaskKind {
+    #[serde(rename = "ProfileLogin")]
+    ProfileLogin,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RelayTaskStatus {
+    Pending,
+    Succeeded,
+    Failed,
+    Cancelled,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskUpdate {
+    pub task_id: String,
+    pub kind: RelayTaskKind,
+    pub status: RelayTaskStatus,
+    pub started_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub finished_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskUpdatedPayload {
+    pub task: TaskUpdate,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

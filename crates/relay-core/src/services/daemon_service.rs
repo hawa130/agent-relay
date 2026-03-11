@@ -6,14 +6,16 @@ use crate::models::{
     LoginProfileParams, LogsTailParams, LogsTailResult, ProfileIdParams,
     ProfilesUpdatedPayload, QueryStateItem, QueryStateKey, QueryStateKind, QueryStateStatus,
     QueryStateTrigger, QueryStateUpdatedPayload, RefreshUsageParams, RefreshUsageResult,
-    RelayRpcTopic, RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo,
-    RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
+    RelayRpcTopic, RelayTaskKind, RpcNotification, RpcRequest, RpcServerCapabilities,
+    RpcServerInfo, RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
     SettingsUpdateParams, SettingsUpdatedPayload, SubscribeParams, SubscribeResult,
-    SwitchCompletedPayload, SwitchFailedPayload, SwitchTrigger, UsageGetParams, UsageResult,
+    SwitchCompletedPayload, SwitchFailedPayload, SwitchTrigger, TaskCancelParams,
+    TaskCancelResult, TaskStartResult, TaskUpdatedPayload, UsageGetParams, UsageResult,
     UsageUpdateTrigger, UsageUpdatedPayload, rpc_from_error, rpc_internal_error,
     rpc_invalid_params, rpc_invalid_request, rpc_method_not_found,
 };
 use crate::services::query_coordinator::QueryCoordinator;
+use crate::services::task_manager::{TaskCancellationHandle, TaskManager};
 use crate::{
     ActivityEventsQuery, CodexSettingsUpdateRequest, FailureReason, Profile, RelayApp,
     RelayError, SystemSettingsUpdateRequest,
@@ -25,7 +27,9 @@ use serde_json::Value;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::AtomicBool;
 use tokio::sync::mpsc;
+use tokio::sync::Mutex as AsyncMutex;
 
 struct DaemonSessionState {
     subscribed_topics: HashSet<RelayRpcTopic>,
@@ -149,7 +153,10 @@ pub struct DaemonService {
     hub: DaemonHub,
     started_at: chrono::DateTime<Utc>,
     usage_queries: QueryCoordinator<QueryStateKey, crate::UsageSnapshot, RelayError>,
-    shutdown_requested: bool,
+    tasks: TaskManager,
+    profile_write_lock: Arc<AsyncMutex<()>>,
+    settings_lock: Arc<AsyncMutex<()>>,
+    shutdown_requested: Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl DaemonService {
@@ -162,12 +169,16 @@ impl DaemonService {
             hub: DaemonHub::new(notifications),
             started_at: Utc::now(),
             usage_queries: QueryCoordinator::new(10),
-            shutdown_requested: false,
+            tasks: TaskManager::new(),
+            profile_write_lock: Arc::new(AsyncMutex::new(())),
+            settings_lock: Arc::new(AsyncMutex::new(())),
+            shutdown_requested: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         }
     }
 
     pub fn shutdown_requested(&self) -> bool {
         self.shutdown_requested
+            .load(std::sync::atomic::Ordering::SeqCst)
     }
 
     pub async fn current_refresh_interval(&self) -> Result<i64, RelayError> {
@@ -180,12 +191,12 @@ impl DaemonService {
         Ok(())
     }
 
-    pub async fn startup_tick(&mut self) -> Result<(), RelayError> {
+    pub async fn startup_tick(&self) -> Result<(), RelayError> {
         self.refresh_and_maybe_auto_switch(UsageUpdateTrigger::Startup)
             .await
     }
 
-    pub async fn interval_tick(&mut self) -> Result<(), RelayError> {
+    pub async fn interval_tick(&self) -> Result<(), RelayError> {
         self.refresh_and_maybe_auto_switch(UsageUpdateTrigger::Interval)
             .await
     }
@@ -276,10 +287,7 @@ impl DaemonService {
         })
     }
 
-    pub async fn handle_request(
-        &mut self,
-        request: RpcRequest,
-    ) -> Result<RpcSuccessResponse, crate::RpcErrorObject> {
+    pub async fn handle_request(&self, request: RpcRequest) -> Result<RpcSuccessResponse, crate::RpcErrorObject> {
         if request.jsonrpc != "2.0" {
             return Err(rpc_invalid_request("jsonrpc must equal 2.0"));
         }
@@ -313,6 +321,7 @@ impl DaemonService {
                 )?
             }
             "relay/profiles/add" => {
+                let _guard = self.profile_write_lock.lock().await;
                 let params: AddProfileParams = parse_params(request.params)?;
                 let profile = self
                     .app
@@ -328,6 +337,7 @@ impl DaemonService {
                 serialize(profile)?
             }
             "relay/profiles/edit" => {
+                let _guard = self.profile_write_lock.lock().await;
                 let params: EditProfileParams = parse_params(request.params)?;
                 let profile = self
                     .app
@@ -343,6 +353,7 @@ impl DaemonService {
                 serialize(profile)?
             }
             "relay/profiles/import" => {
+                let _guard = self.profile_write_lock.lock().await;
                 let params: ImportProfileParams = parse_params(request.params)?;
                 let profile = self
                     .app
@@ -357,22 +368,11 @@ impl DaemonService {
                     .map_err(|e| rpc_internal_error(e.to_string()))?;
                 serialize(profile)?
             }
-            "relay/profiles/login" => {
-                let params: LoginProfileParams = parse_params(request.params)?;
-                let result = self
-                    .app
-                    .login_profile(params.request)
-                    .await
-                    .map_err(|e| rpc_from_error(&e))?;
-                self.publish_profiles_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                self.publish_active_state_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                serialize(result)?
+            "relay/profiles/login/start" => {
+                serialize(self.handle_login_start(request.params).await?)?
             }
             "relay/profiles/remove" => {
+                let _guard = self.profile_write_lock.lock().await;
                 let params: ProfileIdParams = parse_params(request.params)?;
                 let profile = self
                     .app
@@ -388,6 +388,7 @@ impl DaemonService {
                 serialize(profile)?
             }
             "relay/profiles/set_enabled" => {
+                let _guard = self.profile_write_lock.lock().await;
                 let params: SetProfileEnabledParams = parse_params(request.params)?;
                 let profile = self
                     .app
@@ -423,6 +424,7 @@ impl DaemonService {
                 serialize(self.handle_doctor_refresh().await?)?
             }
             "relay/switch/activate" => {
+                let _guard = self.profile_write_lock.lock().await;
                 let params: ProfileIdParams = parse_params(request.params)?;
                 serialize(
                     self.handle_switch_result(
@@ -433,14 +435,17 @@ impl DaemonService {
                     .await?,
                 )?
             }
-            "relay/switch/next" => serialize(
-                self.handle_switch_result(
-                    self.app.switch_next_profile().await,
-                    SwitchTrigger::Manual,
-                    None,
-                )
-                .await?,
-            )?,
+            "relay/switch/next" => {
+                let _guard = self.profile_write_lock.lock().await;
+                serialize(
+                    self.handle_switch_result(
+                        self.app.switch_next_profile().await,
+                        SwitchTrigger::Manual,
+                        None,
+                    )
+                    .await?,
+                )?
+            }
             "relay/settings/get" => serialize(SettingsResult {
                 app: self.app.settings().await.map_err(|e| rpc_from_error(&e))?,
                 codex: self
@@ -452,6 +457,7 @@ impl DaemonService {
             "relay/settings/update" => {
                 serialize(self.handle_settings_update(request.params).await?)?
             }
+            "relay/tasks/cancel" => serialize(self.handle_task_cancel(request.params).await?)?,
             "relay/activity/events/list" => {
                 let params: ActivityEventsParams = parse_params(request.params)?;
                 serialize(ActivityEventsResult {
@@ -482,7 +488,8 @@ impl DaemonService {
                     .map_err(|e| rpc_from_error(&e))?,
             )?,
             "shutdown" => {
-                self.shutdown_requested = true;
+                self.shutdown_requested
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
                 serialize(serde_json::json!({ "accepted": true }))?
             }
             other => return Err(rpc_method_not_found(other)),
@@ -495,7 +502,7 @@ impl DaemonService {
         })
     }
 
-    async fn handle_initialize(&mut self, params: Value) -> Result<Value, crate::RpcErrorObject> {
+    async fn handle_initialize(&self, params: Value) -> Result<Value, crate::RpcErrorObject> {
         let _: InitializeParams = parse_params(params)?;
         self.hub.set_connection_state(EngineConnectionState::Ready);
         serialize(InitializeResult {
@@ -532,7 +539,7 @@ impl DaemonService {
         })
     }
 
-    async fn handle_subscribe(&mut self, params: Value) -> Result<Value, crate::RpcErrorObject> {
+    async fn handle_subscribe(&self, params: Value) -> Result<Value, crate::RpcErrorObject> {
         let params: SubscribeParams = parse_params(params)?;
         self.hub.subscribe(&params.topics);
         self.publish_subscribed_snapshots(&params.topics)
@@ -543,7 +550,7 @@ impl DaemonService {
         })
     }
 
-    async fn handle_unsubscribe(&mut self, params: Value) -> Result<Value, crate::RpcErrorObject> {
+    async fn handle_unsubscribe(&self, params: Value) -> Result<Value, crate::RpcErrorObject> {
         let params: SubscribeParams = parse_params(params)?;
         serialize(SubscribeResult {
             subscribed_topics: self.hub.unsubscribe(&params.topics),
@@ -551,7 +558,7 @@ impl DaemonService {
     }
 
     async fn handle_refresh(
-        &mut self,
+        &self,
         params: Value,
     ) -> Result<RefreshUsageResult, crate::RpcErrorObject> {
         let params: RefreshUsageParams = parse_params(params)?;
@@ -586,7 +593,7 @@ impl DaemonService {
     }
 
     async fn handle_activity_refresh(
-        &mut self,
+        &self,
     ) -> Result<ActivityRefreshResult, crate::RpcErrorObject> {
         let events = self
             .app
@@ -611,7 +618,7 @@ impl DaemonService {
     }
 
     async fn handle_doctor_refresh(
-        &mut self,
+        &self,
     ) -> Result<crate::DoctorReport, crate::RpcErrorObject> {
         let report = self.app.doctor_report().map_err(|e| rpc_from_error(&e))?;
         self.publish_doctor_updated(report.clone())
@@ -620,10 +627,53 @@ impl DaemonService {
         Ok(report)
     }
 
+    async fn handle_login_start(
+        &self,
+        params: Value,
+    ) -> Result<TaskStartResult, crate::RpcErrorObject> {
+        let params: LoginProfileParams = parse_params(params)?;
+        let cancel_requested = Arc::new(AtomicBool::new(false));
+        let cancel_handle = {
+            let cancel_requested = cancel_requested.clone();
+            TaskCancellationHandle::new(move || {
+                cancel_requested.store(true, std::sync::atomic::Ordering::SeqCst);
+            })
+        };
+        let pending = self.tasks.start(RelayTaskKind::ProfileLogin, cancel_handle);
+        let task_id = pending.task_id.clone();
+        self.publish_task_updated(pending.clone())
+            .await
+            .map_err(|e| rpc_internal_error(e.to_string()))?;
+
+        let service = self.clone();
+        tokio::task::spawn_local(async move {
+            service
+                .run_login_task(task_id, params.request, cancel_requested)
+                .await;
+        });
+
+        Ok(TaskStartResult {
+            task_id: pending.task_id,
+            kind: RelayTaskKind::ProfileLogin,
+            accepted: true,
+        })
+    }
+
+    async fn handle_task_cancel(
+        &self,
+        params: Value,
+    ) -> Result<TaskCancelResult, crate::RpcErrorObject> {
+        let params: TaskCancelParams = parse_params(params)?;
+        Ok(TaskCancelResult {
+            accepted: self.tasks.cancel(&params.task_id),
+        })
+    }
+
     async fn handle_settings_update(
-        &mut self,
+        &self,
         params: Value,
     ) -> Result<SettingsResult, crate::RpcErrorObject> {
+        let _guard = self.settings_lock.lock().await;
         let params: SettingsUpdateParams = parse_params(params)?;
         let app = if let Some(app_patch) = params.app {
             self.app
@@ -662,7 +712,7 @@ impl DaemonService {
     }
 
     async fn handle_switch_result(
-        &mut self,
+        &self,
         result: Result<crate::SwitchReport, RelayError>,
         trigger: SwitchTrigger,
         profile_id: Option<String>,
@@ -689,10 +739,7 @@ impl DaemonService {
         }
     }
 
-    async fn refresh_and_maybe_auto_switch(
-        &mut self,
-        trigger: UsageUpdateTrigger,
-    ) -> Result<(), RelayError> {
+    async fn refresh_and_maybe_auto_switch(&self, trigger: UsageUpdateTrigger) -> Result<(), RelayError> {
         let profiles: Vec<Profile> = self
             .app
             .list_profiles()
@@ -721,6 +768,7 @@ impl DaemonService {
             return Ok(());
         }
 
+        let _guard = self.profile_write_lock.lock().await;
         match self.app.switch_next_profile().await {
             Ok(report) => {
                 self.publish_switch_completed(report, SwitchTrigger::Auto)
@@ -859,6 +907,10 @@ impl DaemonService {
         )
     }
 
+    async fn publish_task_updated(&self, task: crate::TaskUpdate) -> Result<(), RelayError> {
+        self.hub.publish(RelayRpcTopic::TaskUpdated, TaskUpdatedPayload { task })
+    }
+
     pub async fn publish_health_update(
         &self,
         state: EngineConnectionState,
@@ -872,7 +924,7 @@ impl DaemonService {
     }
 
     async fn publish_subscribed_snapshots(
-        &mut self,
+        &self,
         topics: &[RelayRpcTopic],
     ) -> Result<(), RelayError> {
         for topic in topics {
@@ -921,7 +973,9 @@ impl DaemonService {
                     let report = self.app.doctor_report()?;
                     self.publish_doctor_updated(report).await?;
                 }
-                RelayRpcTopic::SwitchCompleted | RelayRpcTopic::SwitchFailed => {}
+                RelayRpcTopic::SwitchCompleted
+                | RelayRpcTopic::SwitchFailed
+                | RelayRpcTopic::TaskUpdated => {}
                 RelayRpcTopic::HealthUpdated => {
                     self.publish_health_update(EngineConnectionState::Ready, None)
                         .await?;
@@ -1044,6 +1098,71 @@ impl DaemonService {
     async fn clear_query_state(&self, key: &QueryStateKey) -> Result<(), RelayError> {
         self.hub.clear_query_state(key);
         self.publish_query_state_updated().await
+    }
+
+    async fn run_login_task(
+        &self,
+        task_id: String,
+        request: crate::AgentLoginRequest,
+        cancel_requested: Arc<AtomicBool>,
+    ) {
+        let _guard = self.profile_write_lock.lock().await;
+        let result = self
+            .app
+            .login_profile_cancellable(request, cancel_requested.clone())
+            .await;
+
+        let update_result = match result {
+            Ok(result) => {
+                if cancel_requested.load(std::sync::atomic::Ordering::SeqCst) {
+                    self.tasks.finish_cancelled(
+                        &task_id,
+                        Some("browser sign-in was cancelled".into()),
+                    )
+                } else {
+                    match serialize(result.clone()) {
+                        Ok(payload) => {
+                            if let Err(error) = self.publish_profiles_updated().await {
+                                self.tasks.finish_failed(
+                                    &task_id,
+                                    error.code().as_str().to_string(),
+                                    error.to_string(),
+                                )
+                            } else {
+                                self.tasks.finish_succeeded(
+                                    &task_id,
+                                    payload,
+                                    Some("profile login completed".into()),
+                                )
+                            }
+                        }
+                        Err(error) => self.tasks.finish_failed(
+                            &task_id,
+                            crate::ErrorCode::Internal.as_str().to_string(),
+                            error.message,
+                        ),
+                    }
+                }
+            }
+            Err(error) => {
+                if cancel_requested.load(std::sync::atomic::Ordering::SeqCst) {
+                    self.tasks.finish_cancelled(
+                        &task_id,
+                        Some("browser sign-in was cancelled".into()),
+                    )
+                } else {
+                    self.tasks.finish_failed(
+                        &task_id,
+                        error.code().as_str().to_string(),
+                        error.to_string(),
+                    )
+                }
+            }
+        };
+
+        if let Some(update) = update_result {
+            let _ = self.publish_task_updated(update).await;
+        }
     }
 }
 

@@ -27,8 +27,10 @@ pub use models::{
     SettingsUpdatedPayload, SkippedRecoveredProfile, StatusReport, SubscribeParams,
     SubscribeResult, SwitchCheckpoint, SwitchCompletedPayload, SwitchFailedPayload,
     SwitchHistoryEntry, SwitchOutcome, SwitchReport, SwitchTrigger, SystemSettingsParams,
-    SystemStatusReport, UsageCache, UsageConfidence, UsageGetParams, UsageResult, UsageSnapshot,
-    UsageSource, UsageSourceMode, UsageStatus, UsageUpdateTrigger, UsageUpdatedPayload,
-    UsageWindow, ActivityEventsUpdatedPayload, ActivityLogsUpdatedPayload, ActivityRefreshResult,
+    SystemStatusReport, TaskCancelParams, TaskCancelResult, TaskStartResult, TaskUpdate,
+    TaskUpdatedPayload, RelayTaskKind, RelayTaskStatus, UsageCache, UsageConfidence,
+    UsageGetParams, UsageResult, UsageSnapshot, UsageSource, UsageSourceMode, UsageStatus,
+    UsageUpdateTrigger, UsageUpdatedPayload, UsageWindow, ActivityEventsUpdatedPayload,
+    ActivityLogsUpdatedPayload, ActivityRefreshResult,
 };
 pub use services::daemon_service::DaemonService;

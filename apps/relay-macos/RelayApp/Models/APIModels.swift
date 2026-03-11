@@ -340,6 +340,7 @@ enum RelaySessionUpdate: Sendable {
     case doctorUpdated(DoctorUpdatedNotification)
     case switchCompleted(SwitchCompletedNotification)
     case switchFailed(SwitchFailedNotification)
+    case taskUpdated(TaskUpdatedNotification)
     case healthUpdated(HealthUpdatedNotification)
 }
 
@@ -417,6 +418,98 @@ struct SwitchFailedNotification: Decodable, Sendable {
     let message: String
     let profileId: String?
     let trigger: SwitchTrigger
+}
+
+struct TaskStartResult: Decodable, Sendable {
+    let taskId: String
+    let kind: RelayTaskKind
+    let accepted: Bool
+}
+
+struct TaskCancelResult: Decodable, Sendable {
+    let accepted: Bool
+}
+
+struct TaskUpdatedNotification: Decodable, Sendable {
+    let task: RelayTaskUpdate
+}
+
+struct RelayTaskUpdate: Decodable, Sendable {
+    let taskId: String
+    let kind: RelayTaskKind
+    let status: RelayTaskStatus
+    let startedAt: Date
+    let finishedAt: Date?
+    let message: String?
+    let errorCode: String?
+    let profileLoginResult: AgentLinkResult?
+
+    private enum CodingKeys: String, CodingKey {
+        case taskId
+        case kind
+        case status
+        case startedAt
+        case finishedAt
+        case message
+        case errorCode
+        case result
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        taskId = try container.decode(String.self, forKey: .taskId)
+        kind = try container.decode(RelayTaskKind.self, forKey: .kind)
+        status = try container.decode(RelayTaskStatus.self, forKey: .status)
+        startedAt = try container.decode(Date.self, forKey: .startedAt)
+        finishedAt = try container.decodeIfPresent(Date.self, forKey: .finishedAt)
+        message = try container.decodeIfPresent(String.self, forKey: .message)
+        errorCode = try container.decodeIfPresent(String.self, forKey: .errorCode)
+
+        switch kind {
+        case .profileLogin:
+            profileLoginResult = try container.decodeIfPresent(AgentLinkResult.self, forKey: .result)
+        }
+    }
+
+    init(
+        taskId: String,
+        kind: RelayTaskKind,
+        status: RelayTaskStatus,
+        startedAt: Date,
+        finishedAt: Date?,
+        message: String?,
+        errorCode: String?,
+        profileLoginResult: AgentLinkResult?
+    ) {
+        self.taskId = taskId
+        self.kind = kind
+        self.status = status
+        self.startedAt = startedAt
+        self.finishedAt = finishedAt
+        self.message = message
+        self.errorCode = errorCode
+        self.profileLoginResult = profileLoginResult
+    }
+
+    var isTerminal: Bool {
+        switch status {
+        case .succeeded, .failed, .cancelled:
+            return true
+        case .pending:
+            return false
+        }
+    }
+}
+
+enum RelayTaskKind: String, Decodable, Sendable {
+    case profileLogin = "ProfileLogin"
+}
+
+enum RelayTaskStatus: String, Decodable, Sendable {
+    case pending = "Pending"
+    case succeeded = "Succeeded"
+    case failed = "Failed"
+    case cancelled = "Cancelled"
 }
 
 struct HealthUpdatedNotification: Decodable, Sendable {
@@ -512,6 +605,10 @@ struct AgentLinkResult: Decodable, Sendable {
     let profile: Profile
     let probeIdentity: ProfileProbeIdentity
     let activated: Bool
+}
+
+struct RPCTaskID: Encodable, Sendable {
+    let taskId: String
 }
 
 enum AgentKind: String, Codable, Sendable {

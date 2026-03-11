@@ -122,6 +122,51 @@ final class RelayDaemonClientTests: XCTestCase {
         await client.stop()
     }
 
+    func testLoginStartAndCancelUseTaskNotifications() async throws {
+        let fixture = try RelayDaemonFixture.make(mode: "login_task_updates")
+        defer { fixture.cleanup() }
+
+        let client = RelayDaemonClient(
+            relayCLIPathOverride: fixture.scriptPath,
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "login_task_updates"]
+        )
+
+        _ = try await client.start()
+        let pendingTask = Task {
+            try await nextNotification(from: client.notifications)
+        }
+
+        let started = try await client.startLoginProfile(
+            agent: .codex,
+            nickname: "browser",
+            priority: 90
+        )
+        XCTAssertTrue(started.accepted)
+        XCTAssertEqual(started.kind, .profileLogin)
+
+        let pending = try await pendingTask.value
+        guard case let .taskUpdated(payload) = pending else {
+            return XCTFail("expected task.updated notification")
+        }
+        XCTAssertEqual(payload.task.taskId, started.taskId)
+        XCTAssertEqual(payload.task.status, .pending)
+
+        let cancelledTask = Task {
+            try await nextNotification(from: client.notifications)
+        }
+        let cancelled = try await client.cancelTask(taskId: started.taskId)
+        XCTAssertTrue(cancelled.accepted)
+
+        let terminal = try await cancelledTask.value
+        guard case let .taskUpdated(cancelPayload) = terminal else {
+            return XCTFail("expected cancelled task.updated notification")
+        }
+        XCTAssertEqual(cancelPayload.task.taskId, started.taskId)
+        XCTAssertEqual(cancelPayload.task.status, .cancelled)
+
+        await client.stop()
+    }
+
     func testPendingRequestFailsWhenDaemonExitsUnexpectedly() async throws {
         let fixture = try RelayDaemonFixture.make(mode: "crash_on_status")
         defer { fixture.cleanup() }
@@ -300,7 +345,7 @@ EOF
         session/subscribe)
           printf '%s\n' 'rpc session/subscribe' >> "$script_dir/commands.log"
           cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","query_state.updated","active_state.updated","switch.completed","switch.failed","health.updated"]}}
+{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","query_state.updated","active_state.updated","switch.completed","switch.failed","task.updated","health.updated"]}}
 EOF
           ;;
         relay/status/get)
@@ -348,6 +393,30 @@ EOF
           cat <<EOF
 {"jsonrpc":"2.0","id":"$id","result":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}]}}
 EOF
+          ;;
+        relay/profiles/login/start)
+          printf '%s\n' 'rpc relay/profiles/login/start' >> "$script_dir/commands.log"
+          cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"task_id":"task-login-1","kind":"ProfileLogin","accepted":true}}
+EOF
+          if [ "$mode" = "login_task_updates" ]; then
+            sleep 0.05
+            cat <<EOF
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Pending","started_at":"2026-03-08T12:27:12Z","finished_at":null,"message":null,"error_code":null,"result":null}}}}
+EOF
+          fi
+          ;;
+        relay/tasks/cancel)
+          printf '%s\n' 'rpc relay/tasks/cancel' >> "$script_dir/commands.log"
+          cat <<EOF
+{"jsonrpc":"2.0","id":"$id","result":{"accepted":true}}
+EOF
+          if [ "$mode" = "login_task_updates" ]; then
+            sleep 0.05
+            cat <<EOF
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":5,"timestamp":"2026-03-08T12:27:13Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Cancelled","started_at":"2026-03-08T12:27:12Z","finished_at":"2026-03-08T12:27:13Z","message":"cancelled by client","error_code":null,"result":null}}}}
+EOF
+          fi
           ;;
         shutdown)
           printf '%s\n' 'rpc shutdown' >> "$script_dir/commands.log"

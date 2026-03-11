@@ -5,9 +5,11 @@ use relay_core::{
 };
 use std::io::{self, BufRead, BufWriter, Write};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use tokio::sync::mpsc;
 use tokio::task::{JoinSet, LocalSet};
+use tokio::sync::Notify;
 use tokio::time::{Duration, Instant, sleep_until};
 
 #[derive(Clone, Copy)]
@@ -17,6 +19,32 @@ enum RefreshKind {
 }
 
 const DISABLED_REFRESH_DEADLINE: Duration = Duration::from_secs(60 * 60 * 24 * 365 * 100);
+
+#[derive(Default)]
+struct RuntimeSignals {
+    startup_refresh_armed: AtomicBool,
+    startup_refresh_notify: Notify,
+    interval_reset_notify: Notify,
+    shutdown_notify: Notify,
+}
+
+impl RuntimeSignals {
+    fn arm_startup_refresh(&self) {
+        if !self.startup_refresh_armed.swap(true, Ordering::SeqCst) {
+            self.startup_refresh_notify.notify_waiters();
+        }
+    }
+
+    fn reset_interval_schedule(&self) {
+        self.interval_reset_notify.notify_waiters();
+    }
+
+    fn request_shutdown(&self) {
+        self.shutdown_notify.notify_waiters();
+        self.startup_refresh_notify.notify_waiters();
+        self.interval_reset_notify.notify_waiters();
+    }
+}
 
 pub(crate) async fn run(command: &DaemonCommand) -> Result<(), RelayError> {
     if !command.stdio {
@@ -35,16 +63,17 @@ async fn run_local() -> Result<(), RelayError> {
 
     let (request_tx, mut request_rx) = mpsc::unbounded_channel::<String>();
     let (notification_tx, notification_rx) = mpsc::unbounded_channel::<RpcNotification>();
-    let (write_tx, write_rx) = mpsc::unbounded_channel::<RpcRequest>();
     let (outbound_tx, mut outbound_rx) = mpsc::unbounded_channel::<String>();
     spawn_stdin_reader(request_tx);
 
-    let write_task = tokio::task::spawn_local(run_write_service(
-        DaemonService::new(write_app, notification_tx),
-        write_rx,
-        outbound_tx.clone(),
+    let service = DaemonService::new(write_app, notification_tx);
+    service.sync_network_query_concurrency().await?;
+    let runtime_signals = Arc::new(RuntimeSignals::default());
+    let scheduler_task = tokio::task::spawn_local(run_refresh_scheduler(
+        service.clone(),
+        Arc::clone(&runtime_signals),
     ));
-    tokio::pin!(write_task);
+    tokio::pin!(scheduler_task);
     let notification_task = tokio::task::spawn_local(run_notification_forwarder(
         notification_rx,
         outbound_tx.clone(),
@@ -53,13 +82,13 @@ async fn run_local() -> Result<(), RelayError> {
 
     let stdout = io::stdout();
     let mut writer = BufWriter::new(stdout.lock());
-    let mut read_tasks = JoinSet::<String>::new();
-    let mut write_task_done = false;
+    let mut request_tasks = JoinSet::<()>::new();
+    let mut scheduler_task_done = false;
     let mut notification_task_done = false;
     let mut stop_accepting_requests = false;
 
     loop {
-        if write_task_done && notification_task_done && read_tasks.is_empty() && outbound_rx.is_empty() {
+        if scheduler_task_done && request_tasks.is_empty() && outbound_rx.is_empty() {
             break;
         }
 
@@ -74,11 +103,24 @@ async fn run_local() -> Result<(), RelayError> {
                     Ok(request) => {
                         if DaemonService::is_read_method(&request.method) {
                             let read_app = Arc::clone(&read_app);
-                            read_tasks.spawn_local(
-                                async move { render_read_response(read_app, request).await }
-                            );
-                        } else if write_tx.send(request).is_err() {
-                            stop_accepting_requests = true;
+                            let outbound_tx = outbound_tx.clone();
+                            request_tasks.spawn_local(async move {
+                                let payload = render_read_response(read_app, request).await;
+                                let _ = outbound_tx.send(payload);
+                            });
+                        } else {
+                            let service = service.clone();
+                            let outbound_tx = outbound_tx.clone();
+                            let runtime_signals = Arc::clone(&runtime_signals);
+                            request_tasks.spawn_local(async move {
+                                handle_write_request_task(
+                                    service,
+                                    outbound_tx,
+                                    runtime_signals,
+                                    request,
+                                )
+                                .await;
+                            });
                         }
                     }
                     Err(error) => {
@@ -91,7 +133,9 @@ async fn run_local() -> Result<(), RelayError> {
                                 data: None,
                             },
                         })?;
-                        write_line(&mut writer, &payload)?;
+                        if outbound_tx.send(payload).is_err() {
+                            stop_accepting_requests = true;
+                        }
                     }
                 }
             }
@@ -101,18 +145,18 @@ async fn run_local() -> Result<(), RelayError> {
                 };
                 write_line(&mut writer, &payload)?;
             }
-            joined = read_tasks.join_next(), if !read_tasks.is_empty() => {
+            joined = request_tasks.join_next(), if !request_tasks.is_empty() => {
                 if let Some(result) = joined {
-                    if let Ok(payload) = result {
-                        write_line(&mut writer, &payload)?;
+                    if let Err(error) = result {
+                        return Err(RelayError::Internal(format!("daemon request worker failed: {error}")));
                     }
                 }
             }
-            result = &mut write_task, if !write_task_done => {
-                write_task_done = true;
+            result = &mut scheduler_task, if !scheduler_task_done => {
+                scheduler_task_done = true;
                 stop_accepting_requests = true;
                 if let Err(error) = result {
-                    return Err(RelayError::Internal(format!("daemon write worker failed: {error}")));
+                    return Err(RelayError::Internal(format!("daemon scheduler worker failed: {error}")));
                 }
             }
             result = &mut notification_task, if !notification_task_done => {
@@ -122,85 +166,57 @@ async fn run_local() -> Result<(), RelayError> {
                 }
             }
         }
+
+        if service.shutdown_requested() {
+            stop_accepting_requests = true;
+        }
     }
 
     Ok(())
 }
 
-async fn run_write_service(
+async fn run_refresh_scheduler(
     service: DaemonService,
-    mut write_rx: mpsc::UnboundedReceiver<RpcRequest>,
-    outbound_tx: mpsc::UnboundedSender<String>,
+    runtime_signals: Arc<RuntimeSignals>,
 ) {
-    let mut startup_refresh_pending = true;
-    let mut refresh_in_flight = false;
-    let mut next_refresh_at = schedule_next_refresh_at(&service).await;
-    let mut background_tasks = JoinSet::<WriteServiceEvent>::new();
-    let mut service = service;
-
     loop {
-        if service.shutdown_requested() && background_tasks.is_empty() {
+        if service.shutdown_requested() {
             break;
         }
 
-        tokio::select! {
-            biased;
-            joined = background_tasks.join_next(), if !background_tasks.is_empty() => {
-                if let Some(result) = joined {
-                    match result {
-                        Ok(WriteServiceEvent::RefreshFinished) => {
-                            refresh_in_flight = false;
-                            next_refresh_at = schedule_next_refresh_at(&service).await;
-                        }
-                        Err(error) => {
-                            panic!("daemon background task failed: {error}");
-                        }
-                    }
-                }
+        while !runtime_signals.startup_refresh_armed.load(Ordering::SeqCst) {
+            tokio::select! {
+                _ = runtime_signals.startup_refresh_notify.notified() => {}
+                _ = runtime_signals.shutdown_notify.notified() => return,
             }
-            maybe_request = write_rx.recv() => {
-                let Some(request) = maybe_request else {
-                    if background_tasks.is_empty() {
-                        break;
-                    }
-                    continue;
-                };
-                let method = request.method.clone();
-                let (payload, reset_refresh_deadline) =
-                    render_write_response(&mut service, request).await;
-                if outbound_tx.send(payload).is_err() {
+            if service.shutdown_requested() {
+                return;
+            }
+        }
+
+        if automatic_refresh_enabled(&service).await {
+            run_refresh(RefreshKind::Startup, service.clone()).await;
+        }
+        break;
+    }
+
+    loop {
+        if service.shutdown_requested() {
+            break;
+        }
+
+        let next_refresh_at = schedule_next_refresh_at(&service).await;
+        tokio::select! {
+            _ = sleep_until(next_refresh_at) => {
+                if service.shutdown_requested() {
                     break;
                 }
-                if reset_refresh_deadline {
-                    next_refresh_at = schedule_next_refresh_at(&service).await;
-                }
-
-                if startup_refresh_pending && method == "session/subscribe" {
-                    startup_refresh_pending = false;
-                    if automatic_refresh_enabled(&service).await {
-                        refresh_in_flight = true;
-                        let background_service = service.clone();
-                        background_tasks.spawn_local(async move {
-                            run_refresh(RefreshKind::Startup, background_service).await;
-                            WriteServiceEvent::RefreshFinished
-                        });
-                    }
-                }
-
-                if service.shutdown_requested() {
-                    if background_tasks.is_empty() {
-                        break;
-                    }
+                if automatic_refresh_enabled(&service).await {
+                    run_refresh(RefreshKind::Interval, service.clone()).await;
                 }
             }
-            _ = sleep_until(next_refresh_at), if !refresh_in_flight && !service.shutdown_requested() => {
-                refresh_in_flight = true;
-                let background_service = service.clone();
-                background_tasks.spawn_local(async move {
-                    run_refresh(RefreshKind::Interval, background_service).await;
-                    WriteServiceEvent::RefreshFinished
-                });
-            }
+            _ = runtime_signals.interval_reset_notify.notified() => {}
+            _ = runtime_signals.shutdown_notify.notified() => break,
         }
     }
 }
@@ -231,34 +247,37 @@ async fn render_read_response(read_app: Arc<RelayApp>, request: RpcRequest) -> S
     }
 }
 
-async fn render_write_response(
-    service: &mut DaemonService,
+async fn handle_write_request_task(
+    service: DaemonService,
+    outbound_tx: mpsc::UnboundedSender<String>,
+    runtime_signals: Arc<RuntimeSignals>,
     request: RpcRequest,
-) -> (String, bool) {
-    let should_reset_refresh_deadline = request.method == "relay/settings/update";
-    match service.handle_request(request).await {
-        Ok(response) => (
+) {
+    let method = request.method.clone();
+    let payload = match service.handle_request(request).await {
+        Ok(response) => {
+            if method == "session/subscribe" {
+                runtime_signals.arm_startup_refresh();
+            } else if method == "relay/settings/update" {
+                runtime_signals.reset_interval_schedule();
+            } else if method == "shutdown" {
+                runtime_signals.request_shutdown();
+            }
             serialize_response(&response)
-                .unwrap_or_else(|error| serialize_internal_error(None, error.to_string())),
-            should_reset_refresh_deadline,
-        ),
-        Err(error) => (
-            serialize_error(&RpcErrorResponse {
-                jsonrpc: "2.0".into(),
-                id: None,
-                error,
-            })
-            .unwrap_or_else(|err| serialize_internal_error(None, err.to_string())),
-            false,
-        ),
-    }
+                .unwrap_or_else(|error| serialize_internal_error(None, error.to_string()))
+        }
+        Err(error) => serialize_error(&RpcErrorResponse {
+            jsonrpc: "2.0".into(),
+            id: None,
+            error,
+        })
+        .unwrap_or_else(|err| serialize_internal_error(None, err.to_string())),
+    };
+
+    let _ = outbound_tx.send(payload);
 }
 
-enum WriteServiceEvent {
-    RefreshFinished,
-}
-
-async fn run_refresh(kind: RefreshKind, mut service: DaemonService) {
+async fn run_refresh(kind: RefreshKind, service: DaemonService) {
     let result = match kind {
         RefreshKind::Startup => service.startup_tick().await,
         RefreshKind::Interval => service.interval_tick().await,

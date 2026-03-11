@@ -124,6 +124,7 @@ actor RelayDaemonClient {
                     "doctor.updated",
                     "switch.completed",
                     "switch.failed",
+                    "task.updated",
                     "health.updated",
                 ]
             ),
@@ -260,15 +261,23 @@ actor RelayDaemonClient {
         )
     }
 
-    func loginProfile(
+    func startLoginProfile(
         agent: AgentKind,
         nickname: String?,
         priority: Int
-    ) async throws -> AgentLinkResult {
+    ) async throws -> TaskStartResult {
         try await request(
-            method: "relay/profiles/login",
+            method: "relay/profiles/login/start",
             params: RPCImportProfileParams(agent: agent, nickname: nickname, priority: priority),
-            as: AgentLinkResult.self
+            as: TaskStartResult.self
+        )
+    }
+
+    func cancelTask(taskId: String) async throws -> TaskCancelResult {
+        try await request(
+            method: "relay/tasks/cancel",
+            params: RPCTaskID(taskId: taskId),
+            as: TaskCancelResult.self
         )
     }
 
@@ -481,6 +490,8 @@ actor RelayDaemonClient {
             return try? .switchCompleted(decoder.decode(SwitchCompletedNotification.self, from: payloadData))
         case "switch.failed":
             return try? .switchFailed(decoder.decode(SwitchFailedNotification.self, from: payloadData))
+        case "task.updated":
+            return try? .taskUpdated(decoder.decode(TaskUpdatedNotification.self, from: payloadData))
         case "health.updated":
             return try? .healthUpdated(decoder.decode(HealthUpdatedNotification.self, from: payloadData))
         default:

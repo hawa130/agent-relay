@@ -278,6 +278,9 @@ fn make_fake_bin(root: &Path) -> std::path::PathBuf {
         r#"#!/bin/sh
 set -eu
 if [ "${1:-}" = "login" ]; then
+  if [ -n "${RELAY_TEST_LOGIN_SLEEP:-}" ]; then
+    sleep "${RELAY_TEST_LOGIN_SLEEP}"
+  fi
   if [ "${2:-}" = "--device-auth" ]; then
     cat <<'EOF'
 Welcome to Codex [v0.112.0]
@@ -1601,10 +1604,15 @@ struct DaemonHarness {
 
 impl DaemonHarness {
     fn spawn(relay_home: &Path, codex_home: &Path) -> Self {
+        Self::spawn_with_env(relay_home, codex_home, &[])
+    }
+
+    fn spawn_with_env(relay_home: &Path, codex_home: &Path, envs: &[(&str, &str)]) -> Self {
         let mut child = Command::new(relay_bin())
             .args(["daemon", "--stdio"])
             .env("RELAY_HOME", relay_home)
             .env("CODEX_HOME", codex_home)
+            .envs(envs.iter().copied())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -1629,11 +1637,7 @@ impl DaemonHarness {
                 }
             }
         });
-        Self {
-            child,
-            stdin,
-            stdout_rx,
-        }
+        Self { child, stdin, stdout_rx }
     }
 
     fn send_request(&mut self, id: &str, method: &str, params: Value) {
@@ -2538,6 +2542,140 @@ fn daemon_stdio_handles_high_concurrency_profile_switch_writes() {
         status["result"]["active_state"]["active_profile_id"],
         last_target
     );
+
+    daemon.shutdown();
+}
+
+#[test]
+fn daemon_stdio_long_profile_login_does_not_block_settings_update() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+    let fake_bin = make_fake_bin(temp.path());
+    let path_value = format!(
+        "{}:{}",
+        fake_bin.to_string_lossy(),
+        std::env::var("PATH").unwrap_or_default()
+    );
+
+    let mut daemon = DaemonHarness::spawn_with_env(
+        &relay_home,
+        &live_codex_home,
+        &[("PATH", path_value.as_str()), ("RELAY_TEST_LOGIN_SLEEP", "2")],
+    );
+    daemon.send_request(
+        "init",
+        "initialize",
+        serde_json::json!({
+            "protocol_version": "1",
+            "client_info": { "name": "relay-cli-test", "version": "1.0.0" },
+            "capabilities": {
+                "supports_subscriptions": true,
+                "supports_health_updates": false
+            }
+        }),
+    );
+    let initialize = daemon.read_message();
+    assert_eq!(initialize["id"], "init");
+
+    daemon.send_request(
+        "sub",
+        "session/subscribe",
+        serde_json::json!({
+            "topics": ["task.updated"]
+        }),
+    );
+    let subscribe = daemon.read_message();
+    assert_eq!(subscribe["id"], "sub");
+
+    daemon.send_request(
+        "login-start",
+        "relay/profiles/login/start",
+        serde_json::json!({
+            "request": {
+                "agent": "Codex",
+                "nickname": "slow-login",
+                "priority": 50,
+                "mode": "Browser"
+            }
+        }),
+    );
+    let start_deadline = Instant::now() + Duration::from_secs(2);
+    let mut task_id: Option<String> = None;
+    let mut saw_pending = false;
+    let mut pending_task_id: Option<String> = None;
+    while Instant::now() < start_deadline && (task_id.is_none() || !saw_pending) {
+        let message = daemon
+            .read_message_timeout(Duration::from_millis(250))
+            .expect("expected login start response or pending notification");
+        if message["id"] == "login-start" {
+            assert_eq!(message["result"]["accepted"], true);
+            task_id = Some(
+                message["result"]["task_id"]
+                    .as_str()
+                    .expect("task id")
+                    .to_string(),
+            );
+            if pending_task_id.as_ref() == task_id.as_ref() {
+                saw_pending = true;
+            }
+            continue;
+        }
+        if message["params"]["topic"] == "task.updated" {
+            if message["params"]["payload"]["task"]["status"] == "Pending" {
+                let update_task_id = message["params"]["payload"]["task"]["task_id"]
+                    .as_str()
+                    .expect("pending task id")
+                    .to_string();
+                pending_task_id = Some(update_task_id.clone());
+                if task_id.as_deref() == Some(update_task_id.as_str()) {
+                    saw_pending = true;
+                }
+            }
+        }
+    }
+    let task_id = task_id.expect("task id");
+    assert!(saw_pending, "expected pending task notification");
+
+    daemon.send_request(
+        "settings",
+        "relay/settings/update",
+        serde_json::json!({
+            "app": {
+                "refresh_interval_seconds": 15
+            }
+        }),
+    );
+
+    let first_response = daemon
+        .read_message_timeout(Duration::from_secs(1))
+        .expect("expected first response");
+    assert_eq!(
+        first_response["id"], "settings",
+        "settings/update should not wait for slow profile login"
+    );
+    assert_eq!(first_response["result"]["app"]["refresh_interval_seconds"], 15);
+
+    daemon.send_request(
+        "cancel",
+        "relay/tasks/cancel",
+        serde_json::json!({
+            "task_id": task_id
+        }),
+    );
+    let cancel_response = daemon
+        .read_message_timeout(Duration::from_secs(1))
+        .expect("expected cancel response");
+    assert_eq!(cancel_response["id"], "cancel");
+    assert_eq!(cancel_response["result"]["accepted"], true);
+
+    let cancelled = daemon
+        .read_message_timeout(Duration::from_secs(5))
+        .expect("expected cancelled task notification");
+    assert_eq!(cancelled["params"]["topic"], "task.updated");
+    assert_eq!(cancelled["params"]["payload"]["task"]["task_id"], task_id);
+    assert_eq!(cancelled["params"]["payload"]["task"]["status"], "Cancelled");
 
     daemon.shutdown();
 }

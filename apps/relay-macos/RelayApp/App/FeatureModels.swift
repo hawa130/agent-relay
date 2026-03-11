@@ -106,6 +106,7 @@ public final class ProfilesPaneModel: ObservableObject {
     var lastErrorMessage: String? { session.lastErrorMessage }
     var isSwitching: Bool { session.isSwitching }
     var isMutatingProfiles: Bool { session.isMutatingProfiles }
+    var isLoggingIn: Bool { session.isLoggingIn }
     var isRefreshingEnabledUsage: Bool { session.isRefreshingEnabledUsage }
     var selectedFilterProfileCount: Int { filteredProfiles.count }
     var selectedFilterEmptyStateDescription: String { selectedFilter.emptyStateDescription }
@@ -174,6 +175,10 @@ public final class ProfilesPaneModel: ObservableObject {
 
     func addAccount(agent: AgentKind, priority: Int = 100) async -> AddAccountResult {
         await session.addAccount(agent: agent, priority: priority)
+    }
+
+    func cancelAddAccount() async {
+        await session.cancelLogin()
     }
 
     func importProfile(agent: AgentKind, nickname: String?, priority: Int) async {

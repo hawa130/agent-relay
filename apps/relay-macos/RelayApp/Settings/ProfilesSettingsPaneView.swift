@@ -38,6 +38,9 @@ public struct ProfilesSettingsPaneView: View {
                 },
                 onStartLogin: { agent in
                     await model.addAccount(agent: agent)
+                },
+                onCancelLogin: {
+                    await model.cancelAddAccount()
                 }
             )
         }
@@ -889,6 +892,7 @@ private struct AddProfileSheet: View {
     let isBusy: Bool
     let onImportProfile: @MainActor (AgentKind) async -> Void
     let onStartLogin: @MainActor (AgentKind) async -> AddAccountResult
+    let onCancelLogin: @MainActor () async -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var mode: Mode = .catalog
@@ -1003,8 +1007,9 @@ private struct AddProfileSheet: View {
 
                 Button(flowState.secondaryActionTitle) {
                     if flowState.isRequesting {
-                        loginTask?.cancel()
-                        dismiss()
+                        Task { @MainActor in
+                            await onCancelLogin()
+                        }
                     } else {
                         showCatalog()
                     }
