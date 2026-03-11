@@ -204,6 +204,15 @@ actor RelayDaemonClient {
         return result.snapshots
     }
 
+    func refreshAllUsage() async throws -> [UsageSnapshot] {
+        let result = try await request(
+            method: "relay/usage/refresh",
+            params: RefreshUsageRPCParams(profileId: nil, includeDisabled: true),
+            as: RPCUsageRefreshResult.self
+        )
+        return result.snapshots
+    }
+
     func refreshActivity() async throws -> RPCActivityRefreshResult {
         try await request(method: "relay/activity/refresh", as: RPCActivityRefreshResult.self)
     }

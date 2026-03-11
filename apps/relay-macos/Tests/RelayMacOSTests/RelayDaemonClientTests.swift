@@ -122,6 +122,38 @@ final class RelayDaemonClientTests: XCTestCase {
         await client.stop()
     }
 
+    func testRefreshAllUsageSendsIncludeDisabledTrue() async throws {
+        let fixture = try RelayDaemonFixture.make()
+        defer { fixture.cleanup() }
+
+        let client = RelayDaemonClient(
+            relayCLIPathOverride: fixture.scriptPath,
+            environment: [:]
+        )
+
+        _ = try await client.refreshAllUsage()
+        await client.stop()
+
+        let commands = try fixture.commands()
+        XCTAssertTrue(commands.contains("rpc relay/usage/refresh include_disabled=true"))
+    }
+
+    func testRefreshEnabledUsageSendsIncludeDisabledFalse() async throws {
+        let fixture = try RelayDaemonFixture.make()
+        defer { fixture.cleanup() }
+
+        let client = RelayDaemonClient(
+            relayCLIPathOverride: fixture.scriptPath,
+            environment: [:]
+        )
+
+        _ = try await client.refreshEnabledUsage()
+        await client.stop()
+
+        let commands = try fixture.commands()
+        XCTAssertTrue(commands.contains("rpc relay/usage/refresh include_disabled=false"))
+    }
+
     func testLoginStartAndCancelUseTaskNotifications() async throws {
         let fixture = try RelayDaemonFixture.make(mode: "login_task_updates")
         defer { fixture.cleanup() }
@@ -399,6 +431,8 @@ EOF
           ;;
         relay/usage/refresh)
           printf '%s\n' 'rpc relay/usage/refresh' >> "$script_dir/commands.log"
+          include_disabled="$(python3 -c 'import json,sys; params=json.loads(sys.argv[1]).get("params", {}); print(str(params.get("include_disabled", False)).lower())' "$line")"
+          printf '%s\n' "rpc relay/usage/refresh include_disabled=$include_disabled" >> "$script_dir/commands.log"
           if [ "$mode" = "notification_then_refresh_response" ]; then
             cat <<EOF
 {"jsonrpc":"2.0","method":"session/update","params":{"topic":"usage.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}],"trigger":"Manual"}}}

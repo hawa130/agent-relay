@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 enum UsageAlertSeverity: Equatable {
@@ -61,6 +62,17 @@ enum UsageCardNoteResolver {
         }
 
         return NativePreferencesTheme.Colors.semanticAccent(severity.badgeKind)
+    }
+}
+
+enum UsageToolbarRefreshScope: Equatable {
+    case enabled
+    case all
+}
+
+enum UsageToolbarRefreshScopeResolver {
+    static func resolve(modifierFlags: NSEvent.ModifierFlags) -> UsageToolbarRefreshScope {
+        modifierFlags.contains(.option) ? .all : .enabled
     }
 }
 
@@ -197,18 +209,26 @@ public struct ProfilesSettingsPaneView: View {
                     ProgressView()
                         .controlSize(.small)
                         .frame(width: 28, height: 28)
-                        .help("Refreshing usage for enabled profiles")
+                        .help("Refreshing usage")
                 } else {
                     Button {
+                        let scope = UsageToolbarRefreshScopeResolver.resolve(
+                            modifierFlags: NSApp.currentEvent?.modifierFlags ?? []
+                        )
                         Task {
-                            await model.refreshEnabledUsage()
+                            switch scope {
+                            case .enabled:
+                                await model.refreshEnabledUsage()
+                            case .all:
+                                await model.refreshAllUsage()
+                            }
                         }
                     } label: {
-                        Label("Refresh All Usage", systemImage: "arrow.clockwise")
+                        Label("Refresh Usage", systemImage: "arrow.clockwise")
                     }
                     .labelStyle(.iconOnly)
                     .buttonStyle(.bordered)
-                    .help("Refresh Usage For Enabled Profiles")
+                    .help("Refresh Usage For Enabled Profiles. Option-click to refresh all profiles.")
                 }
 
                 Button {
