@@ -55,6 +55,20 @@ struct ActiveState: Decodable, Sendable {
             ?? false
         lastError = try container.decodeIfPresent(String.self, forKey: .lastError)
     }
+
+    init(
+        activeProfileId: String?,
+        lastSwitchAt: Date?,
+        lastSwitchResult: SwitchOutcome,
+        autoSwitchEnabled: Bool,
+        lastError: String?
+    ) {
+        self.activeProfileId = activeProfileId
+        self.lastSwitchAt = lastSwitchAt
+        self.lastSwitchResult = lastSwitchResult
+        self.autoSwitchEnabled = autoSwitchEnabled
+        self.lastError = lastError
+    }
 }
 
 struct AppSettings: Decodable, Sendable {
@@ -80,6 +94,16 @@ struct AppSettings: Decodable, Sendable {
             try container.decodeIfPresent(Int.self, forKey: .refreshIntervalSeconds)
             ?? 60
     }
+
+    init(
+        autoSwitchEnabled: Bool,
+        cooldownSeconds: Int,
+        refreshIntervalSeconds: Int
+    ) {
+        self.autoSwitchEnabled = autoSwitchEnabled
+        self.cooldownSeconds = cooldownSeconds
+        self.refreshIntervalSeconds = refreshIntervalSeconds
+    }
 }
 
 struct CodexSettings: Decodable, Sendable {
@@ -94,6 +118,10 @@ struct CodexSettings: Decodable, Sendable {
         usageSourceMode =
             try container.decodeIfPresent(UsageSourceMode.self, forKey: .usageSourceMode)
             ?? .auto
+    }
+
+    init(usageSourceMode: UsageSourceMode) {
+        self.usageSourceMode = usageSourceMode
     }
 }
 
@@ -288,9 +316,19 @@ struct RPCLogsResult: Decodable, Sendable {
     let logs: LogTail
 }
 
+struct RPCActivityRefreshResult: Decodable, Sendable {
+    let events: [FailureEvent]
+    let logs: LogTail
+}
+
 enum RelaySessionUpdate: Sendable {
     case usageUpdated(UsageUpdatedNotification)
     case activeStateUpdated(ActiveStateUpdatedNotification)
+    case settingsUpdated(SettingsUpdatedNotification)
+    case profilesUpdated(ProfilesUpdatedNotification)
+    case activityEventsUpdated(ActivityEventsUpdatedNotification)
+    case activityLogsUpdated(ActivityLogsUpdatedNotification)
+    case doctorUpdated(DoctorUpdatedNotification)
     case switchCompleted(SwitchCompletedNotification)
     case switchFailed(SwitchFailedNotification)
     case healthUpdated(HealthUpdatedNotification)
@@ -304,6 +342,26 @@ struct UsageUpdatedNotification: Decodable, Sendable {
 struct ActiveStateUpdatedNotification: Decodable, Sendable {
     let activeState: ActiveState
     let activeProfile: ProfileListItem?
+}
+
+struct SettingsUpdatedNotification: Decodable, Sendable {
+    let settings: RPCSettingsResult
+}
+
+struct ProfilesUpdatedNotification: Decodable, Sendable {
+    let profiles: [ProfileListItem]
+}
+
+struct ActivityEventsUpdatedNotification: Decodable, Sendable {
+    let events: [FailureEvent]
+}
+
+struct ActivityLogsUpdatedNotification: Decodable, Sendable {
+    let logs: LogTail
+}
+
+struct DoctorUpdatedNotification: Decodable, Sendable {
+    let report: DoctorReport
 }
 
 struct SwitchCompletedNotification: Decodable, Sendable {

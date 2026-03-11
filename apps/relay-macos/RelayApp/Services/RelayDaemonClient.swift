@@ -116,6 +116,11 @@ actor RelayDaemonClient {
                 topics: [
                     "usage.updated",
                     "active_state.updated",
+                    "settings.updated",
+                    "profiles.updated",
+                    "activity.events.updated",
+                    "activity.logs.updated",
+                    "doctor.updated",
                     "switch.completed",
                     "switch.failed",
                     "health.updated",
@@ -197,6 +202,14 @@ actor RelayDaemonClient {
         return result.snapshots
     }
 
+    func refreshActivity() async throws -> RPCActivityRefreshResult {
+        try await request(method: "relay/activity/refresh", as: RPCActivityRefreshResult.self)
+    }
+
+    func refreshDoctor() async throws -> DoctorReport {
+        try await request(method: "relay/doctor/refresh", as: DoctorReport.self)
+    }
+
     func fetchCodexSettings() async throws -> CodexSettings {
         try await request(method: "relay/settings/get", as: RPCSettingsResult.self).codex
     }
@@ -243,6 +256,18 @@ actor RelayDaemonClient {
             method: "relay/profiles/import",
             params: RPCImportProfileParams(agent: agent, nickname: nickname, priority: priority),
             as: Profile.self
+        )
+    }
+
+    func loginProfile(
+        agent: AgentKind,
+        nickname: String?,
+        priority: Int
+    ) async throws -> AgentLinkResult {
+        try await request(
+            method: "relay/profiles/login",
+            params: RPCImportProfileParams(agent: agent, nickname: nickname, priority: priority),
+            as: AgentLinkResult.self
         )
     }
 
@@ -420,6 +445,16 @@ actor RelayDaemonClient {
             return try? .usageUpdated(decoder.decode(UsageUpdatedNotification.self, from: payloadData))
         case "active_state.updated":
             return try? .activeStateUpdated(decoder.decode(ActiveStateUpdatedNotification.self, from: payloadData))
+        case "settings.updated":
+            return try? .settingsUpdated(decoder.decode(SettingsUpdatedNotification.self, from: payloadData))
+        case "profiles.updated":
+            return try? .profilesUpdated(decoder.decode(ProfilesUpdatedNotification.self, from: payloadData))
+        case "activity.events.updated":
+            return try? .activityEventsUpdated(decoder.decode(ActivityEventsUpdatedNotification.self, from: payloadData))
+        case "activity.logs.updated":
+            return try? .activityLogsUpdated(decoder.decode(ActivityLogsUpdatedNotification.self, from: payloadData))
+        case "doctor.updated":
+            return try? .doctorUpdated(decoder.decode(DoctorUpdatedNotification.self, from: payloadData))
         case "switch.completed":
             return try? .switchCompleted(decoder.decode(SwitchCompletedNotification.self, from: payloadData))
         case "switch.failed":

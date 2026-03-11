@@ -1,11 +1,13 @@
 use crate::models::{
-    ActiveStateUpdatedPayload, ActivityEventsParams, ActivityEventsResult, AddProfileParams,
-    EditProfileParams, EngineConnectionState, EngineState, HealthUpdatedPayload,
-    ImportProfileParams, InitialState, InitializeParams, InitializeResult, LoginProfileParams,
-    LogsTailParams, LogsTailResult, ProfileIdParams, RefreshUsageParams, RefreshUsageResult,
-    RelayRpcTopic, RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo,
-    RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
-    SettingsUpdateParams, SubscribeParams, SubscribeResult, SwitchCompletedPayload,
+    ActiveStateUpdatedPayload, ActivityEventsParams, ActivityEventsResult,
+    ActivityEventsUpdatedPayload, ActivityLogsUpdatedPayload, ActivityRefreshResult,
+    AddProfileParams, DoctorUpdatedPayload, EditProfileParams, EngineConnectionState, EngineState,
+    HealthUpdatedPayload, ImportProfileParams, InitialState, InitializeParams, InitializeResult,
+    LoginProfileParams, LogsTailParams, LogsTailResult, ProfileIdParams,
+    ProfilesUpdatedPayload, RefreshUsageParams, RefreshUsageResult, RelayRpcTopic,
+    RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo, RpcSuccessResponse,
+    SessionUpdate, SetProfileEnabledParams, SettingsResult, SettingsUpdateParams,
+    SettingsUpdatedPayload, SubscribeParams, SubscribeResult, SwitchCompletedPayload,
     SwitchFailedPayload, SwitchTrigger, UsageGetParams, UsageResult, UsageUpdateTrigger,
     UsageUpdatedPayload, rpc_from_error, rpc_internal_error, rpc_invalid_params,
     rpc_invalid_request, rpc_method_not_found,
@@ -31,6 +33,9 @@ pub struct DaemonService {
 }
 
 impl DaemonService {
+    const DEFAULT_ACTIVITY_EVENTS_LIMIT: usize = 10;
+    const DEFAULT_ACTIVITY_LOG_LINES: usize = 25;
+
     pub fn new(app: RelayApp, notifications: mpsc::UnboundedSender<RpcNotification>) -> Self {
         Self {
             app,
@@ -185,57 +190,93 @@ impl DaemonService {
             }
             "relay/profiles/add" => {
                 let params: AddProfileParams = parse_params(request.params)?;
-                serialize(
-                    self.app
-                        .add_profile(params.request)
-                        .await
-                        .map_err(|e| rpc_from_error(&e))?,
-                )?
+                let profile = self
+                    .app
+                    .add_profile(params.request)
+                    .await
+                    .map_err(|e| rpc_from_error(&e))?;
+                self.publish_profiles_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                self.publish_active_state_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                serialize(profile)?
             }
             "relay/profiles/edit" => {
                 let params: EditProfileParams = parse_params(request.params)?;
-                serialize(
-                    self.app
-                        .edit_profile(&params.profile_id, params.request)
-                        .await
-                        .map_err(|e| rpc_from_error(&e))?,
-                )?
+                let profile = self
+                    .app
+                    .edit_profile(&params.profile_id, params.request)
+                    .await
+                    .map_err(|e| rpc_from_error(&e))?;
+                self.publish_profiles_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                self.publish_active_state_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                serialize(profile)?
             }
             "relay/profiles/import" => {
                 let params: ImportProfileParams = parse_params(request.params)?;
-                serialize(
-                    self.app
-                        .import_profile(params.request)
-                        .await
-                        .map_err(|e| rpc_from_error(&e))?,
-                )?
+                let profile = self
+                    .app
+                    .import_profile(params.request)
+                    .await
+                    .map_err(|e| rpc_from_error(&e))?;
+                self.publish_profiles_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                self.publish_active_state_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                serialize(profile)?
             }
             "relay/profiles/login" => {
                 let params: LoginProfileParams = parse_params(request.params)?;
-                serialize(
-                    self.app
-                        .login_profile(params.request)
-                        .await
-                        .map_err(|e| rpc_from_error(&e))?,
-                )?
+                let result = self
+                    .app
+                    .login_profile(params.request)
+                    .await
+                    .map_err(|e| rpc_from_error(&e))?;
+                self.publish_profiles_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                self.publish_active_state_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                serialize(result)?
             }
             "relay/profiles/remove" => {
                 let params: ProfileIdParams = parse_params(request.params)?;
-                serialize(
-                    self.app
-                        .remove_profile(&params.profile_id)
-                        .await
-                        .map_err(|e| rpc_from_error(&e))?,
-                )?
+                let profile = self
+                    .app
+                    .remove_profile(&params.profile_id)
+                    .await
+                    .map_err(|e| rpc_from_error(&e))?;
+                self.publish_profiles_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                self.publish_active_state_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                serialize(profile)?
             }
             "relay/profiles/set_enabled" => {
                 let params: SetProfileEnabledParams = parse_params(request.params)?;
-                serialize(
-                    self.app
-                        .set_profile_enabled(&params.profile_id, params.enabled)
-                        .await
-                        .map_err(|e| rpc_from_error(&e))?,
-                )?
+                let profile = self
+                    .app
+                    .set_profile_enabled(&params.profile_id, params.enabled)
+                    .await
+                    .map_err(|e| rpc_from_error(&e))?;
+                self.publish_profiles_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                self.publish_active_state_updated()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                serialize(profile)?
             }
             "relay/usage/get" => {
                 let params: UsageGetParams = parse_params(request.params)?;
@@ -253,6 +294,10 @@ impl DaemonService {
                 serialize(UsageResult { snapshot })?
             }
             "relay/usage/refresh" => serialize(self.handle_refresh(request.params).await?)?,
+            "relay/activity/refresh" => serialize(self.handle_activity_refresh().await?)?,
+            "relay/doctor/refresh" => {
+                serialize(self.handle_doctor_refresh().await?)?
+            }
             "relay/switch/activate" => {
                 let params: ProfileIdParams = parse_params(request.params)?;
                 serialize(
@@ -366,7 +411,7 @@ impl DaemonService {
     async fn handle_subscribe(&mut self, params: Value) -> Result<Value, crate::RpcErrorObject> {
         let params: SubscribeParams = parse_params(params)?;
         self.subscribed_topics.extend(params.topics.iter().copied());
-        self.publish_health_update(EngineConnectionState::Ready, None)
+        self.publish_subscribed_snapshots(&params.topics)
             .await
             .map_err(|e| rpc_internal_error(e.to_string()))?;
         serialize(SubscribeResult {
@@ -416,6 +461,41 @@ impl DaemonService {
         Ok(RefreshUsageResult { snapshots })
     }
 
+    async fn handle_activity_refresh(
+        &mut self,
+    ) -> Result<ActivityRefreshResult, crate::RpcErrorObject> {
+        let events = self
+            .app
+            .list_activity_events(ActivityEventsQuery {
+                limit: Self::DEFAULT_ACTIVITY_EVENTS_LIMIT,
+                profile_id: None,
+                reason: None,
+            })
+            .await
+            .map_err(|e| rpc_from_error(&e))?;
+        let logs = self
+            .app
+            .logs_tail(Self::DEFAULT_ACTIVITY_LOG_LINES)
+            .map_err(|e| rpc_from_error(&e))?;
+        self.publish_activity_events_updated(events.clone())
+            .await
+            .map_err(|e| rpc_internal_error(e.to_string()))?;
+        self.publish_activity_logs_updated(logs.clone())
+            .await
+            .map_err(|e| rpc_internal_error(e.to_string()))?;
+        Ok(ActivityRefreshResult { events, logs })
+    }
+
+    async fn handle_doctor_refresh(
+        &mut self,
+    ) -> Result<crate::DoctorReport, crate::RpcErrorObject> {
+        let report = self.app.doctor_report().map_err(|e| rpc_from_error(&e))?;
+        self.publish_doctor_updated(report.clone())
+            .await
+            .map_err(|e| rpc_internal_error(e.to_string()))?;
+        Ok(report)
+    }
+
     async fn handle_settings_update(
         &mut self,
         params: Value,
@@ -446,7 +526,11 @@ impl DaemonService {
                 .await
                 .map_err(|e| rpc_from_error(&e))?
         };
-        Ok(SettingsResult { app, codex })
+        let settings = SettingsResult { app, codex };
+        self.publish_settings_updated(settings.clone())
+            .await
+            .map_err(|e| rpc_internal_error(e.to_string()))?;
+        Ok(settings)
     }
 
     async fn handle_switch_result(
@@ -458,6 +542,9 @@ impl DaemonService {
         match result {
             Ok(report) => {
                 self.publish_switch_completed(report.clone(), trigger)
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                self.publish_profiles_updated()
                     .await
                     .map_err(|e| rpc_internal_error(e.to_string()))?;
                 self.publish_active_state_updated()
@@ -505,6 +592,7 @@ impl DaemonService {
             Ok(report) => {
                 self.publish_switch_completed(report, SwitchTrigger::Auto)
                     .await?;
+                self.publish_profiles_updated().await?;
                 let post_switch = self.app.refresh_enabled_usage_reports().await?;
                 self.publish_usage_updated(post_switch, UsageUpdateTrigger::PostSwitch)
                     .await?;
@@ -527,6 +615,56 @@ impl DaemonService {
         self.publish(
             RelayRpcTopic::UsageUpdated,
             UsageUpdatedPayload { snapshots, trigger },
+        )
+        .await
+    }
+
+    async fn publish_settings_updated(&mut self, settings: SettingsResult) -> Result<(), RelayError> {
+        self.publish(
+            RelayRpcTopic::SettingsUpdated,
+            SettingsUpdatedPayload { settings },
+        )
+        .await
+    }
+
+    async fn publish_profiles_updated(&mut self) -> Result<(), RelayError> {
+        let profiles = self.app.list_profiles_with_usage().await?;
+        self.publish(
+            RelayRpcTopic::ProfilesUpdated,
+            ProfilesUpdatedPayload { profiles },
+        )
+        .await
+    }
+
+    async fn publish_activity_events_updated(
+        &mut self,
+        events: Vec<crate::FailureEvent>,
+    ) -> Result<(), RelayError> {
+        self.publish(
+            RelayRpcTopic::ActivityEventsUpdated,
+            ActivityEventsUpdatedPayload { events },
+        )
+        .await
+    }
+
+    async fn publish_activity_logs_updated(
+        &mut self,
+        logs: crate::LogTail,
+    ) -> Result<(), RelayError> {
+        self.publish(
+            RelayRpcTopic::ActivityLogsUpdated,
+            ActivityLogsUpdatedPayload { logs },
+        )
+        .await
+    }
+
+    async fn publish_doctor_updated(
+        &mut self,
+        report: crate::DoctorReport,
+    ) -> Result<(), RelayError> {
+        self.publish(
+            RelayRpcTopic::DoctorUpdated,
+            DoctorUpdatedPayload { report },
         )
         .await
     }
@@ -592,6 +730,63 @@ impl DaemonService {
             HealthUpdatedPayload { state, detail },
         )
         .await
+    }
+
+    async fn publish_subscribed_snapshots(
+        &mut self,
+        topics: &[RelayRpcTopic],
+    ) -> Result<(), RelayError> {
+        for topic in topics {
+            match topic {
+                RelayRpcTopic::UsageUpdated => {
+                    let profiles = self.app.list_profiles_with_usage().await?;
+                    let snapshots = profiles
+                        .into_iter()
+                        .filter_map(|item| item.usage_summary)
+                        .collect::<Vec<_>>();
+                    self.publish_usage_updated(snapshots, UsageUpdateTrigger::Startup)
+                        .await?;
+                }
+                RelayRpcTopic::ActiveStateUpdated => {
+                    self.publish_active_state_updated().await?;
+                }
+                RelayRpcTopic::SettingsUpdated => {
+                    let settings = SettingsResult {
+                        app: self.app.settings().await?,
+                        codex: self.app.codex_settings().await?,
+                    };
+                    self.publish_settings_updated(settings).await?;
+                }
+                RelayRpcTopic::ProfilesUpdated => {
+                    self.publish_profiles_updated().await?;
+                }
+                RelayRpcTopic::ActivityEventsUpdated => {
+                    let events = self
+                        .app
+                        .list_activity_events(ActivityEventsQuery {
+                            limit: Self::DEFAULT_ACTIVITY_EVENTS_LIMIT,
+                            profile_id: None,
+                            reason: None,
+                        })
+                        .await?;
+                    self.publish_activity_events_updated(events).await?;
+                }
+                RelayRpcTopic::ActivityLogsUpdated => {
+                    let logs = self.app.logs_tail(Self::DEFAULT_ACTIVITY_LOG_LINES)?;
+                    self.publish_activity_logs_updated(logs).await?;
+                }
+                RelayRpcTopic::DoctorUpdated => {
+                    let report = self.app.doctor_report()?;
+                    self.publish_doctor_updated(report).await?;
+                }
+                RelayRpcTopic::SwitchCompleted | RelayRpcTopic::SwitchFailed => {}
+                RelayRpcTopic::HealthUpdated => {
+                    self.publish_health_update(EngineConnectionState::Ready, None)
+                        .await?;
+                }
+            }
+        }
+        Ok(())
     }
 
     async fn publish<T: serde::Serialize>(

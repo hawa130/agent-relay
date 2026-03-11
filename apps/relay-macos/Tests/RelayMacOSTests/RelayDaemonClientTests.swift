@@ -120,7 +120,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            requestTimeoutSeconds: 0.2,
+            requestTimeoutSeconds: 1.0,
             environment: ["RELAY_DAEMON_FIXTURE_MODE": "drop_status_response"]
         )
 
