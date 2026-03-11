@@ -92,7 +92,7 @@ private struct GeneralSettingsDetailView: View {
     @ObservedObject var model: SettingsPaneModel
 
     private var refreshIntervalOptions: [Int] {
-        Array(Set([15, 30, 60, 120, 180, 300, 600, 900, model.refreshIntervalSeconds])).sorted()
+        Array(Set([0, 15, 30, 60, 120, 180, 300, 600, 900, model.refreshIntervalSeconds])).sorted()
     }
 
     var body: some View {
@@ -160,6 +160,10 @@ private struct GeneralSettingsDetailView: View {
     }
 
     private func refreshIntervalLabel(for seconds: Int) -> String {
+        if seconds == 0 {
+            return "Off"
+        }
+
         if seconds < 60 {
             return "\(seconds) sec"
         }

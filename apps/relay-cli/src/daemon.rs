@@ -16,6 +16,8 @@ enum RefreshKind {
     Interval,
 }
 
+const DISABLED_REFRESH_DEADLINE: Duration = Duration::from_secs(60 * 60 * 24 * 365 * 100);
+
 pub(crate) async fn run(command: &DaemonCommand) -> Result<(), RelayError> {
     if !command.stdio {
         return Err(RelayError::InvalidInput(
@@ -122,17 +124,17 @@ async fn run_write_service(
 ) {
     let mut startup_refresh_pending = true;
     let mut pending_refresh: Option<RefreshKind> = None;
-    let mut next_refresh_at = Instant::now() + next_refresh_deadline(&service).await;
+    let mut next_refresh_at = schedule_next_refresh_at(&service).await;
 
     loop {
-        if let Some(kind) = pending_refresh {
+                if let Some(kind) = pending_refresh {
             if write_rx.is_empty() {
                 run_refresh(kind, &mut service).await;
                 if forward_pending_notifications(&mut notification_rx, &outbound_tx).is_err() {
                     break;
                 }
                 pending_refresh = None;
-                next_refresh_at = Instant::now() + next_refresh_deadline(&service).await;
+                next_refresh_at = schedule_next_refresh_at(&service).await;
                 continue;
             }
         }
@@ -153,12 +155,14 @@ async fn run_write_service(
                     break;
                 }
                 if reset_refresh_deadline {
-                    next_refresh_at = Instant::now() + next_refresh_deadline(&service).await;
+                    next_refresh_at = schedule_next_refresh_at(&service).await;
                 }
 
                 if startup_refresh_pending && method == "session/subscribe" {
                     startup_refresh_pending = false;
-                    pending_refresh = Some(RefreshKind::Startup);
+                    if automatic_refresh_enabled(&service).await {
+                        pending_refresh = Some(RefreshKind::Startup);
+                    }
                 }
 
                 if service.shutdown_requested() {
@@ -258,7 +262,18 @@ fn spawn_stdin_reader(sender: mpsc::UnboundedSender<String>) {
 
 async fn next_refresh_deadline(service: &DaemonService) -> Duration {
     let seconds = service.current_refresh_interval().await.unwrap_or(60);
+    if seconds <= 0 {
+        return DISABLED_REFRESH_DEADLINE;
+    }
     Duration::from_secs(seconds.max(15) as u64)
+}
+
+async fn schedule_next_refresh_at(service: &DaemonService) -> Instant {
+    Instant::now() + next_refresh_deadline(service).await
+}
+
+async fn automatic_refresh_enabled(service: &DaemonService) -> bool {
+    service.current_refresh_interval().await.unwrap_or(60) > 0
 }
 
 fn write_line(writer: &mut BufWriter<io::StdoutLock<'_>>, line: &str) -> Result<(), RelayError> {

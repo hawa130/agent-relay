@@ -229,7 +229,7 @@ pub(super) fn app_settings_fields(settings: &AppSettings) -> Vec<(&'static str, 
         ("Cooldown Seconds", settings.cooldown_seconds.to_string()),
         (
             "Refresh Interval Seconds",
-            settings.refresh_interval_seconds.to_string(),
+            refresh_interval_label(settings.refresh_interval_seconds),
         ),
     ]
 }
@@ -243,9 +243,17 @@ pub(super) fn autoswitch_fields(settings: &AppSettings) -> Vec<(&'static str, St
         ("Cooldown Seconds", settings.cooldown_seconds.to_string()),
         (
             "Refresh Interval Seconds",
-            settings.refresh_interval_seconds.to_string(),
+            refresh_interval_label(settings.refresh_interval_seconds),
         ),
     ]
+}
+
+fn refresh_interval_label(seconds: i64) -> String {
+    if seconds == 0 {
+        "Off".into()
+    } else {
+        seconds.to_string()
+    }
 }
 
 pub(super) fn codex_settings_fields(settings: &CodexSettings) -> Vec<(&'static str, String)> {

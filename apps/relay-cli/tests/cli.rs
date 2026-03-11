@@ -2108,6 +2108,126 @@ fn daemon_stdio_settings_update_recomputes_interval_deadline_immediately() {
 }
 
 #[test]
+fn daemon_stdio_refresh_interval_off_disables_automatic_refresh_but_keeps_manual_refresh() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let profile_home = temp.path().join("profile-home");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&profile_home, "profile");
+
+    let add_payload = format!(
+        "{{\"nickname\":\"daemon-profile\",\"priority\":50,\"agent_home\":\"{}\",\"auth_mode\":\"ConfigFilesystem\"}}",
+        profile_home.to_string_lossy()
+    );
+    let add = run_json_with_stdin(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "codex", "add", "--input-json", "-"],
+        &add_payload,
+    );
+    let profile_id = add["data"]["id"].as_str().expect("profile id");
+
+    let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
+    daemon.send_request(
+        "1",
+        "initialize",
+        serde_json::json!({
+            "protocol_version": "1",
+            "client_info": { "name": "relay-cli-test", "version": "1.0.0" },
+            "capabilities": {
+                "supports_subscriptions": true,
+                "supports_health_updates": true
+            }
+        }),
+    );
+    let _ = daemon.read_message();
+
+    daemon.send_request(
+        "2",
+        "relay/settings/update",
+        serde_json::json!({
+            "app": {
+                "refresh_interval_seconds": 0
+            }
+        }),
+    );
+    let updated = daemon.read_message();
+    assert_eq!(updated["id"], "2");
+    assert_eq!(updated["result"]["app"]["refresh_interval_seconds"], 0);
+
+    daemon.send_request(
+        "sub",
+        "session/subscribe",
+        serde_json::json!({
+            "topics": ["query_state.updated"]
+        }),
+    );
+    let subscribe = daemon.read_message();
+    assert_eq!(subscribe["id"], "sub");
+    let initial_query_snapshot = daemon.read_message();
+    assert_eq!(initial_query_snapshot["params"]["topic"], "query_state.updated");
+    assert_eq!(
+        initial_query_snapshot["params"]["payload"]["states"]
+            .as_array()
+            .expect("query state snapshot")
+            .len(),
+        0
+    );
+
+    let unexpected = daemon.read_message_timeout(Duration::from_secs(2));
+    assert!(
+        unexpected.is_none(),
+        "did not expect automatic refresh notifications when refresh interval is off"
+    );
+
+    daemon.send_request(
+        "3",
+        "relay/usage/refresh",
+        serde_json::json!({
+            "profile_id": profile_id
+        }),
+    );
+
+    let mut saw_manual_pending = false;
+    let mut saw_manual_clear = false;
+    let manual_deadline = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < manual_deadline {
+        let message = daemon
+            .read_message_timeout(Duration::from_millis(500))
+            .expect("manual refresh message");
+        if message["id"] == "3" {
+            continue;
+        }
+        if message["params"]["topic"] != "query_state.updated" {
+            continue;
+        }
+
+        let states = message["params"]["payload"]["states"]
+            .as_array()
+            .expect("query states");
+        if states.iter().any(|state| {
+            state["key"]["kind"] == "UsageProfile"
+                && state["key"]["profile_id"] == profile_id
+                && state["status"] == "Pending"
+                && state["trigger"] == "Manual"
+        }) {
+            saw_manual_pending = true;
+            continue;
+        }
+        if saw_manual_pending && states.is_empty() {
+            saw_manual_clear = true;
+            break;
+        }
+    }
+
+    assert!(saw_manual_pending, "expected manual refresh pending state");
+    assert!(saw_manual_clear, "expected manual refresh clear state");
+
+    daemon.shutdown();
+}
+
+#[test]
 fn daemon_stdio_rejects_malformed_json_requests() {
     let temp = tempdir().expect("tempdir");
     let relay_home = temp.path().join("relay");
