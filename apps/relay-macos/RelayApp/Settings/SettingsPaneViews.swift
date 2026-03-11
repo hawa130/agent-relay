@@ -29,7 +29,7 @@ public struct SettingsPaneView: View {
                         Label {
                             Text(descriptor.title)
                         } icon: {
-                            AgentBrandIcon(descriptor: descriptor, size: 16, tint: .secondary)
+                            AgentIcon(agent: descriptor.agent, size: 16, tint: .secondary)
                                 .frame(width: 18, height: 18)
                         }
                         .tag(SettingsSidebarSelection.agent(descriptor.agent))

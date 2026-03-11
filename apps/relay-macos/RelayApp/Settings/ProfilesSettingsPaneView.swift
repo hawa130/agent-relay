@@ -79,7 +79,7 @@ public struct ProfilesSettingsPaneView: View {
 
     private var sidebar: some View {
         List(ProfilesSidebarFilter.allCases, selection: selectedFilterBinding) { item in
-            Label(item.title, systemImage: item.icon)
+            ProfilesSidebarItemLabel(item: item)
                 .badge(profileCount(for: item))
                 .tag(item)
         }
@@ -443,13 +443,13 @@ private struct ProfileHeroAgentIcon: View {
 
     var body: some View {
         Group {
-            if let descriptor = AgentSettingsCatalog.descriptor(for: agent) {
+            if AgentSettingsCatalog.descriptor(for: agent) != nil {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10, style: .continuous)
                         .fill(NativePreferencesTheme.Colors.subtleFill)
                         .frame(width: 40, height: 40)
 
-                    AgentBrandIcon(descriptor: descriptor, size: 20)
+                    AgentIcon(agent: agent, size: 20)
                 }
             } else {
                 ZStack {
@@ -671,8 +671,8 @@ private struct ProfileListAgentLabel: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            if let descriptor = AgentSettingsCatalog.descriptor(for: agent) {
-                AgentBrandIcon(descriptor: descriptor, size: 12, tint: .secondary)
+            if AgentSettingsCatalog.descriptor(for: agent) != nil {
+                AgentIcon(agent: agent, size: 12, tint: .secondary)
                     .frame(width: 12, height: 12)
             } else {
                 Image(systemName: "terminal")
@@ -978,7 +978,7 @@ private struct AddProfileSheet: View {
                     .fill(NativePreferencesTheme.Colors.subtleFill)
                     .frame(width: 28, height: 28)
 
-                AgentBrandIcon(descriptor: descriptor, size: 16, tint: .secondary)
+                AgentIcon(agent: descriptor.agent, size: 16, tint: .secondary)
             }
             .frame(width: 28, height: 28)
 
@@ -1239,6 +1239,24 @@ private struct AddProfileSheet: View {
                 return NativePreferencesTheme.Colors.semanticFill(.warning)
             case .failed:
                 return NativePreferencesTheme.Colors.semanticFill(.danger)
+            }
+        }
+    }
+}
+
+private struct ProfilesSidebarItemLabel: View {
+    let item: ProfilesSidebarFilter
+
+    var body: some View {
+        switch item {
+        case .all:
+            Label(item.title, systemImage: "square.grid.2x2")
+        case .codex:
+            Label {
+                Text(item.title)
+            } icon: {
+                AgentIcon(agent: .codex, size: 14)
+                    .frame(width: 16, height: 16)
             }
         }
     }
