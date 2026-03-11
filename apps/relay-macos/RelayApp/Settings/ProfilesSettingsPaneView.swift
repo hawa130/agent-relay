@@ -90,7 +90,9 @@ public struct ProfilesSettingsPaneView: View {
                 ProfileListRow(
                     profile: profile,
                     usage: model.usageSnapshot(for: profile.id),
-                    isActive: model.activeProfileId == profile.id
+                    isActive: model.activeProfileId == profile.id,
+                    isRefreshingUsage: model.isRefreshingUsage(profileId: profile.id),
+                    usageRefreshError: model.usageRefreshError(profileId: profile.id)
                 )
                 .tag(Optional(profile.id))
             }
@@ -283,24 +285,45 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private func usageCard(_ profile: Profile) -> some View {
-        SettingsSurfaceCard(
+        let isRefreshingUsage = model.isRefreshingUsage(profileId: profile.id)
+        let usageRefreshError = model.usageRefreshError(profileId: profile.id)
+        return SettingsSurfaceCard(
             "Usage",
             headerAccessory: AnyView(
-                Button {
-                    Task {
-                        await model.refreshUsage(profileId: profile.id)
+                HStack(spacing: 8) {
+                    if isRefreshingUsage {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Refreshing")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(.secondary)
+                        }
                     }
-                } label: {
-                    Label("Refresh Usage", systemImage: "arrow.clockwise")
+
+                    Button {
+                        Task {
+                            await model.refreshUsage(profileId: profile.id)
+                        }
+                    } label: {
+                        Label("Refresh Usage", systemImage: "arrow.clockwise")
+                    }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.bordered)
+                    .disabled(isRefreshingUsage)
+                    .help("Refresh Usage")
                 }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.bordered)
-                .disabled(model.isRefreshingUsage(profileId: profile.id))
-                .help("Refresh Usage")
             )
         ) {
             if let usage = model.usageSnapshot(for: profile.id) {
                 VStack(alignment: .leading, spacing: 10) {
+                    if let usageRefreshError {
+                        Label(usageRefreshError, systemImage: "exclamationmark.triangle.fill")
+                            .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
+                            .foregroundStyle(.orange)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
                     UsageMetricRow(title: "Weekly", window: usage.weekly, stale: usage.stale)
 
@@ -323,9 +346,23 @@ public struct ProfilesSettingsPaneView: View {
                     }
                 }
             } else {
-                Text("Usage data unavailable.")
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 8) {
+                    if isRefreshingUsage {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Refreshing usage…")
+                                .foregroundStyle(.secondary)
+                        }
+                    } else if let usageRefreshError {
+                        Label(usageRefreshError, systemImage: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                    } else {
+                        Text("Usage data unavailable.")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
@@ -425,6 +462,8 @@ private struct ProfileListRow: View {
     let profile: Profile
     let usage: UsageSnapshot?
     let isActive: Bool
+    let isRefreshingUsage: Bool
+    let usageRefreshError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -446,7 +485,20 @@ private struct ProfileListRow: View {
                     Text(profile.nickname)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
 
-                    if let usage {
+                    if isRefreshingUsage {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.mini)
+                            Text("Refreshing usage…")
+                                .font(NativePreferencesTheme.Typography.detail)
+                                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                        }
+                    } else if let usageRefreshError {
+                        Label(usageRefreshError, systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.orange)
+                            .lineLimit(2)
+                    } else if let usage {
                         ProfileListUsageLine(
                             title: "Session",
                             value: usage.session.menuBarDisplayValue,
