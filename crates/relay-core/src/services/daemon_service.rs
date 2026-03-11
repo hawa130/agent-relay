@@ -3,33 +3,33 @@ use crate::models::{
     ActivityEventsUpdatedPayload, ActivityLogsUpdatedPayload, ActivityRefreshResult,
     AddProfileParams, DoctorUpdatedPayload, EditProfileParams, EngineConnectionState, EngineState,
     HealthUpdatedPayload, ImportProfileParams, InitialState, InitializeParams, InitializeResult,
-    LoginProfileParams, LogsTailParams, LogsTailResult, ProfileIdParams,
-    ProfilesUpdatedPayload, QueryStateItem, QueryStateKey, QueryStateKind, QueryStateStatus,
-    QueryStateTrigger, QueryStateUpdatedPayload, RefreshUsageParams, RefreshUsageResult,
-    RelayRpcTopic, RelayTaskKind, RpcNotification, RpcRequest, RpcServerCapabilities,
-    RpcServerInfo, RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
-    SettingsUpdateParams, SettingsUpdatedPayload, SubscribeParams, SubscribeResult,
-    SwitchCompletedPayload, SwitchFailedPayload, SwitchTrigger, TaskCancelParams,
-    TaskCancelResult, TaskStartResult, TaskUpdatedPayload, UsageGetParams, UsageResult,
-    UsageUpdateTrigger, UsageUpdatedPayload, rpc_from_error, rpc_internal_error,
-    rpc_invalid_params, rpc_invalid_request, rpc_method_not_found,
+    LoginProfileParams, LogsTailParams, LogsTailResult, ProfileIdParams, ProfilesUpdatedPayload,
+    QueryStateItem, QueryStateKey, QueryStateKind, QueryStateStatus, QueryStateTrigger,
+    QueryStateUpdatedPayload, RefreshUsageParams, RefreshUsageResult, RelayRpcTopic, RelayTaskKind,
+    RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo, RpcSuccessResponse,
+    SessionUpdate, SetProfileEnabledParams, SettingsResult, SettingsUpdateParams,
+    SettingsUpdatedPayload, SubscribeParams, SubscribeResult, SwitchCompletedPayload,
+    SwitchFailedPayload, SwitchTrigger, TaskCancelParams, TaskCancelResult, TaskStartResult,
+    TaskUpdatedPayload, UsageGetParams, UsageResult, UsageUpdateTrigger, UsageUpdatedPayload,
+    rpc_from_error, rpc_internal_error, rpc_invalid_params, rpc_invalid_request,
+    rpc_method_not_found,
 };
 use crate::services::query_coordinator::QueryCoordinator;
 use crate::services::task_manager::{TaskCancellationHandle, TaskManager};
 use crate::{
-    ActivityEventsQuery, CodexSettingsUpdateRequest, FailureReason, Profile, RelayApp,
-    RelayError, SystemSettingsUpdateRequest,
+    ActivityEventsQuery, CodexSettingsUpdateRequest, FailureReason, Profile, RelayApp, RelayError,
+    SystemSettingsUpdateRequest,
 };
 use chrono::Utc;
 use futures_util::stream::StreamExt;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashSet};
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
-use std::sync::atomic::AtomicBool;
-use tokio::sync::mpsc;
 use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::mpsc;
 
 struct DaemonSessionState {
     subscribed_topics: HashSet<RelayRpcTopic>,
@@ -287,7 +287,10 @@ impl DaemonService {
         })
     }
 
-    pub async fn handle_request(&self, request: RpcRequest) -> Result<RpcSuccessResponse, crate::RpcErrorObject> {
+    pub async fn handle_request(
+        &self,
+        request: RpcRequest,
+    ) -> Result<RpcSuccessResponse, crate::RpcErrorObject> {
         if request.jsonrpc != "2.0" {
             return Err(rpc_invalid_request("jsonrpc must equal 2.0"));
         }
@@ -420,9 +423,7 @@ impl DaemonService {
             }
             "relay/usage/refresh" => serialize(self.handle_refresh(request.params).await?)?,
             "relay/activity/refresh" => serialize(self.handle_activity_refresh().await?)?,
-            "relay/doctor/refresh" => {
-                serialize(self.handle_doctor_refresh().await?)?
-            }
+            "relay/doctor/refresh" => serialize(self.handle_doctor_refresh().await?)?,
             "relay/switch/activate" => {
                 let _guard = self.profile_write_lock.lock().await;
                 let params: ProfileIdParams = parse_params(request.params)?;
@@ -564,12 +565,19 @@ impl DaemonService {
         let params: RefreshUsageParams = parse_params(params)?;
         let snapshots = if let Some(profile_id) = params.profile_id {
             vec![
-                self.refresh_usage_profile_with_query_state(&profile_id, UsageUpdateTrigger::Manual)
-                    .await
-                    .map_err(|e| rpc_from_error(&e))?,
+                self.refresh_usage_profile_with_query_state(
+                    &profile_id,
+                    UsageUpdateTrigger::Manual,
+                )
+                .await
+                .map_err(|e| rpc_from_error(&e))?,
             ]
         } else if params.include_disabled {
-            let profiles = self.app.list_profiles().await.map_err(|e| rpc_from_error(&e))?;
+            let profiles = self
+                .app
+                .list_profiles()
+                .await
+                .map_err(|e| rpc_from_error(&e))?;
             self.refresh_usage_profiles(profiles, UsageUpdateTrigger::Manual)
                 .await
                 .map_err(|e| rpc_from_error(&e))?
@@ -617,9 +625,7 @@ impl DaemonService {
         Ok(ActivityRefreshResult { events, logs })
     }
 
-    async fn handle_doctor_refresh(
-        &self,
-    ) -> Result<crate::DoctorReport, crate::RpcErrorObject> {
+    async fn handle_doctor_refresh(&self) -> Result<crate::DoctorReport, crate::RpcErrorObject> {
         let report = self.app.doctor_report().map_err(|e| rpc_from_error(&e))?;
         self.publish_doctor_updated(report.clone())
             .await
@@ -739,7 +745,10 @@ impl DaemonService {
         }
     }
 
-    async fn refresh_and_maybe_auto_switch(&self, trigger: UsageUpdateTrigger) -> Result<(), RelayError> {
+    async fn refresh_and_maybe_auto_switch(
+        &self,
+        trigger: UsageUpdateTrigger,
+    ) -> Result<(), RelayError> {
         let profiles: Vec<Profile> = self
             .app
             .list_profiles()
@@ -840,20 +849,14 @@ impl DaemonService {
         )
     }
 
-    async fn publish_activity_logs_updated(
-        &self,
-        logs: crate::LogTail,
-    ) -> Result<(), RelayError> {
+    async fn publish_activity_logs_updated(&self, logs: crate::LogTail) -> Result<(), RelayError> {
         self.hub.publish(
             RelayRpcTopic::ActivityLogsUpdated,
             ActivityLogsUpdatedPayload { logs },
         )
     }
 
-    async fn publish_doctor_updated(
-        &self,
-        report: crate::DoctorReport,
-    ) -> Result<(), RelayError> {
+    async fn publish_doctor_updated(&self, report: crate::DoctorReport) -> Result<(), RelayError> {
         self.hub.publish(
             RelayRpcTopic::DoctorUpdated,
             DoctorUpdatedPayload { report },
@@ -908,7 +911,8 @@ impl DaemonService {
     }
 
     async fn publish_task_updated(&self, task: crate::TaskUpdate) -> Result<(), RelayError> {
-        self.hub.publish(RelayRpcTopic::TaskUpdated, TaskUpdatedPayload { task })
+        self.hub
+            .publish(RelayRpcTopic::TaskUpdated, TaskUpdatedPayload { task })
     }
 
     pub async fn publish_health_update(
@@ -993,22 +997,19 @@ impl DaemonService {
         self.sync_network_query_concurrency().await?;
         let concurrency = self.app.settings().await?.network_query_concurrency.max(1) as usize;
         let service = self.clone();
-        let mut results = futures_util::stream::iter(
-            profiles
-                .into_iter()
-                .enumerate()
-                .map(move |(index, profile)| {
-                    let service = service.clone();
-                    async move {
-                        (
-                            index,
-                            service
-                                .refresh_usage_profile_with_query_state(&profile.id, trigger)
-                                .await,
-                        )
-                    }
-                }),
-        )
+        let mut results = futures_util::stream::iter(profiles.into_iter().enumerate().map(
+            move |(index, profile)| {
+                let service = service.clone();
+                async move {
+                    (
+                        index,
+                        service
+                            .refresh_usage_profile_with_query_state(&profile.id, trigger)
+                            .await,
+                    )
+                }
+            },
+        ))
         .buffer_unordered(concurrency)
         .collect::<Vec<_>>()
         .await;
@@ -1051,7 +1052,8 @@ impl DaemonService {
             .await
         {
             Ok(snapshot) => {
-                self.publish_usage_updated(vec![snapshot.clone()], trigger).await?;
+                self.publish_usage_updated(vec![snapshot.clone()], trigger)
+                    .await?;
                 self.clear_query_state(&key).await?;
                 Ok(snapshot)
             }
@@ -1115,10 +1117,8 @@ impl DaemonService {
         let update_result = match result {
             Ok(result) => {
                 if cancel_requested.load(std::sync::atomic::Ordering::SeqCst) {
-                    self.tasks.finish_cancelled(
-                        &task_id,
-                        Some("browser sign-in was cancelled".into()),
-                    )
+                    self.tasks
+                        .finish_cancelled(&task_id, Some("browser sign-in was cancelled".into()))
                 } else {
                     match serialize(result.clone()) {
                         Ok(payload) => {
@@ -1146,10 +1146,8 @@ impl DaemonService {
             }
             Err(error) => {
                 if cancel_requested.load(std::sync::atomic::Ordering::SeqCst) {
-                    self.tasks.finish_cancelled(
-                        &task_id,
-                        Some("browser sign-in was cancelled".into()),
-                    )
+                    self.tasks
+                        .finish_cancelled(&task_id, Some("browser sign-in was cancelled".into()))
                 } else {
                     self.tasks.finish_failed(
                         &task_id,

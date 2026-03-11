@@ -75,11 +75,10 @@ pub(crate) async fn login_profile(
     let login_home = prepare_login_home()?;
     let login_home_for_task = login_home.clone();
     let cancel_for_task = cancel_requested.clone();
-    let result = task::spawn_blocking(move || {
-        run_codex_login(&login_home_for_task, mode, cancel_for_task)
-    })
-        .await
-        .map_err(|error| RelayError::Internal(format!("codex login task failed: {error}")))?;
+    let result =
+        task::spawn_blocking(move || run_codex_login(&login_home_for_task, mode, cancel_for_task))
+            .await
+            .map_err(|error| RelayError::Internal(format!("codex login task failed: {error}")))?;
     if result.is_err() {
         let _ = fs::remove_dir_all(&login_home);
     }

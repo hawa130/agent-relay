@@ -1636,7 +1636,11 @@ impl DaemonHarness {
                 }
             }
         });
-        Self { child, stdin, stdout_rx }
+        Self {
+            child,
+            stdin,
+            stdout_rx,
+        }
     }
 
     fn send_request(&mut self, id: &str, method: &str, params: Value) {
@@ -1658,7 +1662,9 @@ impl DaemonHarness {
     }
 
     fn read_message(&mut self) -> Value {
-        self.stdout_rx.recv().expect("daemon stdout closed unexpectedly")
+        self.stdout_rx
+            .recv()
+            .expect("daemon stdout closed unexpectedly")
     }
 
     fn read_message_timeout(&mut self, timeout: Duration) -> Option<Value> {
@@ -1813,7 +1819,10 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
     assert!(saw_subscribe_response, "expected subscribe response");
     assert_eq!(startup_topics, expected_topics);
     for topic in &expected_topics {
-        assert!(startup_topics.contains(topic), "missing startup topic: {topic}");
+        assert!(
+            startup_topics.contains(topic),
+            "missing startup topic: {topic}"
+        );
     }
 
     let startup_refresh_deadline = Instant::now() + Duration::from_secs(20);
@@ -1852,8 +1861,14 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
             _ => {}
         }
     }
-    assert!(saw_startup_usage_refresh, "expected startup usage refresh notification");
-    assert!(saw_startup_active_state, "expected startup active_state notification");
+    assert!(
+        saw_startup_usage_refresh,
+        "expected startup usage refresh notification"
+    );
+    assert!(
+        saw_startup_active_state,
+        "expected startup active_state notification"
+    );
     assert!(saw_startup_query_pending, "expected startup query pending");
     assert!(saw_startup_query_clear, "expected startup query clear");
 
@@ -1949,7 +1964,10 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
         }
     }
     assert!(saw_manual_usage_update, "expected manual usage update");
-    assert!(saw_manual_active_state, "expected manual active_state update");
+    assert!(
+        saw_manual_active_state,
+        "expected manual active_state update"
+    );
     assert!(saw_manual_query_pending, "expected manual query pending");
     assert!(saw_manual_query_clear, "expected manual query clear");
 
@@ -2185,7 +2203,10 @@ fn daemon_stdio_settings_update_recomputes_interval_deadline_immediately() {
     let subscribe = daemon.read_message();
     assert_eq!(subscribe["id"], "sub");
     let initial_query_snapshot = daemon.read_message();
-    assert_eq!(initial_query_snapshot["params"]["topic"], "query_state.updated");
+    assert_eq!(
+        initial_query_snapshot["params"]["topic"],
+        "query_state.updated"
+    );
     assert_eq!(
         initial_query_snapshot["params"]["payload"]["states"]
             .as_array()
@@ -2220,7 +2241,10 @@ fn daemon_stdio_settings_update_recomputes_interval_deadline_immediately() {
             break;
         }
     }
-    assert!(saw_startup_pending, "expected startup refresh pending state");
+    assert!(
+        saw_startup_pending,
+        "expected startup refresh pending state"
+    );
 
     daemon.send_request(
         "2",
@@ -2326,7 +2350,10 @@ fn daemon_stdio_refresh_interval_off_disables_automatic_refresh_but_keeps_manual
     let subscribe = daemon.read_message();
     assert_eq!(subscribe["id"], "sub");
     let initial_query_snapshot = daemon.read_message();
-    assert_eq!(initial_query_snapshot["params"]["topic"], "query_state.updated");
+    assert_eq!(
+        initial_query_snapshot["params"]["topic"],
+        "query_state.updated"
+    );
     assert_eq!(
         initial_query_snapshot["params"]["payload"]["states"]
             .as_array()
@@ -2511,12 +2538,7 @@ fn daemon_stdio_handles_high_concurrency_profile_switch_writes() {
             &["--json", "codex", "add", "--input-json", "-"],
             &add_payload,
         );
-        profile_ids.push(
-            add["data"]["id"]
-                .as_str()
-                .expect("profile id")
-                .to_string(),
-        );
+        profile_ids.push(add["data"]["id"].as_str().expect("profile id").to_string());
     }
 
     let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
@@ -2596,7 +2618,10 @@ fn daemon_stdio_long_profile_login_does_not_block_settings_update() {
     let mut daemon = DaemonHarness::spawn_with_env(
         &relay_home,
         &live_codex_home,
-        &[("PATH", path_value.as_str()), ("RELAY_TEST_LOGIN_SLEEP", "2")],
+        &[
+            ("PATH", path_value.as_str()),
+            ("RELAY_TEST_LOGIN_SLEEP", "2"),
+        ],
     );
     daemon.send_request(
         "init",
@@ -2689,7 +2714,10 @@ fn daemon_stdio_long_profile_login_does_not_block_settings_update() {
         first_response["id"], "settings",
         "settings/update should not wait for slow profile login"
     );
-    assert_eq!(first_response["result"]["app"]["refresh_interval_seconds"], 15);
+    assert_eq!(
+        first_response["result"]["app"]["refresh_interval_seconds"],
+        15
+    );
 
     daemon.send_request(
         "cancel",
@@ -2709,7 +2737,10 @@ fn daemon_stdio_long_profile_login_does_not_block_settings_update() {
         .expect("expected cancelled task notification");
     assert_eq!(cancelled["params"]["topic"], "task.updated");
     assert_eq!(cancelled["params"]["payload"]["task"]["task_id"], task_id);
-    assert_eq!(cancelled["params"]["payload"]["task"]["status"], "Cancelled");
+    assert_eq!(
+        cancelled["params"]["payload"]["task"]["status"],
+        "Cancelled"
+    );
 
     daemon.shutdown();
 }
