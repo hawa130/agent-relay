@@ -167,6 +167,34 @@ final class RelayDaemonClientTests: XCTestCase {
         await client.stop()
     }
 
+    func testLoginStartReturnsCommandFailedImmediatelyForDaemonErrors() async throws {
+        let fixture = try RelayDaemonFixture.make(mode: "login_start_invalid_params")
+        defer { fixture.cleanup() }
+
+        let client = RelayDaemonClient(
+            relayCLIPathOverride: fixture.scriptPath,
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "login_start_invalid_params"]
+        )
+
+        _ = try await client.start()
+
+        do {
+            _ = try await client.startLoginProfile(
+                agent: .codex,
+                nickname: "browser",
+                priority: 90
+            )
+            XCTFail("expected login start to fail")
+        } catch let RelayCLIClientError.commandFailed(code, message) {
+            XCTAssertEqual(code, "RELAY_INVALID_INPUT")
+            XCTAssertTrue(message.contains("missing field"))
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+
+        await client.stop()
+    }
+
     func testPendingRequestFailsWhenDaemonExitsUnexpectedly() async throws {
         let fixture = try RelayDaemonFixture.make(mode: "crash_on_status")
         defer { fixture.cleanup() }
@@ -396,6 +424,12 @@ EOF
           ;;
         relay/profiles/login/start)
           printf '%s\n' 'rpc relay/profiles/login/start' >> "$script_dir/commands.log"
+          if [ "$mode" = "login_start_invalid_params" ]; then
+            cat <<EOF
+{"jsonrpc":"2.0","id":"$id","error":{"code":-32602,"message":"missing field `mode`","data":{"relay_error_code":"RELAY_INVALID_INPUT"}}}
+EOF
+            continue
+          fi
           cat <<EOF
 {"jsonrpc":"2.0","id":"$id","result":{"task_id":"task-login-1","kind":"ProfileLogin","accepted":true}}
 EOF

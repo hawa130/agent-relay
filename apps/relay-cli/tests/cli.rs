@@ -2404,6 +2404,41 @@ fn daemon_stdio_rejects_malformed_json_requests() {
 }
 
 #[test]
+fn daemon_stdio_preserves_request_id_for_invalid_params_errors() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+
+    let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
+    daemon.send_request(
+        "bad-login",
+        "relay/profiles/login/start",
+        serde_json::json!({
+            "request": {
+                "agent": "Codex",
+                "priority": 100
+            }
+        }),
+    );
+
+    let error = daemon
+        .read_message_timeout(Duration::from_secs(1))
+        .expect("invalid params response");
+    assert_eq!(error["id"], "bad-login");
+    assert_eq!(error["error"]["code"], -32602);
+    assert!(
+        error["error"]["message"]
+            .as_str()
+            .expect("error message")
+            .contains("missing field"),
+        "unexpected error payload: {error}"
+    );
+
+    daemon.shutdown();
+}
+
+#[test]
 fn daemon_stdio_handles_high_concurrency_read_requests() {
     let temp = tempdir().expect("tempdir");
     let relay_home = temp.path().join("relay");
