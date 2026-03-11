@@ -245,23 +245,20 @@ public struct ProfilesSettingsPaneView: View {
                     ProfileHeroAgentIcon(agent: profile.agent)
 
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(profile.agent.rawValue)
-                            .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
-                            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-                            .textCase(.uppercase)
+                        ProfileAgentLabel(
+                            title: profile.agent.rawValue,
+                            showsActiveBadge: model.activeProfileId == profile.id
+                        )
 
                         Text(profile.nickname)
                             .font(.system(size: 19, weight: .semibold, design: .rounded))
 
                         HStack(spacing: 6) {
-                            ProfileStateBadge(
+                            ProfileStatusBadge(
                                 title: profile.enabled ? "Enabled" : "Disabled",
-                                kind: profile.enabled ? .success : .neutral
+                                dotColor: profile.enabled ? .green : .secondary.opacity(0.7)
                             )
-
-                            if model.activeProfileId == profile.id {
-                                ProfileStateBadge(title: "Active", kind: .info)
-                            }
+                            ProfileInfoBadge(title: "Priority", value: "\(profile.priority)")
                         }
                         .padding(.top, 4)
                     }
@@ -276,14 +273,6 @@ public struct ProfilesSettingsPaneView: View {
                     }
 
                 }
-
-                Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 6) {
-                    GridRow {
-                        NativeDetailRow(title: "Priority", value: "\(profile.priority)")
-                        NativeDetailRow(title: "Auth Mode", value: profile.authMode.displayName)
-                    }
-                }
-
                 if let failure = selectedFailureEvent {
                     Label(failure.reason.rawValue.replacingOccurrences(of: "_", with: " "), systemImage: "exclamationmark.triangle.fill")
                         .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
@@ -315,16 +304,22 @@ public struct ProfilesSettingsPaneView: View {
                     UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
                     UsageMetricRow(title: "Weekly", window: usage.weekly, stale: usage.stale)
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        NativeDetailRow(title: "Source", value: usage.source.displayName)
-                        NativeDetailRow(title: "Updated", value: usage.lastRefreshedAt.formatted())
-                    }
-
                     if let note = usage.userFacingNote {
                         Text(note)
                             .font(NativePreferencesTheme.Typography.detail)
                             .foregroundStyle(usage.stale ? .orange : .secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    HStack {
+                        Spacer(minLength: 0)
+
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("Source: \(usage.source.displayName)")
+                            Text("Updated: \(usage.lastRefreshedAt.formatted())")
+                        }
+                        .font(.system(size: 10))
+                        .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
                     }
                 }
             } else {
@@ -648,6 +643,77 @@ private struct ProfileStateBadge: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(NativePreferencesTheme.Badge.fill(kind), in: Capsule())
+            .fixedSize()
+    }
+}
+
+private struct ProfileAgentLabel: View {
+    let title: String
+    let showsActiveBadge: Bool
+
+    var body: some View {
+        Text(title)
+            .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
+            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+            .textCase(.uppercase)
+            .overlay(alignment: .topTrailing) {
+                if showsActiveBadge {
+                    ProfileStateBadge(title: "Active", kind: .info)
+                        .offset(x: 52, y: -1)
+                        .allowsHitTesting(false)
+                }
+            }
+    }
+}
+
+private struct ProfileStatusBadge: View {
+    let title: String
+    let dotColor: Color
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(dotColor)
+                .frame(width: 5, height: 5)
+
+            Text(title)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(NativePreferencesTheme.Badge.text(.neutral))
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(NativePreferencesTheme.Badge.fill(.neutral), in: Capsule())
+        .fixedSize()
+    }
+}
+
+private struct ProfileInfoBadge: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Text(title)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(NativePreferencesTheme.Badge.text(.neutral))
+                .padding(.leading, 6)
+                .padding(.trailing, 5)
+                .padding(.vertical, 2)
+
+            Rectangle()
+                .fill(NativePreferencesTheme.Badge.text(.neutral).opacity(0.22))
+                .frame(width: 1)
+                .padding(.vertical, 2)
+
+            Text(value)
+                .font(.system(size: 10, weight: .regular))
+                .foregroundStyle(NativePreferencesTheme.Badge.text(.neutral))
+                .padding(.leading, 5)
+                .padding(.trailing, 6)
+                .padding(.vertical, 2)
+        }
+        .background(NativePreferencesTheme.Badge.fill(.neutral), in: Capsule())
+        .fixedSize()
     }
 }
 
