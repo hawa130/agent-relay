@@ -57,15 +57,6 @@ enum ProfilesSidebarFilter: String, CaseIterable, Hashable, Identifiable, Sendab
         }
     }
 
-    var icon: String {
-        switch self {
-        case .all:
-            return "square.grid.2x2"
-        case .codex:
-            return "command.square"
-        }
-    }
-
     var emptyStateDescription: String {
         switch self {
         case .all:

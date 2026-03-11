@@ -43,27 +43,33 @@ enum AgentSettingsCatalog {
     }
 }
 
-struct AgentBrandIcon: View {
-    let descriptor: AgentSettingsDescriptor
+struct AgentIcon: View {
+    let agent: AgentKind
     var size: CGFloat = 18
     var tint: Color? = nil
 
     var body: some View {
         let foreground = tint ?? .secondary
-        if let image = descriptor.iconImage() {
-            Image(nsImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(
-                    width: size * descriptor.visualScale,
-                    height: size * descriptor.visualScale
-                )
-                .foregroundStyle(foreground)
+        if let descriptor = AgentSettingsCatalog.descriptor(for: agent),
+           let image = descriptor.iconImage() {
+            iconImage(image, descriptor: descriptor, foreground: foreground)
         } else {
             Image(systemName: "terminal")
                 .font(.system(size: size, weight: .semibold))
                 .foregroundStyle(foreground)
                 .frame(width: size, height: size)
         }
+    }
+
+    @ViewBuilder
+    private func iconImage(_ image: NSImage, descriptor: AgentSettingsDescriptor, foreground: Color) -> some View {
+        Image(nsImage: image)
+            .resizable()
+            .aspectRatio(contentMode: .fit)
+            .frame(
+                width: size * descriptor.visualScale,
+                height: size * descriptor.visualScale
+            )
+            .foregroundStyle(foreground)
     }
 }
