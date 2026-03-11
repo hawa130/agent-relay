@@ -268,7 +268,12 @@ actor RelayDaemonClient {
     ) async throws -> TaskStartResult {
         try await request(
             method: "relay/profiles/login/start",
-            params: RPCImportProfileParams(agent: agent, nickname: nickname, priority: priority),
+            params: RPCLoginProfileParams(
+                agent: agent,
+                nickname: nickname,
+                priority: priority,
+                mode: .browser
+            ),
             as: TaskStartResult.self
         )
     }
@@ -719,6 +724,31 @@ private struct RPCImportProfileRequest: Encodable, Sendable {
     let agent: AgentKind
     let nickname: String?
     let priority: Int
+}
+
+private struct RPCLoginProfileParams: Encodable, Sendable {
+    let request: RPCLoginProfileRequest
+
+    init(agent: AgentKind, nickname: String?, priority: Int, mode: RPCLoginMode) {
+        request = RPCLoginProfileRequest(
+            agent: agent,
+            nickname: nickname,
+            priority: priority,
+            mode: mode
+        )
+    }
+}
+
+private struct RPCLoginProfileRequest: Encodable, Sendable {
+    let agent: AgentKind
+    let nickname: String?
+    let priority: Int
+    let mode: RPCLoginMode
+}
+
+private enum RPCLoginMode: String, Encodable, Sendable {
+    case browser = "Browser"
+    case deviceAuth = "DeviceAuth"
 }
 
 private struct RPCEditProfileParams: Encodable, Sendable {

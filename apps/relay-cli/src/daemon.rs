@@ -235,12 +235,13 @@ async fn run_notification_forwarder(
 }
 
 async fn render_read_response(read_app: Arc<RelayApp>, request: RpcRequest) -> String {
+    let request_id = request.id.clone();
     match DaemonService::handle_read_request(read_app.as_ref(), request).await {
         Ok(response) => serialize_response(&response)
             .unwrap_or_else(|error| serialize_internal_error(None, error.to_string())),
         Err(error) => serialize_error(&RpcErrorResponse {
             jsonrpc: "2.0".into(),
-            id: None,
+            id: Some(request_id),
             error,
         })
         .unwrap_or_else(|err| serialize_internal_error(None, err.to_string())),
@@ -254,6 +255,7 @@ async fn handle_write_request_task(
     request: RpcRequest,
 ) {
     let method = request.method.clone();
+    let request_id = request.id.clone();
     let payload = match service.handle_request(request).await {
         Ok(response) => {
             if method == "session/subscribe" {
@@ -268,7 +270,7 @@ async fn handle_write_request_task(
         }
         Err(error) => serialize_error(&RpcErrorResponse {
             jsonrpc: "2.0".into(),
-            id: None,
+            id: Some(request_id),
             error,
         })
         .unwrap_or_else(|err| serialize_internal_error(None, err.to_string())),
