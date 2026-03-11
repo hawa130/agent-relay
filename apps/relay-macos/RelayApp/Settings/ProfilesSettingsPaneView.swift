@@ -493,6 +493,7 @@ private struct ProfileListRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(profile.nickname)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(profile.enabled ? .primary : .secondary)
 
                     if let usage {
                         ProfileListUsageLine(
@@ -510,13 +511,15 @@ private struct ProfileListRow: View {
                         HStack {
                             Spacer(minLength: 0)
 
-                            if let indicator = statusIndicator {
-                                ProfileListRowStatusIndicator(indicator: indicator)
-                            }
+                            HStack(spacing: 4) {
+                                if let indicator = statusIndicator {
+                                    ProfileListRowStatusIndicator(indicator: indicator)
+                                }
 
-                            Text(updatedText(for: usage))
-                                .font(.system(size: 10))
-                                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                                Text(updatedText(for: usage))
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                            }
                         }
                     } else {
                         HStack(spacing: 6) {
@@ -548,7 +551,8 @@ private struct ProfileListRow: View {
     var statusIndicator: ProfileListRowStatusIndicator.Kind? {
         ProfileListRowStatusIndicator.Kind(
             isFetchingUsage: isFetchingUsage,
-            usageRefreshError: usageRefreshError
+            usageRefreshError: usageRefreshError,
+            isStale: usage?.stale == true
         )
     }
 
@@ -600,12 +604,15 @@ struct ProfileListRowStatusIndicator: View {
     enum Kind: Equatable {
         case loading
         case warning(message: String)
+        case stale
 
-        init?(isFetchingUsage: Bool, usageRefreshError: String?) {
+        init?(isFetchingUsage: Bool, usageRefreshError: String?, isStale: Bool) {
             if isFetchingUsage {
                 self = .loading
             } else if let usageRefreshError, !usageRefreshError.isEmpty {
                 self = .warning(message: usageRefreshError)
+            } else if isStale {
+                self = .stale
             } else {
                 return nil
             }
@@ -625,6 +632,11 @@ struct ProfileListRowStatusIndicator: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(.orange)
                     .help(message)
+            case .stale:
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .help("Usage data may be stale")
             }
         }
         .frame(width: 12, height: 12)
