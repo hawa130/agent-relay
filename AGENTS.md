@@ -65,6 +65,7 @@ Relay is intentionally limited:
 ## Working Rules
 
 - Prefer extending `relay-core` modules over adding new packages.
+- Run the repository formatter after code changes. Use `just fmt` to write formatting updates and `just fmt-check` for verification-oriented checks such as release/CI flows.
 - Put business logic in `services`, not in the CLI entrypoint or Swift UI layer.
 - Keep `models` stable because CLI JSON and the macOS app depend on them.
 - Put persistence details behind `store`.

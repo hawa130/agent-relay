@@ -163,7 +163,7 @@ This keeps the runtime safer than copying logs, sessions, and unrelated state.
 Common commands:
 
 ```bash
-cargo fmt --all
+just fmt
 cargo test
 cargo run -p relay-cli --bin relay -- --help
 cargo run -p relay-cli --bin relay -- daemon --stdio
