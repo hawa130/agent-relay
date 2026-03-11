@@ -126,6 +126,24 @@ public struct ProfilesSettingsPaneView: View {
             }
 
             ToolbarItemGroup(placement: .confirmationAction) {
+                if model.isRefreshingEnabledUsage {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(width: 28, height: 28)
+                        .help("Refreshing usage for enabled profiles")
+                } else {
+                    Button {
+                        Task {
+                            await model.refreshEnabledUsage()
+                        }
+                    } label: {
+                        Label("Refresh All Usage", systemImage: "arrow.clockwise")
+                    }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.bordered)
+                    .help("Refresh Usage For Enabled Profiles")
+                }
+
                 Button {
                     model.presentAddSheet()
                 } label: {
@@ -485,15 +503,7 @@ private struct ProfileListRow: View {
                     Text(profile.nickname)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
 
-                    if isRefreshingUsage {
-                        HStack(spacing: 6) {
-                            ProgressView()
-                                .controlSize(.mini)
-                            Text("Refreshing usage…")
-                                .font(NativePreferencesTheme.Typography.detail)
-                                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-                        }
-                    } else if let usageRefreshError {
+                    if let usageRefreshError {
                         Label(usageRefreshError, systemImage: "exclamationmark.triangle.fill")
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(.orange)
@@ -516,6 +526,14 @@ private struct ProfileListRow: View {
 
                             Text(updatedText(for: usage))
                                 .font(.system(size: 10))
+                                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                        }
+                    } else if isRefreshingUsage {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.mini)
+                            Text("Refreshing usage…")
+                                .font(NativePreferencesTheme.Typography.detail)
                                 .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
                         }
                     } else {

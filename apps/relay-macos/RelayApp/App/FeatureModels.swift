@@ -101,6 +101,7 @@ public final class ProfilesPaneModel: ObservableObject {
     var lastErrorMessage: String? { session.lastErrorMessage }
     var isSwitching: Bool { session.isSwitching }
     var isMutatingProfiles: Bool { session.isMutatingProfiles }
+    var isRefreshingEnabledUsage: Bool { session.isRefreshingEnabledUsage }
     var selectedFilterProfileCount: Int { filteredProfiles.count }
     var selectedFilterEmptyStateDescription: String { selectedFilter.emptyStateDescription }
     func isRefreshingUsage(profileId: String) -> Bool { session.isRefreshingUsage(profileId: profileId) }
@@ -192,6 +193,10 @@ public final class ProfilesPaneModel: ObservableObject {
 
     func refreshUsage(profileId: String) async {
         await session.refreshUsage(profileId: profileId)
+    }
+
+    func refreshEnabledUsage() async {
+        await session.refreshEnabledUsage()
     }
 
     public func refreshIfStale() async {
