@@ -6,7 +6,7 @@ impl SqliteStore {
         connection: &DatabaseConnection,
     ) -> Result<(), RelayError> {
         let defaults = AppSettings::default();
-        self.set_setting_value(
+        self.ensure_setting_default(
             connection,
             "auto_switch_enabled",
             if defaults.auto_switch_enabled {
@@ -16,13 +16,13 @@ impl SqliteStore {
             },
         )
         .await?;
-        self.set_setting_value(
+        self.ensure_setting_default(
             connection,
             "cooldown_seconds",
             &defaults.cooldown_seconds.to_string(),
         )
         .await?;
-        self.set_setting_value(
+        self.ensure_setting_default(
             connection,
             "refresh_interval_seconds",
             &defaults.refresh_interval_seconds.to_string(),
@@ -172,6 +172,29 @@ impl SqliteStore {
         }
 
         self.codex_settings().await
+    }
+
+    async fn ensure_setting_default(
+        &self,
+        connection: &DatabaseConnection,
+        key: &str,
+        value: &str,
+    ) -> Result<(), RelayError> {
+        if app_settings::Entity::find_by_id(key.to_string())
+            .one(connection)
+            .await?
+            .is_some()
+        {
+            return Ok(());
+        }
+
+        app_settings::ActiveModel {
+            key: Set(key.to_string()),
+            value: Set(value.to_string()),
+        }
+        .insert(connection)
+        .await?;
+        Ok(())
     }
 
     async fn set_setting_value(

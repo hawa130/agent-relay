@@ -110,6 +110,30 @@ async fn codex_settings_round_trip() {
 }
 
 #[tokio::test]
+async fn app_settings_persist_across_store_reopen() {
+    let temp = tempdir().expect("tempdir");
+    let db_path = temp.path().join("relay.db");
+
+    let store = SqliteStore::new(&db_path).await.expect("store");
+    let updated = store
+        .set_auto_switch_enabled(true)
+        .await
+        .expect("enable auto switch");
+    assert!(updated.auto_switch_enabled);
+    let updated = store
+        .set_refresh_interval_seconds(120)
+        .await
+        .expect("set refresh interval");
+    assert_eq!(updated.refresh_interval_seconds, 120);
+    drop(store);
+
+    let reopened = SqliteStore::new(&db_path).await.expect("reopened store");
+    let settings = reopened.get_settings().await.expect("reloaded settings");
+    assert!(settings.auto_switch_enabled);
+    assert_eq!(settings.refresh_interval_seconds, 120);
+}
+
+#[tokio::test]
 async fn legacy_schema_is_rejected_in_read_write_and_read_only_modes() {
     let temp = tempdir().expect("tempdir");
     let db_path = temp.path().join("relay.db");
