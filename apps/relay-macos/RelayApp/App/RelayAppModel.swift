@@ -249,19 +249,31 @@ public final class RelayAppModel: ObservableObject {
 
     func setProfileEnabled(_ profileId: String, enabled: Bool) async {
         await performProfileMutation { [self] in
-            _ = try await self.daemonClient.setProfileEnabled(profileId: profileId, enabled: enabled)
+            let profile = try await self.daemonClient.setProfileEnabled(
+                profileId: profileId,
+                enabled: enabled
+            )
+            await MainActor.run {
+                self.applyProfileUpdate(profile)
+            }
         }
     }
 
     func editProfile(profileId: String, draft: ProfileDraft) async {
         await performProfileMutation { [self] in
-            _ = try await self.daemonClient.editProfile(profileId: profileId, draft: draft)
+            let profile = try await self.daemonClient.editProfile(profileId: profileId, draft: draft)
+            await MainActor.run {
+                self.applyProfileUpdate(profile)
+            }
         }
     }
 
     func removeProfile(_ profileId: String) async {
         await performProfileMutation { [self] in
             _ = try await self.daemonClient.removeProfile(profileId: profileId)
+            await MainActor.run {
+                self.applyProfileRemoval(profileId: profileId)
+            }
         }
     }
 
@@ -273,6 +285,7 @@ public final class RelayAppModel: ObservableObject {
                 priority: priority
             )
             await MainActor.run {
+                self.applyProfileUpdate(profile)
                 self.selectProfile(profile.id)
             }
         }
@@ -366,8 +379,8 @@ public final class RelayAppModel: ObservableObject {
 
         do {
             try await operation()
-            await refresh()
             lastErrorMessage = nil
+            scheduleRefresh()
         } catch {
             lastErrorMessage = error.localizedDescription
             await notificationService.post(
@@ -395,10 +408,16 @@ public final class RelayAppModel: ObservableObject {
             let initial = try await daemonClient.start()
             apply(initialState: initial)
             startNotificationStreamIfNeeded()
-            await refresh()
+            scheduleRefresh()
         } catch {
             engineConnectionState = .degraded
             lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func scheduleRefresh(notifyOnFailure: Bool = false) {
+        Task { [weak self] in
+            await self?.refresh(notifyOnFailure: notifyOnFailure)
         }
     }
 
@@ -524,5 +543,49 @@ public final class RelayAppModel: ObservableObject {
         synchronizeActiveUsage()
         lastRefresh = Date()
         lastErrorMessage = nil
+    }
+
+    private func applyProfileUpdate(_ profile: Profile) {
+        if let index = profiles.firstIndex(where: { $0.id == profile.id }) {
+            profiles[index] = profile
+        } else {
+            profiles.append(profile)
+        }
+
+        if let status {
+            self.status = StatusReport(
+                relayHome: status.relayHome,
+                liveAgentHome: status.liveAgentHome,
+                profileCount: profiles.count,
+                activeState: status.activeState,
+                settings: status.settings
+            )
+        }
+
+        normalizeSelection()
+        synchronizeActiveUsage()
+    }
+
+    private func applyProfileRemoval(profileId: String) {
+        profiles.removeAll { $0.id == profileId }
+        usageSnapshots.removeAll { $0.profileId == profileId }
+        events.removeAll { $0.profileId == profileId }
+
+        if selectedProfileId == profileId {
+            selectProfile(nil)
+        }
+
+        if let status {
+            self.status = StatusReport(
+                relayHome: status.relayHome,
+                liveAgentHome: status.liveAgentHome,
+                profileCount: profiles.count,
+                activeState: status.activeState,
+                settings: status.settings
+            )
+        }
+
+        normalizeSelection()
+        synchronizeActiveUsage()
     }
 }
