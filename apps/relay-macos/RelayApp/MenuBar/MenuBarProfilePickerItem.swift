@@ -1,54 +1,61 @@
 import SwiftUI
 
 struct MenuBarProfilePickerItem: View {
-    let profileName: String
-    let statusText: String
-    let sessionText: String?
-    let sessionResetText: String?
-    let weeklyText: String?
-    let weeklyResetText: String?
-    let footerText: String?
-    let symbolName: String
-    let isDimmed: Bool
+    @ObservedObject var session: RelayAppModel
+    let profileID: String
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: symbolName)
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
-                .frame(width: 13, height: 13)
-                .padding(.top, 2)
-
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(profileName)
-                        .font(.system(size: 12.5, weight: .semibold))
-                        .lineLimit(1)
+        Group {
+            if let profile {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: presenter.profileSymbolName(profile: profile, usage: usage, isActive: isActive))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
+                        .frame(width: 13, height: 13)
+                        .padding(.top, 2)
 
-                    Spacer(minLength: 8)
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(profile.nickname)
+                                .font(.system(size: 12.5, weight: .semibold))
+                                .lineLimit(1)
+                                .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
 
-                    Text(statusText)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
-                        .lineLimit(1)
+                            Spacer(minLength: 8)
+
+                            Text(presenter.profileStatusText(profile: profile, usage: usage, isActive: isActive))
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
+                                .lineLimit(1)
+                        }
+
+                        if let sessionText = presenter.usageText(title: "Session", window: usage?.session) {
+                            usageLine(
+                                left: sessionText,
+                                right: usage?.session.resetAt.map { "Resets \(presenter.preciseResetDescription(for: $0))" }
+                            )
+                        }
+
+                        if let weeklyText = presenter.usageText(title: "Weekly", window: usage?.weekly) {
+                            usageLine(
+                                left: weeklyText,
+                                right: usage?.weekly.resetAt.map {
+                                    "Resets \(presenter.preciseResetDescription(for: $0, roundsToHourWhenDaysPresent: true))"
+                                }
+                            )
+                        }
+
+                        if let footerText = presenter.profileFooterText(profile: profile, usage: usage) {
+                            Text(footerText)
+                                .font(.system(size: 10))
+                                .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
+                                .lineLimit(1)
+                        }
+                    }
                 }
-
-                if let sessionText {
-                    usageLine(left: sessionText, right: sessionResetText)
-                }
-
-                if let weeklyText {
-                    usageLine(left: weeklyText, right: weeklyResetText)
-                }
-
-                if let footerText {
-                    Text(footerText)
-                        .font(.system(size: 10))
-                        .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
-                        .lineLimit(1)
-                }
+            } else {
+                EmptyView()
             }
         }
         .padding(.horizontal, 8)
@@ -75,5 +82,25 @@ struct MenuBarProfilePickerItem: View {
                     .lineLimit(1)
             }
         }
+    }
+
+    private var presenter: MenuBarPresenter {
+        MenuBarPresenter(session: session)
+    }
+
+    private var profile: Profile? {
+        session.profiles.first { $0.id == profileID }
+    }
+
+    private var usage: UsageSnapshot? {
+        session.usageSnapshot(for: profileID)
+    }
+
+    private var isActive: Bool {
+        session.activeProfileId == profileID
+    }
+
+    private var isDimmed: Bool {
+        !(profile?.enabled ?? true)
     }
 }

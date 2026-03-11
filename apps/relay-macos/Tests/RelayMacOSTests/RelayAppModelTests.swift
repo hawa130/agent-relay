@@ -166,6 +166,37 @@ final class RelayAppModelTests: XCTestCase {
         XCTAssertTrue(commands.contains("rpc relay/usage/refresh"))
     }
 
+    func testRefreshEnabledUsageMarksMenuUsageListAsRefreshingOnlyDuringBulkRefresh() async throws {
+        let fixture = try RelayAppModelFixture.make()
+        defer { fixture.cleanup() }
+        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        defer {
+            if let originalRelayCLIPath {
+                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+            } else {
+                unsetenv("RELAY_CLI_PATH")
+            }
+        }
+
+        let model = RelayAppModel()
+        let task = Task { @MainActor in
+            await model.refreshEnabledUsage()
+        }
+
+        try await waitUntil {
+            model.isRefreshingUsageList
+        }
+        XCTAssertTrue(model.isRefreshingUsageList)
+
+        _ = await task.value
+
+        try await waitUntil {
+            !model.isRefreshingUsageList
+        }
+        XCTAssertFalse(model.isRefreshingUsageList)
+    }
+
     func testRefreshUsageIgnoresConcurrentDuplicateRequests() async throws {
         let fixture = try RelayAppModelFixture.make()
         defer { fixture.cleanup() }
@@ -193,6 +224,26 @@ final class RelayAppModelTests: XCTestCase {
         XCTAssertEqual(commands.first, "daemon --stdio")
         XCTAssertTrue(commands.contains("rpc initialize"))
         XCTAssertEqual(commands.filter { $0 == "rpc relay/usage/refresh" }.count, 1)
+    }
+
+    func testRefreshUsageDoesNotMarkMenuUsageListAsRefreshing() async throws {
+        let fixture = try RelayAppModelFixture.make()
+        defer { fixture.cleanup() }
+        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        defer {
+            if let originalRelayCLIPath {
+                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+            } else {
+                unsetenv("RELAY_CLI_PATH")
+            }
+        }
+
+        let model = RelayAppModel()
+
+        await model.refreshUsage(profileId: "p_alt")
+
+        XCTAssertFalse(model.isRefreshingUsageList)
     }
 
     func testRefreshEnabledUsageIgnoresConcurrentDuplicateRequests() async throws {
