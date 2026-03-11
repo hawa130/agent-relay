@@ -144,12 +144,16 @@ async fn run_write_service(
                     break;
                 };
                 let method = request.method.clone();
-                let payload = render_write_response(&mut service, request).await;
+                let (payload, reset_refresh_deadline) =
+                    render_write_response(&mut service, request).await;
                 if outbound_tx.send(payload).is_err() {
                     break;
                 }
                 if forward_pending_notifications(&mut notification_rx, &outbound_tx).is_err() {
                     break;
+                }
+                if reset_refresh_deadline {
+                    next_refresh_at = Instant::now() + next_refresh_deadline(&service).await;
                 }
 
                 if startup_refresh_pending && method == "session/subscribe" {
@@ -181,16 +185,26 @@ async fn render_read_response(read_app: Arc<RelayApp>, request: RpcRequest) -> S
     }
 }
 
-async fn render_write_response(service: &mut DaemonService, request: RpcRequest) -> String {
+async fn render_write_response(
+    service: &mut DaemonService,
+    request: RpcRequest,
+) -> (String, bool) {
+    let should_reset_refresh_deadline = request.method == "relay/settings/update";
     match service.handle_request(request).await {
-        Ok(response) => serialize_response(&response)
-            .unwrap_or_else(|error| serialize_internal_error(None, error.to_string())),
-        Err(error) => serialize_error(&RpcErrorResponse {
-            jsonrpc: "2.0".into(),
-            id: None,
-            error,
-        })
-        .unwrap_or_else(|err| serialize_internal_error(None, err.to_string())),
+        Ok(response) => (
+            serialize_response(&response)
+                .unwrap_or_else(|error| serialize_internal_error(None, error.to_string())),
+            should_reset_refresh_deadline,
+        ),
+        Err(error) => (
+            serialize_error(&RpcErrorResponse {
+                jsonrpc: "2.0".into(),
+                id: None,
+                error,
+            })
+            .unwrap_or_else(|err| serialize_internal_error(None, err.to_string())),
+            false,
+        ),
     }
 }
 

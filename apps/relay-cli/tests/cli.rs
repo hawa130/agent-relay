@@ -2,9 +2,12 @@ use sea_orm::{ConnectionTrait, Database};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::fs;
-use std::io::{BufRead, BufReader, Write};
+use std::io::Write;
 use std::path::Path;
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::mpsc::{self, Receiver};
+use std::thread;
+use std::time::{Duration, Instant};
 use tempfile::tempdir;
 
 fn relay_bin() -> &'static str {
@@ -1567,7 +1570,7 @@ async fn legacy_database_returns_schema_incompatible_error() {
 struct DaemonHarness {
     child: Child,
     stdin: ChildStdin,
-    stdout: BufReader<ChildStdout>,
+    stdout_rx: Receiver<Value>,
 }
 
 impl DaemonHarness {
@@ -1582,11 +1585,28 @@ impl DaemonHarness {
             .spawn()
             .expect("spawn daemon");
         let stdin = child.stdin.take().expect("daemon stdin");
-        let stdout = BufReader::new(child.stdout.take().expect("daemon stdout"));
+        let stdout = child.stdout.take().expect("daemon stdout");
+        let (stdout_tx, stdout_rx) = mpsc::channel();
+        thread::spawn(move || {
+            use std::io::{BufRead, BufReader};
+
+            let reader = BufReader::new(stdout);
+            for line in reader.lines() {
+                let Ok(line) = line else {
+                    break;
+                };
+                let Ok(value) = serde_json::from_str(line.trim()) else {
+                    continue;
+                };
+                if stdout_tx.send(value).is_err() {
+                    break;
+                }
+            }
+        });
         Self {
             child,
             stdin,
-            stdout,
+            stdout_rx,
         }
     }
 
@@ -1609,18 +1629,21 @@ impl DaemonHarness {
     }
 
     fn read_message(&mut self) -> Value {
-        let mut line = String::new();
-        let read = self
-            .stdout
-            .read_line(&mut line)
-            .expect("read daemon stdout");
-        assert!(read > 0, "daemon stdout closed unexpectedly");
-        serde_json::from_str(line.trim()).expect("daemon json")
+        self.stdout_rx.recv().expect("daemon stdout closed unexpectedly")
+    }
+
+    fn read_message_timeout(&mut self, timeout: Duration) -> Option<Value> {
+        self.stdout_rx.recv_timeout(timeout).ok()
     }
 
     fn shutdown(mut self) {
         self.send_request("shutdown", "shutdown", serde_json::json!({}));
-        let response = self.read_message();
+        let response = loop {
+            let message = self.read_message();
+            if message["id"] == "shutdown" {
+                break message;
+            }
+        };
         assert_eq!(response["id"], "shutdown");
         assert_eq!(response["result"]["accepted"], true);
         let status = self.child.wait().expect("wait daemon");
@@ -1952,6 +1975,134 @@ fn daemon_stdio_activity_and_doctor_refresh_publish_snapshot_updates() {
     assert_eq!(doctor["id"], "doctor");
     let doctor_updated = daemon.read_message();
     assert_eq!(doctor_updated["params"]["topic"], "doctor.updated");
+
+    daemon.shutdown();
+}
+
+#[test]
+fn daemon_stdio_settings_update_recomputes_interval_deadline_immediately() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let profile_home = temp.path().join("profile-home");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&profile_home, "profile");
+
+    let add_payload = format!(
+        "{{\"nickname\":\"daemon-profile\",\"priority\":50,\"agent_home\":\"{}\",\"auth_mode\":\"ConfigFilesystem\"}}",
+        profile_home.to_string_lossy()
+    );
+    let add = run_json_with_stdin(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "codex", "add", "--input-json", "-"],
+        &add_payload,
+    );
+    let profile_id = add["data"]["id"].as_str().expect("profile id");
+
+    let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
+    daemon.send_request(
+        "1",
+        "initialize",
+        serde_json::json!({
+            "protocol_version": "1",
+            "client_info": { "name": "relay-cli-test", "version": "1.0.0" },
+            "capabilities": {
+                "supports_subscriptions": true,
+                "supports_health_updates": true
+            }
+        }),
+    );
+    let _ = daemon.read_message();
+
+    daemon.send_request(
+        "sub",
+        "session/subscribe",
+        serde_json::json!({
+            "topics": ["query_state.updated"]
+        }),
+    );
+    let subscribe = daemon.read_message();
+    assert_eq!(subscribe["id"], "sub");
+    let initial_query_snapshot = daemon.read_message();
+    assert_eq!(initial_query_snapshot["params"]["topic"], "query_state.updated");
+    assert_eq!(
+        initial_query_snapshot["params"]["payload"]["states"]
+            .as_array()
+            .expect("query state snapshot")
+            .len(),
+        0
+    );
+
+    let mut saw_startup_pending = false;
+    let startup_deadline = Instant::now() + Duration::from_secs(5);
+    while Instant::now() < startup_deadline {
+        let message = daemon
+            .read_message_timeout(Duration::from_millis(500))
+            .expect("startup refresh message");
+        if message["params"]["topic"] != "query_state.updated" {
+            continue;
+        }
+
+        let states = message["params"]["payload"]["states"]
+            .as_array()
+            .expect("query states");
+        if states.iter().any(|state| {
+            state["key"]["kind"] == "UsageProfile"
+                && state["key"]["profile_id"] == profile_id
+                && state["status"] == "Pending"
+                && state["trigger"] == "Startup"
+        }) {
+            saw_startup_pending = true;
+            continue;
+        }
+        if saw_startup_pending && states.is_empty() {
+            break;
+        }
+    }
+    assert!(saw_startup_pending, "expected startup refresh pending state");
+
+    daemon.send_request(
+        "2",
+        "relay/settings/update",
+        serde_json::json!({
+            "app": {
+                "refresh_interval_seconds": 15
+            }
+        }),
+    );
+    let updated = daemon.read_message();
+    assert_eq!(updated["id"], "2");
+    assert_eq!(updated["result"]["app"]["refresh_interval_seconds"], 15);
+
+    let interval_start = Instant::now();
+    let mut saw_interval_pending = false;
+    while interval_start.elapsed() < Duration::from_secs(25) {
+        let Some(message) = daemon.read_message_timeout(Duration::from_secs(1)) else {
+            continue;
+        };
+        if message["params"]["topic"] != "query_state.updated" {
+            continue;
+        }
+
+        let states = message["params"]["payload"]["states"]
+            .as_array()
+            .expect("query states");
+        if states.iter().any(|state| {
+            state["key"]["kind"] == "UsageProfile"
+                && state["key"]["profile_id"] == profile_id
+                && state["status"] == "Pending"
+                && state["trigger"] == "Interval"
+        }) {
+            saw_interval_pending = true;
+            break;
+        }
+    }
+
+    assert!(
+        saw_interval_pending,
+        "expected interval refresh pending within 25 seconds after updating refresh interval"
+    );
 
     daemon.shutdown();
 }
