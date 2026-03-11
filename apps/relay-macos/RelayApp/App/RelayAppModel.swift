@@ -47,6 +47,7 @@ public final class RelayAppModel: ObservableObject {
     @Published private(set) var isMutatingProfiles = false
     @Published private(set) var isLoggingIn = false
     @Published private(set) var isFetchingEnabledUsage = false
+    @Published private(set) var isRefreshingUsageList = false
     @Published private(set) var fetchingUsageProfileIds: Set<String> = []
     @Published var selectedProfileId: String?
 
@@ -76,6 +77,7 @@ public final class RelayAppModel: ObservableObject {
     private var taskWaiters: [String: CheckedContinuation<TaskTerminalWaitOutcome, Never>] = [:]
     private var currentLoginTaskID: String?
     private var loginCancellationRequested = false
+    private var bulkUsageRefreshRequested = false
 
     public init() {
         selectedProfileId = Defaults[.selectedProfileId]
@@ -602,6 +604,7 @@ public final class RelayAppModel: ObservableObject {
     }
 
     private func triggerRefreshEnabledUsage(notifyOnFailure: Bool) {
+        bulkUsageRefreshRequested = true
         triggerBackgroundQuery([.usageAll], failureTitle: notifyOnFailure ? "Relay refresh failed" : nil) { [daemonClient] in
             _ = try await daemonClient.refreshEnabledUsage()
         }
@@ -761,6 +764,15 @@ public final class RelayAppModel: ObservableObject {
                 return item.key.profileId
             }
         )
+        if bulkUsageRefreshRequested {
+            let bulkRefreshActive = queryPending.contains(.usageAll) || !fetchingUsageProfileIds.isEmpty
+            isRefreshingUsageList = bulkRefreshActive
+            if !bulkRefreshActive {
+                bulkUsageRefreshRequested = false
+            }
+        } else {
+            isRefreshingUsageList = false
+        }
         isRefreshing = !queryPending.isEmpty || isFetchingEnabledUsage
         isSwitching = mutationPending.contains(.switching)
         isMutatingProfiles = mutationPending.contains(.profileMutation)
@@ -806,6 +818,7 @@ public final class RelayAppModel: ObservableObject {
         events = []
         logTail = nil
         engineConnectionState = initialState.engine.connectionState
+        bulkUsageRefreshRequested = false
         normalizeSelection()
         synchronizeActiveUsage()
         synchronizePendingState()

@@ -1,15 +1,5 @@
 import SwiftUI
 
-struct MenuBarCurrentCardModel {
-    let providerName: String
-    let nickname: String
-    let subtitleText: String
-    let planText: String?
-    let metrics: [MenuBarMetricRowModel]
-    let placeholder: String?
-    let usageNotes: [String]
-}
-
 struct MenuBarMetricRowModel: Identifiable {
     let id: String
     let title: String

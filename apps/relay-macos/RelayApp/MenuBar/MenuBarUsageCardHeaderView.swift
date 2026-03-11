@@ -1,20 +1,23 @@
 import SwiftUI
 
 struct MenuBarUsageCardHeaderView: View {
-    let model: MenuBarCurrentCardModel
+    let providerName: String
+    let nickname: String
+    let subtitleText: String
+    let planText: String?
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline) {
-                Text(model.providerName)
+                Text(providerName)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
                     .lineLimit(1)
 
                 Spacer()
 
-                Text(model.nickname)
+                Text(nickname)
                     .font(.system(size: 11))
                     .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                     .lineLimit(1)
@@ -23,7 +26,7 @@ struct MenuBarUsageCardHeaderView: View {
             }
 
             HStack(alignment: .firstTextBaseline) {
-                Text(model.subtitleText)
+                Text(subtitleText)
                     .font(.system(size: 10.5))
                     .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                     .lineLimit(1)
@@ -31,7 +34,7 @@ struct MenuBarUsageCardHeaderView: View {
 
                 Spacer()
 
-                if let planText = model.planText, !planText.isEmpty {
+                if let planText, !planText.isEmpty {
                     Text(planText)
                         .font(.system(size: 10.5))
                         .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))

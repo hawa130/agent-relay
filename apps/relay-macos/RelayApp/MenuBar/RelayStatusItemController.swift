@@ -12,11 +12,10 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     private let openWindow: (RelayWindowID) -> Void
     private let statusItem: NSStatusItem
     private let menu: NSMenu
-    private var menuIsOpen = false
+    private let currentCardItem = NSMenuItem()
+    private let switchItem = NSMenuItem(title: "Switch", action: nil, keyEquivalent: "")
+    private let switchSubmenu = NSMenu()
     private var cancellables: Set<AnyCancellable> = []
-    private var presenter: MenuBarPresenter {
-        MenuBarPresenter(session: model)
-    }
 
     public init(
         model: RelayAppModel,
@@ -34,8 +33,8 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         self.statusItem.menu = self.menu
 
         configureStatusButton()
+        configureMenu()
         observeModel()
-        rebuildMenu()
     }
 
     public func menuWillOpen(_ menu: NSMenu) {
@@ -43,8 +42,6 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
             return
         }
 
-        menuIsOpen = true
-        rebuildMenu()
         Task { [weak self] in
             await self?.model.refreshForMenuOpen()
         }
@@ -58,8 +55,6 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         guard menu === self.menu else {
             return
         }
-
-        menuIsOpen = false
     }
 
     public func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
@@ -80,18 +75,40 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func observeModel() {
-        model.objectWillChange
+        Publishers.MergeMany(
+            model.$usage.map { _ in () }.eraseToAnyPublisher(),
+            model.$profiles.map { _ in () }.eraseToAnyPublisher(),
+            model.$status.map { _ in () }.eraseToAnyPublisher()
+        )
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                guard let self else {
-                    return
-                }
-                self.updateStatusButton()
-                if self.menuIsOpen {
-                    self.rebuildMenu()
-                }
+                self?.updateStatusButton()
             }
             .store(in: &cancellables)
+
+        Publishers.MergeMany(
+            model.$status.map { _ in () }.eraseToAnyPublisher(),
+            model.$usage.map { _ in () }.eraseToAnyPublisher(),
+            model.$lastRefresh.map { _ in () }.eraseToAnyPublisher(),
+            model.$isRefreshingUsageList.map { _ in () }.eraseToAnyPublisher()
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _ in
+            self?.rebuildCurrentCardItem()
+        }
+        .store(in: &cancellables)
+
+        Publishers.MergeMany(
+            model.$profiles.map { _ in () }.eraseToAnyPublisher(),
+            model.$usageSnapshots.map { _ in () }.eraseToAnyPublisher(),
+            model.$status.map { _ in () }.eraseToAnyPublisher(),
+            model.$isSwitching.map { _ in () }.eraseToAnyPublisher()
+        )
+        .receive(on: RunLoop.main)
+        .sink { [weak self] _ in
+            self?.rebuildProfilesSubmenu()
+        }
+        .store(in: &cancellables)
     }
 
     private func updateStatusButton() {
@@ -101,34 +118,32 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
 
         button.title = ""
         button.image = statusButtonImage()
-        button.toolTip = presenter.title
+        button.toolTip = model.menuBarTitle
     }
 
     private func statusButtonImage() -> NSImage? {
         MenuBarUsageIconRenderer.makeImage(usage: model.usage)
     }
 
-    private func rebuildMenu() {
+    private func configureMenu() {
         menu.removeAllItems()
 
-        addCurrentCard(to: menu)
+        currentCardItem.isEnabled = false
+        menu.addItem(currentCardItem)
         menu.addItem(.separator())
         addProfilesSection(to: menu)
         menu.addItem(.separator())
         addActionItems(to: menu)
+
+        rebuildCurrentCardItem()
+        rebuildProfilesSubmenu()
     }
 
-    private func addCurrentCard(to menu: NSMenu) {
-        if let profile = model.activeProfile {
-            let usage = model.usageSnapshot(for: profile.id)
-            let card = MenuBarCurrentProfileCard(model: currentCardModel(profile: profile, usage: usage))
-            menu.addItem(makeHostingItem(for: card, width: Metrics.contentWidth))
-            return
-        }
-
-        let item = NSMenuItem(title: "No active profile", action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        menu.addItem(item)
+    private func rebuildCurrentCardItem() {
+        currentCardItem.view = makeHostingView(
+            for: MenuBarCurrentProfileCard(session: model),
+            width: Metrics.contentWidth
+        )
     }
 
     private func addProfilesSection(to menu: NSMenu) {
@@ -139,29 +154,26 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
             action: #selector(showProfiles)
         ))
 
-        let switchItem = NSMenuItem(title: "Switch", action: nil, keyEquivalent: "")
         switchItem.image = menuSymbol("arrow.left.arrow.right")
-        switchItem.submenu = profilesSubmenu()
+        switchSubmenu.autoenablesItems = false
+        switchSubmenu.delegate = self
+        switchItem.submenu = switchSubmenu
         menu.addItem(switchItem)
     }
 
-    private func profilesSubmenu() -> NSMenu {
-        let submenu = NSMenu()
-        submenu.autoenablesItems = false
-        submenu.delegate = self
+    private func rebuildProfilesSubmenu() {
+        switchSubmenu.removeAllItems()
 
         if model.profiles.isEmpty {
             let empty = NSMenuItem(title: "No profiles configured", action: nil, keyEquivalent: "")
             empty.isEnabled = false
-            submenu.addItem(empty)
-            return submenu
+            switchSubmenu.addItem(empty)
+            return
         }
 
         for profile in model.profiles {
-            submenu.addItem(makeProfileMenuItem(profile))
+            switchSubmenu.addItem(makeProfileMenuItem(profileID: profile.id))
         }
-
-        return submenu
     }
 
     private func addActionItems(to menu: NSMenu) {
@@ -210,77 +222,27 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         return image
     }
 
-    private func makeHostingItem<Content: View>(for view: Content, width: CGFloat) -> NSMenuItem {
+    private func makeHostingView<Content: View>(for view: Content, width: CGFloat) -> RelayMenuHostingView<Content> {
         let hostingView = RelayMenuHostingView(rootView: view)
         let measuredHeight = hostingView.measuredHeight(width: width)
         hostingView.frame = NSRect(x: 0, y: 0, width: width, height: measuredHeight)
-
-        let item = NSMenuItem()
-        item.view = hostingView
-        item.isEnabled = false
-        return item
+        return hostingView
     }
 
-    private func currentCardModel(profile: Profile, usage: UsageSnapshot?) -> MenuBarCurrentCardModel {
-        MenuBarCurrentCardModel(
-            providerName: profile.agent.rawValue,
-            nickname: profile.nickname,
-            subtitleText: presenter.currentCardSubtitle,
-            planText: usage?.source.displayName,
-            metrics: currentMetricRows(usage: usage),
-            placeholder: usage == nil ? "No usage yet" : nil,
-            usageNotes: presenter.currentCardNotes(usage: usage)
-        )
-    }
-
-    private func currentMetricRows(usage: UsageSnapshot?) -> [MenuBarMetricRowModel] {
-        guard let usage else {
-            return []
-        }
-
-        return [
-            metricRowModel(id: "session", title: "Session", window: usage.session),
-            metricRowModel(id: "weekly", title: "Weekly", window: usage.weekly)
-        ]
-    }
-
-    private func metricRowModel(id: String, title: String, window: UsageWindow) -> MenuBarMetricRowModel {
-        MenuBarMetricRowModel(
-            id: id,
-            title: title,
-            percent: window.menuBarProgressPercent,
-            percentLabel: "\(window.menuBarDisplayValue) used",
-            resetText: window.resetAt.map { "Resets \(preciseResetDescription(for: $0, roundsToHourWhenDaysPresent: id == "weekly"))" },
-            detailLeftText: nil,
-            detailRightText: nil,
-            tint: window.status.menuBarTint
-        )
-    }
-
-    private func makeProfileMenuItem(_ profile: Profile) -> NSMenuItem {
-        let isActive = model.activeProfileId == profile.id
-        let canSelect = profile.enabled && !model.isSwitching && !isActive
-        let usage = model.usageSnapshot(for: profile.id)
+    private func makeProfileMenuItem(profileID: String) -> NSMenuItem {
+        let profile = model.profiles.first { $0.id == profileID }
+        let isActive = model.activeProfileId == profileID
+        let canSelect = (profile?.enabled ?? false) && !model.isSwitching && !isActive
         let highlightState = RelayMenuItemHighlightState()
         let row = RelayMenuItemContainerView(highlightState: highlightState) {
-            MenuBarProfilePickerItem(
-                profileName: profile.nickname,
-                statusText: presenter.profileStatusText(profile: profile, usage: usage, isActive: isActive),
-                sessionText: usageText(title: "Session", window: usage?.session),
-                sessionResetText: usage?.session.resetAt.map { "Resets \(preciseResetDescription(for: $0))" },
-                weeklyText: usageText(title: "Weekly", window: usage?.weekly),
-                weeklyResetText: usage?.weekly.resetAt.map { "Resets \(preciseResetDescription(for: $0, roundsToHourWhenDaysPresent: true))" },
-                footerText: presenter.profileFooterText(profile: profile, usage: usage),
-                symbolName: presenter.profileSymbolName(profile: profile, usage: usage, isActive: isActive),
-                isDimmed: !profile.enabled
-            )
+            MenuBarProfilePickerItem(session: model, profileID: profileID)
         }
 
         let hostingView = RelayInteractiveMenuHostingView(
             rootView: row,
             highlightState: highlightState,
             onClick: canSelect ? { [weak self] in
-                self?.selectProfile(id: profile.id)
+                self?.selectProfile(id: profileID)
             } : nil
         )
         let width: CGFloat = Metrics.contentWidth
@@ -289,62 +251,9 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
 
         let item = NSMenuItem()
         item.view = hostingView
-        item.representedObject = profile.id
+        item.representedObject = profileID
         item.isEnabled = canSelect
         return item
-    }
-
-    private func usageText(title: String, window: UsageWindow?) -> String? {
-        guard let window else {
-            return nil
-        }
-
-        return "\(title) \(window.menuBarDisplayValue)"
-    }
-
-    private func preciseResetDescription(for date: Date, roundsToHourWhenDaysPresent: Bool = false) -> String {
-        let interval = date.timeIntervalSinceNow
-
-        if interval <= 0 {
-            return "now"
-        }
-
-        let totalMinutes = max(1, Int(ceil(interval / 60)))
-
-        if roundsToHourWhenDaysPresent && totalMinutes >= (24 * 60) {
-            let totalHours = (totalMinutes + 59) / 60
-            let days = totalHours / 24
-            let hours = totalHours % 24
-
-            if hours > 0 {
-                return "in \(days)d \(hours)h"
-            }
-
-            return "in \(days)d"
-        }
-
-        let days = totalMinutes / (24 * 60)
-        let hours = (totalMinutes % (24 * 60)) / 60
-        let minutes = totalMinutes % 60
-
-        var parts: [String] = []
-        if days > 0 {
-            parts.append("\(days)d")
-        }
-        if hours > 0 || !parts.isEmpty {
-            parts.append("\(hours)h")
-        }
-        parts.append("\(minutes)m")
-
-        return "in \(parts.joined(separator: " "))"
-    }
-
-    @objc private func selectProfile(_ sender: NSMenuItem) {
-        guard let profileId = sender.representedObject as? String else {
-            return
-        }
-
-        selectProfile(id: profileId)
     }
 
     private func selectProfile(id profileId: String) {

@@ -1,24 +1,36 @@
 import SwiftUI
 
 struct MenuBarCurrentProfileCard: View {
-    let model: MenuBarCurrentCardModel
+    @ObservedObject var session: RelayAppModel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
-            MenuBarUsageCardHeaderView(model: model)
+            if let activeProfile {
+                MenuBarUsageCardHeaderView(
+                    providerName: activeProfile.agent.rawValue,
+                    nickname: activeProfile.nickname,
+                    subtitleText: presenter.currentCardSubtitle,
+                    planText: usage?.source.displayName
+                )
 
-            if hasDetails {
-                Divider()
-            }
+                if hasDetails {
+                    Divider()
+                }
 
-            if model.metrics.isEmpty {
-                if let placeholder = model.placeholder {
-                    Text(placeholder)
+                if metrics.isEmpty {
+                    Text("No usage yet")
                         .font(.subheadline)
                         .foregroundStyle(Color(nsColor: .secondaryLabelColor))
+                } else {
+                    MenuBarUsageCardSectionView(
+                        metrics: metrics,
+                        usageNotes: presenter.currentCardNotes(usage: usage)
+                    )
                 }
             } else {
-                MenuBarUsageCardSectionView(model: model)
+                Text("No active profile")
+                    .font(.subheadline)
+                    .foregroundStyle(Color(nsColor: .secondaryLabelColor))
             }
         }
         .padding(.horizontal, 13)
@@ -28,6 +40,52 @@ struct MenuBarCurrentProfileCard: View {
     }
 
     private var hasDetails: Bool {
-        !model.metrics.isEmpty || !model.usageNotes.isEmpty || model.placeholder != nil
+        !metrics.isEmpty || !presenter.currentCardNotes(usage: usage).isEmpty || usage == nil
+    }
+
+    private var presenter: MenuBarPresenter {
+        MenuBarPresenter(session: session)
+    }
+
+    private var activeProfile: Profile? {
+        session.activeProfile
+    }
+
+    private var usage: UsageSnapshot? {
+        guard let activeProfile else {
+            return nil
+        }
+        return session.usageSnapshot(for: activeProfile.id)
+    }
+
+    private var metrics: [MenuBarMetricRowModel] {
+        guard let usage else {
+            return []
+        }
+
+        return [
+            MenuBarMetricRowModel(
+                id: "session",
+                title: "Session",
+                percent: usage.session.menuBarProgressPercent,
+                percentLabel: "\(usage.session.menuBarDisplayValue) used",
+                resetText: usage.session.resetAt.map { "Resets \(presenter.preciseResetDescription(for: $0))" },
+                detailLeftText: nil,
+                detailRightText: nil,
+                tint: usage.session.status.menuBarTint
+            ),
+            MenuBarMetricRowModel(
+                id: "weekly",
+                title: "Weekly",
+                percent: usage.weekly.menuBarProgressPercent,
+                percentLabel: "\(usage.weekly.menuBarDisplayValue) used",
+                resetText: usage.weekly.resetAt.map {
+                    "Resets \(presenter.preciseResetDescription(for: $0, roundsToHourWhenDaysPresent: true))"
+                },
+                detailLeftText: nil,
+                detailRightText: nil,
+                tint: usage.weekly.status.menuBarTint
+            )
+        ]
     }
 }
