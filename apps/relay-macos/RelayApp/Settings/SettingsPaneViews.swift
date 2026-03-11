@@ -91,6 +91,10 @@ public struct SettingsPaneView: View {
 private struct GeneralSettingsDetailView: View {
     @ObservedObject var model: SettingsPaneModel
 
+    private var refreshIntervalOptions: [Int] {
+        Array(Set([15, 30, 60, 120, 180, 300, 600, 900, model.refreshIntervalSeconds])).sorted()
+    }
+
     var body: some View {
         Form {
             Section("Behavior") {
@@ -108,22 +112,20 @@ private struct GeneralSettingsDetailView: View {
 
                 LaunchAtLogin.Toggle("Launch at login")
 
-                Stepper(
-                    value: Binding(
+                Picker(
+                    "Background refresh",
+                    selection: Binding(
                         get: { model.refreshIntervalSeconds },
                         set: { seconds in
                             Task {
                                 await model.setRefreshInterval(seconds: seconds)
                             }
                         }
-                    ),
-                    in: 15...900,
-                    step: 15
-                ) {
-                    NativeDetailRow(
-                        title: "Background refresh",
-                        value: "\(model.refreshIntervalSeconds) sec"
                     )
+                ) {
+                    ForEach(refreshIntervalOptions, id: \.self) { seconds in
+                        Text(refreshIntervalLabel(for: seconds)).tag(seconds)
+                    }
                 }
             }
 
@@ -155,6 +157,15 @@ private struct GeneralSettingsDetailView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func refreshIntervalLabel(for seconds: Int) -> String {
+        if seconds < 60 {
+            return "\(seconds) sec"
+        }
+
+        let minutes = seconds / 60
+        return minutes == 1 ? "1 min" : "\(minutes) min"
     }
 
     private var appVersion: String {
