@@ -177,7 +177,6 @@ struct UsageRemoteError: Decodable, Sendable, Equatable {
 }
 
 enum UsageRemoteErrorKind: String, Decodable, Sendable, Equatable {
-    case account = "Account"
     case network = "Network"
     case other = "Other"
 }

@@ -3,16 +3,6 @@ import SwiftUI
 
 enum UsageAlertSeverity: Equatable {
     case warning
-    case danger
-
-    var badgeKind: NativePreferencesTheme.Badge.Kind {
-        switch self {
-        case .warning:
-            return .warning
-        case .danger:
-            return .danger
-        }
-    }
 }
 
 struct UsageCardNote: Equatable {
@@ -40,13 +30,8 @@ enum UsageCardNoteResolver {
     }
 
     static func severity(for usage: UsageSnapshot?) -> UsageAlertSeverity? {
-        if let remoteError = usage?.remoteError {
-            switch remoteError.kind {
-            case .account:
-                return .danger
-            case .network, .other:
-                return .warning
-            }
+        if usage?.remoteError != nil {
+            return .warning
         }
 
         if usage?.stale == true || usage?.source != .webEnhanced {
@@ -61,7 +46,10 @@ enum UsageCardNoteResolver {
             return .secondary
         }
 
-        return NativePreferencesTheme.Colors.semanticAccent(severity.badgeKind)
+        switch severity {
+        case .warning:
+            return NativePreferencesTheme.Colors.semanticAccent(.warning)
+        }
     }
 }
 
@@ -659,7 +647,6 @@ struct ProfileListRowStatusIndicator: View {
     enum Kind: Equatable {
         case loading
         case warning(message: String)
-        case danger(message: String)
         case stale
 
         init?(isFetchingUsage: Bool, usage: UsageSnapshot?, usageRefreshError: String?, isStale: Bool) {
@@ -670,8 +657,6 @@ struct ProfileListRowStatusIndicator: View {
                 switch severity {
                 case .warning:
                     self = .warning(message: note)
-                case .danger:
-                    self = .danger(message: note)
                 }
             } else if let usageRefreshError, !usageRefreshError.isEmpty {
                 self = .warning(message: usageRefreshError)
@@ -695,11 +680,6 @@ struct ProfileListRowStatusIndicator: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
-                    .help(message)
-            case let .danger(message):
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.danger))
                     .help(message)
             case .stale:
                 Image(systemName: "exclamationmark.triangle")

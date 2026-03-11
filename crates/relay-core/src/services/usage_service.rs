@@ -597,7 +597,7 @@ mod tests {
             local: Ok(Some(synthetic_snapshot(UsageSource::Local, None))),
             remote: Ok(Some(remote_error_snapshot(
                 "Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required; content-type=application/json; body={\"detail\":{\"code\":\"deactivated_workspace\"}}",
-                UsageRemoteErrorKind::Account,
+                UsageRemoteErrorKind::Other,
                 Some(402),
             ))),
         };
@@ -624,7 +624,7 @@ mod tests {
         assert_eq!(
             snapshot.remote_error,
             Some(UsageRemoteError {
-                kind: UsageRemoteErrorKind::Account,
+                kind: UsageRemoteErrorKind::Other,
                 http_status: Some(402),
             })
         );

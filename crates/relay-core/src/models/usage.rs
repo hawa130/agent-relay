@@ -33,7 +33,6 @@ pub enum UsageStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum UsageRemoteErrorKind {
-    Account,
     Network,
     Other,
 }
