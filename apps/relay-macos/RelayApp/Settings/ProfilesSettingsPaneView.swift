@@ -499,12 +499,7 @@ private struct ProfileListRow: View {
                     Text(profile.nickname)
                         .font(.system(size: 13, weight: .semibold, design: .rounded))
 
-                    if let usageRefreshError {
-                        Label(usageRefreshError, systemImage: "exclamationmark.triangle.fill")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(.orange)
-                            .lineLimit(2)
-                    } else if let usage {
+                    if let usage {
                         ProfileListUsageLine(
                             title: "Session",
                             value: usage.session.menuBarDisplayValue,
@@ -524,14 +519,6 @@ private struct ProfileListRow: View {
                                 .font(.system(size: 10))
                                 .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
                         }
-                    } else if isFetchingUsage {
-                        HStack(spacing: 6) {
-                            ProgressView()
-                                .controlSize(.mini)
-                            Text("Refreshing usage…")
-                                .font(NativePreferencesTheme.Typography.detail)
-                                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-                        }
                     } else {
                         Text("Waiting for refresh")
                             .font(NativePreferencesTheme.Typography.detail)
@@ -549,6 +536,21 @@ private struct ProfileListRow: View {
                     .padding(.trailing, 4)
             }
         }
+        .overlay(alignment: .bottomLeading) {
+            if let indicator = statusIndicator {
+                ProfileListRowStatusIndicator(indicator: indicator)
+                    .padding(.leading, usage == nil ? 0 : 34)
+                    .padding(.top, 4)
+                    .padding(.bottom, 2)
+            }
+        }
+    }
+
+    var statusIndicator: ProfileListRowStatusIndicator.Kind? {
+        ProfileListRowStatusIndicator.Kind(
+            isFetchingUsage: isFetchingUsage,
+            usageRefreshError: usageRefreshError
+        )
     }
 
     private func updatedText(for usage: UsageSnapshot) -> String {
@@ -592,6 +594,41 @@ private struct ProfileListRow: View {
         parts.append("\(minutes)m")
 
         return "in \(parts.joined(separator: " "))"
+    }
+}
+
+struct ProfileListRowStatusIndicator: View {
+    enum Kind: Equatable {
+        case loading
+        case warning(message: String)
+
+        init?(isFetchingUsage: Bool, usageRefreshError: String?) {
+            if isFetchingUsage {
+                self = .loading
+            } else if let usageRefreshError, !usageRefreshError.isEmpty {
+                self = .warning(message: usageRefreshError)
+            } else {
+                return nil
+            }
+        }
+    }
+
+    let indicator: Kind
+
+    var body: some View {
+        Group {
+            switch indicator {
+            case .loading:
+                ProgressView()
+                    .controlSize(.mini)
+            case let .warning(message):
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.orange)
+                    .help(message)
+            }
+        }
+        .frame(width: 12, height: 12)
     }
 }
 
