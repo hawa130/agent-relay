@@ -244,7 +244,7 @@ public struct MultiRingProgressView<CenterContent: View>: View {
     private func toneColor(for item: RingProgressItem) -> Color {
         switch item.tone {
         case .positive:
-            return .teal
+            return .green
         case .warning:
             return .orange
         case .critical:

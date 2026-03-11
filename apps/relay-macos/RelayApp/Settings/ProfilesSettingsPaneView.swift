@@ -730,7 +730,7 @@ private struct UsageMetricRow: View {
     private var tint: Color {
         switch window.status {
         case .healthy:
-            return .teal
+            return .green
         case .warning:
             return .orange
         case .exhausted:
