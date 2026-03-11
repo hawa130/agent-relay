@@ -1761,7 +1761,7 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
 }
 
 #[test]
-fn daemon_stdio_settings_update_persists_refresh_interval() {
+fn daemon_stdio_settings_update_persists_all_app_fields_across_restart() {
     let temp = tempdir().expect("tempdir");
     let relay_home = temp.path().join("relay");
     let live_codex_home = temp.path().join("live-codex");
@@ -1803,15 +1803,27 @@ fn daemon_stdio_settings_update_persists_refresh_interval() {
         "relay/settings/update",
         serde_json::json!({
             "app": {
+                "auto_switch_enabled": true,
+                "cooldown_seconds": 321,
                 "refresh_interval_seconds": 120
             }
         }),
     );
     let updated = daemon.read_message();
     assert_eq!(updated["id"], "2");
+    assert_eq!(updated["result"]["app"]["auto_switch_enabled"], true);
+    assert_eq!(updated["result"]["app"]["cooldown_seconds"], 321);
     assert_eq!(updated["result"]["app"]["refresh_interval_seconds"], 120);
     let settings_updated = daemon.read_message();
     assert_eq!(settings_updated["params"]["topic"], "settings.updated");
+    assert_eq!(
+        settings_updated["params"]["payload"]["settings"]["app"]["auto_switch_enabled"],
+        true
+    );
+    assert_eq!(
+        settings_updated["params"]["payload"]["settings"]["app"]["cooldown_seconds"],
+        321
+    );
     assert_eq!(
         settings_updated["params"]["payload"]["settings"]["app"]["refresh_interval_seconds"],
         120
@@ -1820,9 +1832,34 @@ fn daemon_stdio_settings_update_persists_refresh_interval() {
     daemon.send_request("3", "relay/settings/get", serde_json::json!({}));
     let loaded = daemon.read_message();
     assert_eq!(loaded["id"], "3");
+    assert_eq!(loaded["result"]["app"]["auto_switch_enabled"], true);
+    assert_eq!(loaded["result"]["app"]["cooldown_seconds"], 321);
     assert_eq!(loaded["result"]["app"]["refresh_interval_seconds"], 120);
 
     daemon.shutdown();
+
+    let mut restarted = DaemonHarness::spawn(&relay_home, &live_codex_home);
+    restarted.send_request(
+        "4",
+        "initialize",
+        serde_json::json!({
+            "protocol_version": "1",
+            "client_info": { "name": "relay-cli-test", "version": "1.0.0" },
+            "capabilities": {
+                "supports_subscriptions": false,
+                "supports_health_updates": false
+            }
+        }),
+    );
+    let _ = restarted.read_message();
+    restarted.send_request("5", "relay/settings/get", serde_json::json!({}));
+    let reloaded = restarted.read_message();
+    assert_eq!(reloaded["id"], "5");
+    assert_eq!(reloaded["result"]["app"]["auto_switch_enabled"], true);
+    assert_eq!(reloaded["result"]["app"]["cooldown_seconds"], 321);
+    assert_eq!(reloaded["result"]["app"]["refresh_interval_seconds"], 120);
+
+    restarted.shutdown();
 }
 
 #[test]
