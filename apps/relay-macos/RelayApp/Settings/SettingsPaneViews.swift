@@ -272,7 +272,7 @@ struct SettingsSurfaceCard<Content: View>: View {
                                 .textCase(.uppercase)
                         }
 
-                        Spacer()
+                        Spacer(minLength: 0)
 
                         if let headerAccessory {
                             headerAccessory
