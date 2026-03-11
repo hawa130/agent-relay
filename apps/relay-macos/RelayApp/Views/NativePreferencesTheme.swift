@@ -52,7 +52,18 @@ public enum NativePreferencesTheme {
         }
 
         static func semanticAccent(_ kind: Badge.Kind) -> Color {
-            NativePreferencesTheme.Badge.text(kind)
+            switch kind {
+            case .success:
+                return .green
+            case .warning:
+                return .orange
+            case .danger:
+                return .red
+            case .info:
+                return .blue
+            case .neutral:
+                return .secondary
+            }
         }
 
         static func semanticFill(_ kind: Badge.Kind) -> Color {
