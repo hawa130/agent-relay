@@ -121,6 +121,7 @@ final class ModelDecodingTests: XCTestCase {
         let settings = try JSONDecoder.relayDecoder.decode(AppSettings.self, from: json)
 
         XCTAssertEqual(settings.cooldownSeconds, 600)
+        XCTAssertEqual(settings.networkQueryConcurrency, 10)
     }
 
     func testCodexSettingsDecodeCurrentFields() throws {

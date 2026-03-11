@@ -22,6 +22,9 @@ fn bootstrap_mode_for_command(command: &Commands) -> BootstrapMode {
         | Commands::Settings(SettingsCommand {
             command: None | Some(SettingsSubcommand::Show),
         }) => BootstrapMode::ReadOnly,
+        Commands::Settings(SettingsCommand {
+            command: Some(SettingsSubcommand::Set(_)),
+        }) => BootstrapMode::ReadWrite,
         Commands::Edit(_)
         | Commands::Remove(_)
         | Commands::Enable(_)
@@ -77,6 +80,15 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 let settings = app.settings().await?;
                 Ok(Output::success_rendered(
                     "settings loaded",
+                    settings.clone(),
+                    render_settings(&settings),
+                    cli.json,
+                ))
+            }
+            Some(SettingsSubcommand::Set(args)) => {
+                let settings = app.update_system_settings(settings_request_from_args(args)?).await?;
+                Ok(Output::success_rendered(
+                    "settings updated",
                     settings.clone(),
                     render_settings(&settings),
                     cli.json,

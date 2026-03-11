@@ -86,6 +86,10 @@ public final class RelayAppModel: ObservableObject {
         status?.settings.refreshIntervalSeconds ?? 60
     }
 
+    var networkQueryConcurrency: Int {
+        status?.settings.networkQueryConcurrency ?? 10
+    }
+
     func usageSnapshot(for profileId: String) -> UsageSnapshot? {
         usageSnapshots.first { $0.profileId == profileId }
     }
@@ -206,6 +210,29 @@ public final class RelayAppModel: ObservableObject {
             previousCodexSettings = codexSettings
             applyAppSettingsOptimistic(refreshIntervalSeconds: seconds)
             _ = try await daemonClient.setRefreshInterval(seconds: seconds)
+            lastErrorMessage = nil
+        } catch {
+            rollbackSettingsIfNeeded(
+                previousStatus: previousStatus,
+                previousCodexSettings: previousCodexSettings
+            )
+            lastErrorMessage = error.localizedDescription
+            await notificationService.post(
+                title: "Relay settings update failed",
+                body: error.localizedDescription
+            )
+        }
+    }
+
+    func setNetworkQueryConcurrency(value: Int) async {
+        var previousStatus: StatusReport?
+        var previousCodexSettings: CodexSettings?
+        do {
+            try await ensureSessionStateLoaded()
+            previousStatus = status
+            previousCodexSettings = codexSettings
+            applyAppSettingsOptimistic(networkQueryConcurrency: value)
+            _ = try await daemonClient.setNetworkQueryConcurrency(value: value)
             lastErrorMessage = nil
         } catch {
             rollbackSettingsIfNeeded(
@@ -682,7 +709,8 @@ public final class RelayAppModel: ObservableObject {
 
     private func applyAppSettingsOptimistic(
         autoSwitchEnabled: Bool? = nil,
-        refreshIntervalSeconds: Int? = nil
+        refreshIntervalSeconds: Int? = nil,
+        networkQueryConcurrency: Int? = nil
     ) {
         guard let status else {
             return
@@ -692,7 +720,8 @@ public final class RelayAppModel: ObservableObject {
         let nextSettings = AppSettings(
             autoSwitchEnabled: autoSwitchEnabled ?? currentSettings.autoSwitchEnabled,
             cooldownSeconds: currentSettings.cooldownSeconds,
-            refreshIntervalSeconds: refreshIntervalSeconds ?? currentSettings.refreshIntervalSeconds
+            refreshIntervalSeconds: refreshIntervalSeconds ?? currentSettings.refreshIntervalSeconds,
+            networkQueryConcurrency: networkQueryConcurrency ?? currentSettings.networkQueryConcurrency
         )
         let nextActiveState = ActiveState(
             activeProfileId: status.activeState.activeProfileId,

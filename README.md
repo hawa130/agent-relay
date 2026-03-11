@@ -26,6 +26,7 @@ Implemented command groups:
 relay doctor
 relay status
 relay settings show
+relay settings set
 relay daemon --stdio
 
 relay list

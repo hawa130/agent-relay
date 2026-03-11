@@ -10,6 +10,7 @@ use crate::store::SqliteStore;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 pub use codex::CodexAdapter;
 
@@ -80,13 +81,13 @@ impl<T> RegisteredAgent for T where T: AgentAdapter + UsageProvider {}
 
 pub struct AdapterRegistry {
     primary_kind: AgentKind,
-    entries: HashMap<AgentKind, Box<dyn RegisteredAgent>>,
+    entries: HashMap<AgentKind, Arc<dyn RegisteredAgent>>,
 }
 
 impl AdapterRegistry {
     pub fn new() -> Result<Self, RelayError> {
-        let mut entries: HashMap<AgentKind, Box<dyn RegisteredAgent>> = HashMap::new();
-        entries.insert(AgentKind::Codex, Box::new(CodexAdapter::new()?));
+        let mut entries: HashMap<AgentKind, Arc<dyn RegisteredAgent>> = HashMap::new();
+        entries.insert(AgentKind::Codex, Arc::new(CodexAdapter::new()?));
         Ok(Self {
             primary_kind: AgentKind::Codex,
             entries,
@@ -116,7 +117,16 @@ impl AdapterRegistry {
     fn registered(&self, kind: &AgentKind) -> &dyn RegisteredAgent {
         self.entries
             .get(kind)
-            .map(Box::as_ref)
+            .map(Arc::as_ref)
             .unwrap_or_else(|| panic!("adapter not registered for {:?}", kind))
+    }
+}
+
+impl Clone for AdapterRegistry {
+    fn clone(&self) -> Self {
+        Self {
+            primary_kind: self.primary_kind.clone(),
+            entries: self.entries.clone(),
+        }
     }
 }

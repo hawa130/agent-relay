@@ -34,7 +34,7 @@ impl ErrorCode {
     }
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum RelayError {
     #[error("{0}")]
     InvalidInput(String),

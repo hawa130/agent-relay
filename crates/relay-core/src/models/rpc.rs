@@ -260,6 +260,8 @@ pub struct AppSettingsPatch {
     pub cooldown_seconds: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refresh_interval_seconds: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network_query_concurrency: Option<i64>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

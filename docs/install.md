@@ -51,6 +51,7 @@ Settings:
 
 ```bash
 relay settings show --json
+relay settings set --json --input-json app-settings.json
 relay codex settings show --json
 relay codex settings set --json --input-json settings.json
 ```

@@ -42,19 +42,24 @@ async fn run_local() -> Result<(), RelayError> {
     let write_task = tokio::task::spawn_local(run_write_service(
         DaemonService::new(write_app, notification_tx),
         write_rx,
-        notification_rx,
         outbound_tx.clone(),
     ));
     tokio::pin!(write_task);
+    let notification_task = tokio::task::spawn_local(run_notification_forwarder(
+        notification_rx,
+        outbound_tx.clone(),
+    ));
+    tokio::pin!(notification_task);
 
     let stdout = io::stdout();
     let mut writer = BufWriter::new(stdout.lock());
     let mut read_tasks = JoinSet::<String>::new();
     let mut write_task_done = false;
+    let mut notification_task_done = false;
     let mut stop_accepting_requests = false;
 
     loop {
-        if write_task_done && read_tasks.is_empty() && outbound_rx.is_empty() {
+        if write_task_done && notification_task_done && read_tasks.is_empty() && outbound_rx.is_empty() {
             break;
         }
 
@@ -110,6 +115,12 @@ async fn run_local() -> Result<(), RelayError> {
                     return Err(RelayError::Internal(format!("daemon write worker failed: {error}")));
                 }
             }
+            result = &mut notification_task, if !notification_task_done => {
+                notification_task_done = true;
+                if let Err(error) = result {
+                    return Err(RelayError::Internal(format!("daemon notification worker failed: {error}")));
+                }
+            }
         }
     }
 
@@ -117,41 +128,47 @@ async fn run_local() -> Result<(), RelayError> {
 }
 
 async fn run_write_service(
-    mut service: DaemonService,
+    service: DaemonService,
     mut write_rx: mpsc::UnboundedReceiver<RpcRequest>,
-    mut notification_rx: mpsc::UnboundedReceiver<RpcNotification>,
     outbound_tx: mpsc::UnboundedSender<String>,
 ) {
     let mut startup_refresh_pending = true;
-    let mut pending_refresh: Option<RefreshKind> = None;
+    let mut refresh_in_flight = false;
     let mut next_refresh_at = schedule_next_refresh_at(&service).await;
+    let mut background_tasks = JoinSet::<WriteServiceEvent>::new();
+    let mut service = service;
 
     loop {
-                if let Some(kind) = pending_refresh {
-            if write_rx.is_empty() {
-                run_refresh(kind, &mut service).await;
-                if forward_pending_notifications(&mut notification_rx, &outbound_tx).is_err() {
-                    break;
-                }
-                pending_refresh = None;
-                next_refresh_at = schedule_next_refresh_at(&service).await;
-                continue;
-            }
+        if service.shutdown_requested() && background_tasks.is_empty() {
+            break;
         }
 
         tokio::select! {
             biased;
+            joined = background_tasks.join_next(), if !background_tasks.is_empty() => {
+                if let Some(result) = joined {
+                    match result {
+                        Ok(WriteServiceEvent::RefreshFinished) => {
+                            refresh_in_flight = false;
+                            next_refresh_at = schedule_next_refresh_at(&service).await;
+                        }
+                        Err(error) => {
+                            panic!("daemon background task failed: {error}");
+                        }
+                    }
+                }
+            }
             maybe_request = write_rx.recv() => {
                 let Some(request) = maybe_request else {
-                    break;
+                    if background_tasks.is_empty() {
+                        break;
+                    }
+                    continue;
                 };
                 let method = request.method.clone();
                 let (payload, reset_refresh_deadline) =
                     render_write_response(&mut service, request).await;
                 if outbound_tx.send(payload).is_err() {
-                    break;
-                }
-                if forward_pending_notifications(&mut notification_rx, &outbound_tx).is_err() {
                     break;
                 }
                 if reset_refresh_deadline {
@@ -161,17 +178,42 @@ async fn run_write_service(
                 if startup_refresh_pending && method == "session/subscribe" {
                     startup_refresh_pending = false;
                     if automatic_refresh_enabled(&service).await {
-                        pending_refresh = Some(RefreshKind::Startup);
+                        refresh_in_flight = true;
+                        let background_service = service.clone();
+                        background_tasks.spawn_local(async move {
+                            run_refresh(RefreshKind::Startup, background_service).await;
+                            WriteServiceEvent::RefreshFinished
+                        });
                     }
                 }
 
                 if service.shutdown_requested() {
-                    break;
+                    if background_tasks.is_empty() {
+                        break;
+                    }
                 }
             }
-            _ = sleep_until(next_refresh_at), if pending_refresh.is_none() => {
-                pending_refresh = Some(RefreshKind::Interval);
+            _ = sleep_until(next_refresh_at), if !refresh_in_flight && !service.shutdown_requested() => {
+                refresh_in_flight = true;
+                let background_service = service.clone();
+                background_tasks.spawn_local(async move {
+                    run_refresh(RefreshKind::Interval, background_service).await;
+                    WriteServiceEvent::RefreshFinished
+                });
             }
+        }
+    }
+}
+
+async fn run_notification_forwarder(
+    mut notification_rx: mpsc::UnboundedReceiver<RpcNotification>,
+    outbound_tx: mpsc::UnboundedSender<String>,
+) {
+    while let Some(notification) = notification_rx.recv().await {
+        let payload = serialize_notification(&notification)
+            .unwrap_or_else(|error| serialize_internal_error(None, error.to_string()));
+        if outbound_tx.send(payload).is_err() {
+            break;
         }
     }
 }
@@ -212,7 +254,11 @@ async fn render_write_response(
     }
 }
 
-async fn run_refresh(kind: RefreshKind, service: &mut DaemonService) {
+enum WriteServiceEvent {
+    RefreshFinished,
+}
+
+async fn run_refresh(kind: RefreshKind, mut service: DaemonService) {
     let result = match kind {
         RefreshKind::Startup => service.startup_tick().await,
         RefreshKind::Interval => service.interval_tick().await,
@@ -222,24 +268,6 @@ async fn run_refresh(kind: RefreshKind, service: &mut DaemonService) {
         let _ = service
             .publish_health_update(EngineConnectionState::Degraded, Some(error.to_string()))
             .await;
-    }
-}
-
-fn forward_pending_notifications(
-    notification_rx: &mut mpsc::UnboundedReceiver<RpcNotification>,
-    outbound_tx: &mpsc::UnboundedSender<String>,
-) -> Result<(), ()> {
-    loop {
-        let notification = match notification_rx.try_recv() {
-            Ok(notification) => notification,
-            Err(mpsc::error::TryRecvError::Empty) => return Ok(()),
-            Err(mpsc::error::TryRecvError::Disconnected) => return Ok(()),
-        };
-        let payload = serialize_notification(&notification)
-            .unwrap_or_else(|error| serialize_internal_error(None, error.to_string()));
-        if outbound_tx.send(payload).is_err() {
-            return Err(());
-        }
     }
 }
 
