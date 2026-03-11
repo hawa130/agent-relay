@@ -8,6 +8,9 @@ default:
     @just --list
 
 fmt:
+    cargo fmt --all
+
+fmt-check:
     cargo fmt --all --check
 
 test:
@@ -22,7 +25,7 @@ test-macos:
 
 release:
     mkdir -p "{{dist_dir}}"
-    just fmt
+    just fmt-check
     just test-rust
     cargo build --release -p relay-cli --bin relay
     cp "target/release/relay" "{{dist_dir}}/relay"

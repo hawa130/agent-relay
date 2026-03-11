@@ -20,7 +20,7 @@ Rust packages:
 Format and test:
 
 ```bash
-cargo fmt --all
+just fmt
 cargo test
 ```
 
@@ -28,6 +28,7 @@ Build helpers with `just`:
 
 ```bash
 just fmt
+just fmt-check
 just test
 just test-rust
 just test-macos
@@ -90,7 +91,7 @@ The CLI integration suite lives in:
 
 Before cutting a release:
 
-1. run `cargo fmt --all`
+1. run `just fmt-check`
 2. run `cargo clippy --workspace --all-targets -- -D warnings`
 3. run `cargo test`
 4. verify `cargo install --path apps/relay-cli`
