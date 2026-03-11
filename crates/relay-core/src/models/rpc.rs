@@ -132,6 +132,16 @@ pub enum RelayRpcTopic {
     UsageUpdated,
     #[serde(rename = "active_state.updated")]
     ActiveStateUpdated,
+    #[serde(rename = "settings.updated")]
+    SettingsUpdated,
+    #[serde(rename = "profiles.updated")]
+    ProfilesUpdated,
+    #[serde(rename = "activity.events.updated")]
+    ActivityEventsUpdated,
+    #[serde(rename = "activity.logs.updated")]
+    ActivityLogsUpdated,
+    #[serde(rename = "doctor.updated")]
+    DoctorUpdated,
     #[serde(rename = "switch.completed")]
     SwitchCompleted,
     #[serde(rename = "switch.failed")]
@@ -224,6 +234,12 @@ pub struct ActivityEventsResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityRefreshResult {
+    pub events: Vec<FailureEvent>,
+    pub logs: LogTail,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogsTailParams {
     pub lines: usize,
 }
@@ -256,6 +272,31 @@ pub struct SettingsUpdateParams {
     pub app: Option<AppSettingsPatch>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub codex: Option<CodexSettingsPatch>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SettingsUpdatedPayload {
+    pub settings: SettingsResult,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProfilesUpdatedPayload {
+    pub profiles: Vec<ProfileListItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityEventsUpdatedPayload {
+    pub events: Vec<FailureEvent>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityLogsUpdatedPayload {
+    pub logs: LogTail,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DoctorUpdatedPayload {
+    pub report: crate::DoctorReport,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

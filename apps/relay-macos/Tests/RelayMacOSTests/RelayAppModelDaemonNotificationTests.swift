@@ -161,8 +161,32 @@ EOF
           ;;
         session/subscribe)
           cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","active_state.updated","switch.completed","switch.failed","health.updated"]}}
+{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","active_state.updated","settings.updated","profiles.updated","activity.events.updated","activity.logs.updated","doctor.updated","switch.completed","switch.failed","health.updated"]}}
 EOF
+          case "$mode" in
+            health_update)
+              sleep 0.1
+              cat <<EOF
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"health.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"state":"Degraded","detail":"Relay engine degraded for test."}}}
+EOF
+              ;;
+            switch_failed)
+              sleep 0.1
+              cat <<EOF
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"switch.failed","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"error_code":"RELAY_CONFLICT","message":"no eligible profile available","profile_id":"p_active","trigger":"Auto"}}}
+EOF
+              ;;
+            usage_active_update)
+              sleep 0.05
+              cat <<EOF
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"usage.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"WebEnhanced","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":61.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Warning","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"push usage"}],"trigger":"Manual"}}}
+EOF
+              sleep 0.05
+              cat <<EOF
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"active_state.updated","seq":2,"timestamp":"2026-03-08T12:27:13Z","payload":{"active_state":{"active_profile_id":"p_alt","last_switch_at":"2026-03-08T12:27:13Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"active_profile":$alt_profile_item}}}
+EOF
+              ;;
+          esac
           ;;
         relay/status/get)
           cat <<EOF
@@ -193,30 +217,6 @@ EOF
           cat <<EOF
 {"jsonrpc":"2.0","id":"$id","result":{"logs":{"path":"/tmp/relay/logs/relay.log","lines":[]}}}
 EOF
-          case "$mode" in
-            health_update)
-              sleep 0.1
-              cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"health.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"state":"Degraded","detail":"Relay engine degraded for test."}}}
-EOF
-              ;;
-            switch_failed)
-              sleep 0.1
-              cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"switch.failed","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"error_code":"RELAY_CONFLICT","message":"no eligible profile available","profile_id":"p_active","trigger":"Auto"}}}
-EOF
-              ;;
-            usage_active_update)
-              sleep 0.05
-              cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"usage.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"WebEnhanced","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":61.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Warning","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"push usage"}],"trigger":"Manual"}}}
-EOF
-              sleep 0.05
-              cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"active_state.updated","seq":2,"timestamp":"2026-03-08T12:27:13Z","payload":{"active_state":{"active_profile_id":"p_alt","last_switch_at":"2026-03-08T12:27:13Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"active_profile":$alt_profile_item}}}
-EOF
-              ;;
-          esac
           ;;
         shutdown)
           cat <<EOF

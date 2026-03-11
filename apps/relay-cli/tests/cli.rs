@@ -1674,37 +1674,66 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
         "2",
         "session/subscribe",
         serde_json::json!({
-            "topics": ["usage.updated", "active_state.updated", "health.updated"]
+            "topics": [
+                "usage.updated",
+                "active_state.updated",
+                "settings.updated",
+                "profiles.updated",
+                "activity.events.updated",
+                "activity.logs.updated",
+                "doctor.updated",
+                "health.updated"
+            ]
         }),
     );
     let subscribe = daemon.read_message();
     assert_eq!(subscribe["id"], "2");
-    assert_eq!(
-        subscribe["result"]["subscribed_topics"]
-            .as_array()
-            .expect("topics")
-            .len(),
-        3
-    );
-    let startup_notifications = [
-        daemon.read_message(),
-        daemon.read_message(),
-        daemon.read_message(),
-    ];
-    let startup_topics: Vec<_> = startup_notifications
-        .iter()
-        .map(|message| message["params"]["topic"].as_str().expect("topic"))
-        .collect();
-    assert!(startup_topics.contains(&"health.updated"));
-    assert!(startup_topics.contains(&"usage.updated"));
-    assert!(startup_topics.contains(&"active_state.updated"));
+    let expected_topics = HashSet::from([
+        "usage.updated",
+        "active_state.updated",
+        "settings.updated",
+        "profiles.updated",
+        "activity.events.updated",
+        "activity.logs.updated",
+        "doctor.updated",
+        "health.updated",
+    ]);
+    let mut startup_topics = HashSet::new();
+    while startup_topics.len() < expected_topics.len() {
+        let message = daemon.read_message();
+        let topic = message["params"]["topic"].as_str().expect("topic");
+        startup_topics.insert(topic.to_string());
+    }
+    for topic in &expected_topics {
+        assert!(startup_topics.contains(*topic), "missing startup topic: {topic}");
+    }
+
+    let mut saw_startup_usage_refresh = false;
+    let mut saw_startup_active_state = false;
+    while !saw_startup_usage_refresh || !saw_startup_active_state {
+        let message = daemon.read_message();
+        match message["params"]["topic"].as_str().expect("topic") {
+            "usage.updated" if message["params"]["payload"]["trigger"] == "Startup" => {
+                saw_startup_usage_refresh = true;
+            }
+            "active_state.updated" => {
+                saw_startup_active_state = true;
+            }
+            _ => {}
+        }
+    }
 
     daemon.send_request(
         "3",
         "relay/usage/refresh",
         serde_json::json!({ "include_disabled": false }),
     );
-    let refresh = daemon.read_message();
+    let refresh = loop {
+        let message = daemon.read_message();
+        if message["id"] == "3" {
+            break message;
+        }
+    };
     assert_eq!(refresh["id"], "3");
     assert_eq!(
         refresh["result"]["snapshots"]
@@ -1713,14 +1742,20 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
             .len(),
         1
     );
-    let usage_update = daemon.read_message();
-    assert_eq!(usage_update["params"]["topic"], "usage.updated");
-    assert_eq!(usage_update["params"]["payload"]["trigger"], "Manual");
-    let active_state_update = daemon.read_message();
-    assert_eq!(
-        active_state_update["params"]["topic"],
-        "active_state.updated"
-    );
+    let mut saw_manual_usage_update = false;
+    let mut saw_manual_active_state = false;
+    while !saw_manual_usage_update || !saw_manual_active_state {
+        let message = daemon.read_message();
+        match message["params"]["topic"].as_str().expect("topic") {
+            "usage.updated" if message["params"]["payload"]["trigger"] == "Manual" => {
+                saw_manual_usage_update = true;
+            }
+            "active_state.updated" => {
+                saw_manual_active_state = true;
+            }
+            _ => {}
+        }
+    }
 
     daemon.shutdown();
 }
@@ -1748,6 +1783,22 @@ fn daemon_stdio_settings_update_persists_refresh_interval() {
     let _ = daemon.read_message();
 
     daemon.send_request(
+        "sub",
+        "session/subscribe",
+        serde_json::json!({
+            "topics": ["settings.updated"]
+        }),
+    );
+    let subscribe = daemon.read_message();
+    assert_eq!(subscribe["id"], "sub");
+    let settings_snapshot = daemon.read_message();
+    assert_eq!(settings_snapshot["params"]["topic"], "settings.updated");
+    assert_eq!(
+        settings_snapshot["params"]["payload"]["settings"]["app"]["refresh_interval_seconds"],
+        60
+    );
+
+    daemon.send_request(
         "2",
         "relay/settings/update",
         serde_json::json!({
@@ -1759,11 +1810,86 @@ fn daemon_stdio_settings_update_persists_refresh_interval() {
     let updated = daemon.read_message();
     assert_eq!(updated["id"], "2");
     assert_eq!(updated["result"]["app"]["refresh_interval_seconds"], 120);
+    let settings_updated = daemon.read_message();
+    assert_eq!(settings_updated["params"]["topic"], "settings.updated");
+    assert_eq!(
+        settings_updated["params"]["payload"]["settings"]["app"]["refresh_interval_seconds"],
+        120
+    );
 
     daemon.send_request("3", "relay/settings/get", serde_json::json!({}));
     let loaded = daemon.read_message();
     assert_eq!(loaded["id"], "3");
     assert_eq!(loaded["result"]["app"]["refresh_interval_seconds"], 120);
+
+    daemon.shutdown();
+}
+
+#[test]
+fn daemon_stdio_activity_and_doctor_refresh_publish_snapshot_updates() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+
+    let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
+    daemon.send_request(
+        "1",
+        "initialize",
+        serde_json::json!({
+            "protocol_version": "1",
+            "client_info": { "name": "relay-cli-test", "version": "1.0.0" },
+            "capabilities": {
+                "supports_subscriptions": true,
+                "supports_health_updates": true
+            }
+        }),
+    );
+    let _ = daemon.read_message();
+
+    daemon.send_request(
+        "sub",
+        "session/subscribe",
+        serde_json::json!({
+            "topics": ["activity.events.updated", "activity.logs.updated", "doctor.updated"]
+        }),
+    );
+    let subscribe = daemon.read_message();
+    assert_eq!(subscribe["id"], "sub");
+
+    let mut startup_topics = HashSet::new();
+    while startup_topics.len() < 3 {
+        let message = daemon.read_message();
+        startup_topics.insert(
+            message["params"]["topic"]
+                .as_str()
+                .expect("topic")
+                .to_string(),
+        );
+    }
+    assert!(startup_topics.contains("activity.events.updated"));
+    assert!(startup_topics.contains("activity.logs.updated"));
+    assert!(startup_topics.contains("doctor.updated"));
+
+    daemon.send_request("activity", "relay/activity/refresh", serde_json::json!({}));
+    let activity = daemon.read_message();
+    assert_eq!(activity["id"], "activity");
+    let mut saw_events = false;
+    let mut saw_logs = false;
+    while !saw_events || !saw_logs {
+        let message = daemon.read_message();
+        match message["params"]["topic"].as_str().expect("topic") {
+            "activity.events.updated" => saw_events = true,
+            "activity.logs.updated" => saw_logs = true,
+            _ => {}
+        }
+    }
+
+    daemon.send_request("doctor", "relay/doctor/refresh", serde_json::json!({}));
+    let doctor = daemon.read_message();
+    assert_eq!(doctor["id"], "doctor");
+    let doctor_updated = daemon.read_message();
+    assert_eq!(doctor_updated["params"]["topic"], "doctor.updated");
 
     daemon.shutdown();
 }
