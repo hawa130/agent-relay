@@ -33,6 +33,19 @@ public enum NativePreferencesTheme {
         public static let rowBackground = Color(nsColor: .controlBackgroundColor)
         public static let mutedText = Color.secondary
         public static let sectionBorder = Color(nsColor: .separatorColor).opacity(0.55)
+
+        static func usageTint(_ status: UsageStatus) -> Color {
+            switch status {
+            case .healthy:
+                return .green
+            case .warning:
+                return .orange
+            case .exhausted:
+                return .red
+            case .unknown:
+                return .gray
+            }
+        }
     }
 
     public enum Badge {

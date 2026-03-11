@@ -244,13 +244,13 @@ public struct MultiRingProgressView<CenterContent: View>: View {
     private func toneColor(for item: RingProgressItem) -> Color {
         switch item.tone {
         case .positive:
-            return .green
+            return NativePreferencesTheme.Colors.usageTint(.healthy)
         case .warning:
-            return .orange
+            return NativePreferencesTheme.Colors.usageTint(.warning)
         case .critical:
-            return .red
+            return NativePreferencesTheme.Colors.usageTint(.exhausted)
         case .neutral:
-            return .gray
+            return NativePreferencesTheme.Colors.usageTint(.unknown)
         }
     }
 }
