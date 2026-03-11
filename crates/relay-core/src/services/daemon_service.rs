@@ -13,24 +13,142 @@ use crate::models::{
     UsageUpdateTrigger, UsageUpdatedPayload, rpc_from_error, rpc_internal_error,
     rpc_invalid_params, rpc_invalid_request, rpc_method_not_found,
 };
+use crate::services::query_coordinator::QueryCoordinator;
 use crate::{
     ActivityEventsQuery, CodexSettingsUpdateRequest, FailureReason, Profile, RelayApp,
     RelayError, SystemSettingsUpdateRequest,
 };
 use chrono::Utc;
+use futures_util::stream::StreamExt;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashSet};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 
-pub struct DaemonService {
-    app: RelayApp,
-    notifications: mpsc::UnboundedSender<RpcNotification>,
-    started_at: chrono::DateTime<Utc>,
-    seq: u64,
+struct DaemonSessionState {
     subscribed_topics: HashSet<RelayRpcTopic>,
     query_states: BTreeMap<String, QueryStateItem>,
     connection_state: EngineConnectionState,
+}
+
+impl Default for DaemonSessionState {
+    fn default() -> Self {
+        Self {
+            subscribed_topics: HashSet::new(),
+            query_states: BTreeMap::new(),
+            connection_state: EngineConnectionState::Starting,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct DaemonHub {
+    notifications: mpsc::UnboundedSender<RpcNotification>,
+    seq: Arc<AtomicU64>,
+    state: Arc<Mutex<DaemonSessionState>>,
+}
+
+impl DaemonHub {
+    fn new(notifications: mpsc::UnboundedSender<RpcNotification>) -> Self {
+        Self {
+            notifications,
+            seq: Arc::new(AtomicU64::new(0)),
+            state: Arc::new(Mutex::new(DaemonSessionState::default())),
+        }
+    }
+
+    fn subscribe(&self, topics: &[RelayRpcTopic]) {
+        let mut state = self.state.lock().expect("daemon hub poisoned");
+        state.subscribed_topics.extend(topics.iter().copied());
+    }
+
+    fn unsubscribe(&self, topics: &[RelayRpcTopic]) -> Vec<RelayRpcTopic> {
+        let mut state = self.state.lock().expect("daemon hub poisoned");
+        for topic in topics {
+            state.subscribed_topics.remove(topic);
+        }
+        state.subscribed_topics.iter().copied().collect()
+    }
+
+    fn connection_state(&self) -> EngineConnectionState {
+        self.state
+            .lock()
+            .expect("daemon hub poisoned")
+            .connection_state
+    }
+
+    fn set_connection_state(&self, value: EngineConnectionState) {
+        self.state
+            .lock()
+            .expect("daemon hub poisoned")
+            .connection_state = value;
+    }
+
+    fn query_state_snapshot(&self) -> Vec<QueryStateItem> {
+        self.state
+            .lock()
+            .expect("daemon hub poisoned")
+            .query_states
+            .values()
+            .cloned()
+            .collect()
+    }
+
+    fn set_query_state(&self, item: QueryStateItem) {
+        self.state
+            .lock()
+            .expect("daemon hub poisoned")
+            .query_states
+            .insert(query_state_storage_key(&item.key), item);
+    }
+
+    fn clear_query_state(&self, key: &QueryStateKey) {
+        self.state
+            .lock()
+            .expect("daemon hub poisoned")
+            .query_states
+            .remove(&query_state_storage_key(key));
+    }
+
+    fn publish<T: serde::Serialize>(
+        &self,
+        topic: RelayRpcTopic,
+        payload: T,
+    ) -> Result<(), RelayError> {
+        if !self
+            .state
+            .lock()
+            .expect("daemon hub poisoned")
+            .subscribed_topics
+            .contains(&topic)
+        {
+            return Ok(());
+        }
+        let seq = self.seq.fetch_add(1, Ordering::Relaxed) + 1;
+        self.notifications
+            .send(RpcNotification {
+                jsonrpc: "2.0".into(),
+                method: "session/update".into(),
+                params: SessionUpdate {
+                    topic,
+                    seq,
+                    timestamp: Utc::now(),
+                    payload: serde_json::to_value(payload)
+                        .map_err(|error| RelayError::Internal(error.to_string()))?,
+                },
+            })
+            .map_err(|error| RelayError::Internal(error.to_string()))
+    }
+}
+
+#[derive(Clone)]
+pub struct DaemonService {
+    app: RelayApp,
+    hub: DaemonHub,
+    started_at: chrono::DateTime<Utc>,
+    usage_queries: QueryCoordinator<QueryStateKey, crate::UsageSnapshot, RelayError>,
     shutdown_requested: bool,
 }
 
@@ -41,12 +159,9 @@ impl DaemonService {
     pub fn new(app: RelayApp, notifications: mpsc::UnboundedSender<RpcNotification>) -> Self {
         Self {
             app,
-            notifications,
+            hub: DaemonHub::new(notifications),
             started_at: Utc::now(),
-            seq: 0,
-            subscribed_topics: HashSet::new(),
-            query_states: BTreeMap::new(),
-            connection_state: EngineConnectionState::Starting,
+            usage_queries: QueryCoordinator::new(10),
             shutdown_requested: false,
         }
     }
@@ -57,6 +172,12 @@ impl DaemonService {
 
     pub async fn current_refresh_interval(&self) -> Result<i64, RelayError> {
         Ok(self.app.settings().await?.refresh_interval_seconds)
+    }
+
+    pub async fn sync_network_query_concurrency(&self) -> Result<(), RelayError> {
+        let limit = self.app.settings().await?.network_query_concurrency.max(1) as usize;
+        self.usage_queries.set_limit(limit);
+        Ok(())
     }
 
     pub async fn startup_tick(&mut self) -> Result<(), RelayError> {
@@ -376,7 +497,7 @@ impl DaemonService {
 
     async fn handle_initialize(&mut self, params: Value) -> Result<Value, crate::RpcErrorObject> {
         let _: InitializeParams = parse_params(params)?;
-        self.connection_state = EngineConnectionState::Ready;
+        self.hub.set_connection_state(EngineConnectionState::Ready);
         serialize(InitializeResult {
             protocol_version: "1".into(),
             server_info: RpcServerInfo {
@@ -405,7 +526,7 @@ impl DaemonService {
                     .map_err(|e| rpc_from_error(&e))?,
                 engine: EngineState {
                     started_at: self.started_at,
-                    connection_state: self.connection_state,
+                    connection_state: self.hub.connection_state(),
                 },
             },
         })
@@ -413,7 +534,7 @@ impl DaemonService {
 
     async fn handle_subscribe(&mut self, params: Value) -> Result<Value, crate::RpcErrorObject> {
         let params: SubscribeParams = parse_params(params)?;
-        self.subscribed_topics.extend(params.topics.iter().copied());
+        self.hub.subscribe(&params.topics);
         self.publish_subscribed_snapshots(&params.topics)
             .await
             .map_err(|e| rpc_internal_error(e.to_string()))?;
@@ -424,11 +545,8 @@ impl DaemonService {
 
     async fn handle_unsubscribe(&mut self, params: Value) -> Result<Value, crate::RpcErrorObject> {
         let params: SubscribeParams = parse_params(params)?;
-        for topic in params.topics {
-            self.subscribed_topics.remove(&topic);
-        }
         serialize(SubscribeResult {
-            subscribed_topics: self.subscribed_topics.iter().copied().collect(),
+            subscribed_topics: self.hub.unsubscribe(&params.topics),
         })
     }
 
@@ -513,6 +631,7 @@ impl DaemonService {
                     auto_switch_enabled: app_patch.auto_switch_enabled,
                     cooldown_seconds: app_patch.cooldown_seconds,
                     refresh_interval_seconds: app_patch.refresh_interval_seconds,
+                    network_query_concurrency: app_patch.network_query_concurrency,
                 })
                 .await
                 .map_err(|e| rpc_from_error(&e))?
@@ -533,6 +652,9 @@ impl DaemonService {
                 .map_err(|e| rpc_from_error(&e))?
         };
         let settings = SettingsResult { app, codex };
+        self.sync_network_query_concurrency()
+            .await
+            .map_err(|e| rpc_internal_error(e.to_string()))?;
         self.publish_settings_updated(settings.clone())
             .await
             .map_err(|e| rpc_internal_error(e.to_string()))?;
@@ -626,78 +748,71 @@ impl DaemonService {
     }
 
     async fn publish_usage_updated(
-        &mut self,
+        &self,
         snapshots: Vec<crate::UsageSnapshot>,
         trigger: UsageUpdateTrigger,
     ) -> Result<(), RelayError> {
-        self.publish(
+        self.hub.publish(
             RelayRpcTopic::UsageUpdated,
             UsageUpdatedPayload { snapshots, trigger },
         )
-        .await
     }
 
-    async fn publish_query_state_updated(&mut self) -> Result<(), RelayError> {
-        self.publish(
+    async fn publish_query_state_updated(&self) -> Result<(), RelayError> {
+        self.hub.publish(
             RelayRpcTopic::QueryStateUpdated,
             QueryStateUpdatedPayload {
-                states: self.query_states.values().cloned().collect(),
+                states: self.hub.query_state_snapshot(),
             },
         )
-        .await
     }
 
-    async fn publish_settings_updated(&mut self, settings: SettingsResult) -> Result<(), RelayError> {
-        self.publish(
+    async fn publish_settings_updated(&self, settings: SettingsResult) -> Result<(), RelayError> {
+        self.hub.publish(
             RelayRpcTopic::SettingsUpdated,
             SettingsUpdatedPayload { settings },
         )
-        .await
     }
 
-    async fn publish_profiles_updated(&mut self) -> Result<(), RelayError> {
+    async fn publish_profiles_updated(&self) -> Result<(), RelayError> {
         let profiles = self.app.list_profiles_with_usage().await?;
-        self.publish(
+        self.hub.publish(
             RelayRpcTopic::ProfilesUpdated,
             ProfilesUpdatedPayload { profiles },
         )
-        .await
     }
 
     async fn publish_activity_events_updated(
-        &mut self,
+        &self,
         events: Vec<crate::FailureEvent>,
     ) -> Result<(), RelayError> {
-        self.publish(
+        self.hub.publish(
             RelayRpcTopic::ActivityEventsUpdated,
             ActivityEventsUpdatedPayload { events },
         )
-        .await
     }
 
     async fn publish_activity_logs_updated(
-        &mut self,
+        &self,
         logs: crate::LogTail,
     ) -> Result<(), RelayError> {
-        self.publish(
+        self.hub.publish(
             RelayRpcTopic::ActivityLogsUpdated,
             ActivityLogsUpdatedPayload { logs },
         )
-        .await
     }
 
     async fn publish_doctor_updated(
-        &mut self,
+        &self,
         report: crate::DoctorReport,
     ) -> Result<(), RelayError> {
-        self.publish(
+        self.hub.publish(
             RelayRpcTopic::DoctorUpdated,
             DoctorUpdatedPayload { report },
         )
-        .await
     }
 
-    async fn publish_active_state_updated(&mut self) -> Result<(), RelayError> {
+    async fn publish_active_state_updated(&self) -> Result<(), RelayError> {
         let status = self.app.system_status().await?;
         let active_profile = self
             .app
@@ -707,35 +822,33 @@ impl DaemonService {
             .find(|item| {
                 status.active_state.active_profile_id.as_deref() == Some(item.profile.id.as_str())
             });
-        self.publish(
+        self.hub.publish(
             RelayRpcTopic::ActiveStateUpdated,
             ActiveStateUpdatedPayload {
                 active_state: status.active_state,
                 active_profile,
             },
         )
-        .await
     }
 
     async fn publish_switch_completed(
-        &mut self,
+        &self,
         report: crate::SwitchReport,
         trigger: SwitchTrigger,
     ) -> Result<(), RelayError> {
-        self.publish(
+        self.hub.publish(
             RelayRpcTopic::SwitchCompleted,
             SwitchCompletedPayload { report, trigger },
         )
-        .await
     }
 
     async fn publish_switch_failed(
-        &mut self,
+        &self,
         error: &RelayError,
         profile_id: Option<String>,
         trigger: SwitchTrigger,
     ) -> Result<(), RelayError> {
-        self.publish(
+        self.hub.publish(
             RelayRpcTopic::SwitchFailed,
             SwitchFailedPayload {
                 error_code: error.code().as_str().to_string(),
@@ -744,20 +857,18 @@ impl DaemonService {
                 trigger,
             },
         )
-        .await
     }
 
     pub async fn publish_health_update(
-        &mut self,
+        &self,
         state: EngineConnectionState,
         detail: Option<String>,
     ) -> Result<(), RelayError> {
-        self.connection_state = state;
-        self.publish(
+        self.hub.set_connection_state(state);
+        self.hub.publish(
             RelayRpcTopic::HealthUpdated,
             HealthUpdatedPayload { state, detail },
         )
-        .await
     }
 
     async fn publish_subscribed_snapshots(
@@ -821,26 +932,44 @@ impl DaemonService {
     }
 
     async fn refresh_usage_profiles(
-        &mut self,
+        &self,
         profiles: Vec<Profile>,
         trigger: UsageUpdateTrigger,
     ) -> Result<Vec<crate::UsageSnapshot>, RelayError> {
-        let mut snapshots = Vec::with_capacity(profiles.len());
-        let mut first_error = None;
-        for profile in profiles {
-            match self
-                .refresh_usage_profile_with_query_state(&profile.id, trigger)
-                .await
-            {
-                Ok(snapshot) => snapshots.push(snapshot),
-                Err(error) => {
-                    if first_error.is_none() {
-                        first_error = Some(error);
+        self.sync_network_query_concurrency().await?;
+        let concurrency = self.app.settings().await?.network_query_concurrency.max(1) as usize;
+        let service = self.clone();
+        let mut results = futures_util::stream::iter(
+            profiles
+                .into_iter()
+                .enumerate()
+                .map(move |(index, profile)| {
+                    let service = service.clone();
+                    async move {
+                        (
+                            index,
+                            service
+                                .refresh_usage_profile_with_query_state(&profile.id, trigger)
+                                .await,
+                        )
                     }
-                }
+                }),
+        )
+        .buffer_unordered(concurrency)
+        .collect::<Vec<_>>()
+        .await;
+
+        results.sort_by_key(|(index, _)| *index);
+
+        let mut snapshots = Vec::with_capacity(results.len());
+        let mut first_error = None;
+        for (_, result) in results {
+            match result {
+                Ok(snapshot) => snapshots.push(snapshot),
+                Err(error) if first_error.is_none() => first_error = Some(error),
+                Err(_) => {}
             }
         }
-
         if snapshots.is_empty() {
             if let Some(error) = first_error {
                 return Err(error);
@@ -850,13 +979,23 @@ impl DaemonService {
     }
 
     async fn refresh_usage_profile_with_query_state(
-        &mut self,
+        &self,
         profile_id: &str,
         trigger: UsageUpdateTrigger,
     ) -> Result<crate::UsageSnapshot, RelayError> {
         let key = usage_profile_query_key(profile_id);
         self.set_query_state_pending(key.clone(), trigger).await?;
-        match self.app.refresh_usage_profile(profile_id).await {
+        let app = self.app.clone();
+        let profile_id = profile_id.to_string();
+        match self
+            .usage_queries
+            .run(key.clone(), move || {
+                let app = app.clone();
+                let profile_id = profile_id.clone();
+                async move { app.refresh_usage_profile(&profile_id).await }
+            })
+            .await
+        {
             Ok(snapshot) => {
                 self.publish_usage_updated(vec![snapshot.clone()], trigger).await?;
                 self.clear_query_state(&key).await?;
@@ -870,71 +1009,41 @@ impl DaemonService {
     }
 
     async fn set_query_state_pending(
-        &mut self,
+        &self,
         key: QueryStateKey,
         trigger: UsageUpdateTrigger,
     ) -> Result<(), RelayError> {
-        self.query_states.insert(
-            query_state_storage_key(&key),
-            QueryStateItem {
-                key,
-                status: QueryStateStatus::Pending,
-                trigger: query_state_trigger(trigger),
-                error_code: None,
-                message: None,
-                updated_at: Utc::now(),
-            },
-        );
+        self.hub.set_query_state(QueryStateItem {
+            key,
+            status: QueryStateStatus::Pending,
+            trigger: query_state_trigger(trigger),
+            error_code: None,
+            message: None,
+            updated_at: Utc::now(),
+        });
         self.publish_query_state_updated().await
     }
 
     async fn set_query_state_error(
-        &mut self,
+        &self,
         key: QueryStateKey,
         trigger: UsageUpdateTrigger,
         error: &RelayError,
     ) -> Result<(), RelayError> {
-        self.query_states.insert(
-            query_state_storage_key(&key),
-            QueryStateItem {
-                key,
-                status: QueryStateStatus::Error,
-                trigger: query_state_trigger(trigger),
-                error_code: Some(error.code().as_str().to_string()),
-                message: Some(error.to_string()),
-                updated_at: Utc::now(),
-            },
-        );
+        self.hub.set_query_state(QueryStateItem {
+            key,
+            status: QueryStateStatus::Error,
+            trigger: query_state_trigger(trigger),
+            error_code: Some(error.code().as_str().to_string()),
+            message: Some(error.to_string()),
+            updated_at: Utc::now(),
+        });
         self.publish_query_state_updated().await
     }
 
-    async fn clear_query_state(&mut self, key: &QueryStateKey) -> Result<(), RelayError> {
-        self.query_states.remove(&query_state_storage_key(key));
+    async fn clear_query_state(&self, key: &QueryStateKey) -> Result<(), RelayError> {
+        self.hub.clear_query_state(key);
         self.publish_query_state_updated().await
-    }
-
-    async fn publish<T: serde::Serialize>(
-        &mut self,
-        topic: RelayRpcTopic,
-        payload: T,
-    ) -> Result<(), RelayError> {
-        if !self.subscribed_topics.contains(&topic) {
-            return Ok(());
-        }
-        self.seq += 1;
-        self.notifications
-            .send(RpcNotification {
-                jsonrpc: "2.0".into(),
-                method: "session/update".into(),
-                params: SessionUpdate {
-                    topic,
-                    seq: self.seq,
-                    timestamp: Utc::now(),
-                    payload: serde_json::to_value(payload)
-                        .map_err(|error| RelayError::Internal(error.to_string()))?,
-                },
-            })
-            .map_err(|error| RelayError::Internal(error.to_string()))
     }
 }
 

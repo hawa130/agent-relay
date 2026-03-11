@@ -130,12 +130,18 @@ async fn app_settings_persist_across_store_reopen() {
         .await
         .expect("disable refresh interval");
     assert_eq!(updated.refresh_interval_seconds, 0);
+    let updated = store
+        .set_network_query_concurrency(16)
+        .await
+        .expect("set network query concurrency");
+    assert_eq!(updated.network_query_concurrency, 16);
     drop(store);
 
     let reopened = SqliteStore::new(&db_path).await.expect("reopened store");
     let settings = reopened.get_settings().await.expect("reloaded settings");
     assert!(settings.auto_switch_enabled);
     assert_eq!(settings.refresh_interval_seconds, 0);
+    assert_eq!(settings.network_query_concurrency, 16);
 }
 
 #[tokio::test]

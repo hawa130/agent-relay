@@ -1026,6 +1026,32 @@ fn usage_settings_reject_removed_refresh_keys() {
 }
 
 #[test]
+fn settings_set_updates_network_query_concurrency() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+
+    let updated = run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "settings",
+            "set",
+            "--network-query-concurrency",
+            "12",
+        ],
+    );
+    assert_eq!(updated["success"], true);
+    assert_eq!(updated["data"]["network_query_concurrency"], 12);
+
+    let loaded = run_json(&relay_home, &live_codex_home, &["--json", "settings"]);
+    assert_eq!(loaded["success"], true);
+    assert_eq!(loaded["data"]["network_query_concurrency"], 12);
+}
+
+#[test]
 fn codex_login_and_remote_usage_probe_work() {
     let temp = tempdir().expect("tempdir");
     let relay_home = temp.path().join("relay");
@@ -1638,15 +1664,32 @@ impl DaemonHarness {
 
     fn shutdown(mut self) {
         self.send_request("shutdown", "shutdown", serde_json::json!({}));
+        let deadline = Instant::now() + Duration::from_secs(10);
         let response = loop {
-            let message = self.read_message();
+            let Some(message) = self.read_message_timeout(Duration::from_millis(500)) else {
+                assert!(
+                    Instant::now() < deadline,
+                    "timed out waiting for shutdown response"
+                );
+                continue;
+            };
             if message["id"] == "shutdown" {
                 break message;
             }
         };
         assert_eq!(response["id"], "shutdown");
         assert_eq!(response["result"]["accepted"], true);
-        let status = self.child.wait().expect("wait daemon");
+        let exit_deadline = Instant::now() + Duration::from_secs(10);
+        let status = loop {
+            if let Some(status) = self.child.try_wait().expect("poll daemon exit") {
+                break status;
+            }
+            assert!(
+                Instant::now() < exit_deadline,
+                "timed out waiting for daemon exit"
+            );
+            thread::sleep(Duration::from_millis(50));
+        };
         assert!(status.success(), "daemon exit status: {status}");
     }
 }
@@ -1711,33 +1754,75 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
             ]
         }),
     );
-    let subscribe = daemon.read_message();
-    assert_eq!(subscribe["id"], "2");
     let expected_topics = HashSet::from([
-        "usage.updated",
-        "query_state.updated",
-        "active_state.updated",
-        "settings.updated",
-        "profiles.updated",
-        "activity.events.updated",
-        "activity.logs.updated",
-        "doctor.updated",
-        "health.updated",
+        "usage.updated".to_string(),
+        "query_state.updated".to_string(),
+        "active_state.updated".to_string(),
+        "settings.updated".to_string(),
+        "profiles.updated".to_string(),
+        "activity.events.updated".to_string(),
+        "activity.logs.updated".to_string(),
+        "doctor.updated".to_string(),
+        "health.updated".to_string(),
     ]);
     let mut startup_topics = HashSet::new();
-    while startup_topics.len() < expected_topics.len() {
-        let message = daemon.read_message();
-        let topic = message["params"]["topic"].as_str().expect("topic");
-        startup_topics.insert(topic.to_string());
-    }
-    for topic in &expected_topics {
-        assert!(startup_topics.contains(*topic), "missing startup topic: {topic}");
-    }
-
+    let mut saw_subscribe_response = false;
     let mut saw_startup_usage_refresh = false;
     let mut saw_startup_active_state = false;
-    while !saw_startup_usage_refresh || !saw_startup_active_state {
-        let message = daemon.read_message();
+    let mut saw_startup_query_pending = false;
+    let mut saw_startup_query_clear = false;
+    let subscribe_deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < subscribe_deadline
+        && (startup_topics.len() < expected_topics.len() || !saw_subscribe_response)
+    {
+        let message = daemon
+            .read_message_timeout(Duration::from_millis(500))
+            .expect("subscribe response or snapshot");
+        if message["id"] == "2" {
+            saw_subscribe_response = true;
+            continue;
+        }
+        let topic = message["params"]["topic"].as_str().expect("topic");
+        startup_topics.insert(topic.to_string());
+        if topic == "usage.updated" && message["params"]["payload"]["trigger"] == "Startup" {
+            saw_startup_usage_refresh = true;
+        }
+        if topic == "active_state.updated" {
+            saw_startup_active_state = true;
+        }
+        if topic == "query_state.updated" {
+            let states = message["params"]["payload"]["states"]
+                .as_array()
+                .expect("query states");
+            if states.iter().any(|state| {
+                state["key"]["kind"] == "UsageProfile"
+                    && state["key"]["profile_id"] == profile_id
+                    && state["status"] == "Pending"
+                    && state["trigger"] == "Startup"
+            }) {
+                saw_startup_query_pending = true;
+            }
+            if saw_startup_query_pending && states.is_empty() {
+                saw_startup_query_clear = true;
+            }
+        }
+    }
+    assert!(saw_subscribe_response, "expected subscribe response");
+    assert_eq!(startup_topics, expected_topics);
+    for topic in &expected_topics {
+        assert!(startup_topics.contains(topic), "missing startup topic: {topic}");
+    }
+
+    let startup_refresh_deadline = Instant::now() + Duration::from_secs(20);
+    while Instant::now() < startup_refresh_deadline
+        && (!saw_startup_usage_refresh
+            || !saw_startup_active_state
+            || !saw_startup_query_pending
+            || !saw_startup_query_clear)
+    {
+        let message = daemon
+            .read_message_timeout(Duration::from_millis(500))
+            .expect("startup refresh update");
         match message["params"]["topic"].as_str().expect("topic") {
             "usage.updated" if message["params"]["payload"]["trigger"] == "Startup" => {
                 saw_startup_usage_refresh = true;
@@ -1745,17 +1830,73 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
             "active_state.updated" => {
                 saw_startup_active_state = true;
             }
+            "query_state.updated" => {
+                let states = message["params"]["payload"]["states"]
+                    .as_array()
+                    .expect("query states");
+                if states.iter().any(|state| {
+                    state["key"]["kind"] == "UsageProfile"
+                        && state["key"]["profile_id"] == profile_id
+                        && state["status"] == "Pending"
+                        && state["trigger"] == "Startup"
+                }) {
+                    saw_startup_query_pending = true;
+                }
+                if saw_startup_query_pending && states.is_empty() {
+                    saw_startup_query_clear = true;
+                }
+            }
             _ => {}
         }
     }
+    assert!(saw_startup_usage_refresh, "expected startup usage refresh notification");
+    assert!(saw_startup_active_state, "expected startup active_state notification");
+    assert!(saw_startup_query_pending, "expected startup query pending");
+    assert!(saw_startup_query_clear, "expected startup query clear");
 
     daemon.send_request(
         "3",
         "relay/usage/refresh",
         serde_json::json!({ "include_disabled": false }),
     );
+    let mut saw_manual_usage_update = false;
+    let mut saw_manual_active_state = false;
+    let mut saw_manual_query_pending = false;
+    let mut saw_manual_query_clear = false;
+    let refresh_response_deadline = Instant::now() + Duration::from_secs(20);
     let refresh = loop {
-        let message = daemon.read_message();
+        let Some(message) = daemon.read_message_timeout(Duration::from_millis(500)) else {
+            assert!(
+                Instant::now() < refresh_response_deadline,
+                "timed out waiting for refresh response"
+            );
+            continue;
+        };
+        match message["params"]["topic"].as_str() {
+            Some("usage.updated") if message["params"]["payload"]["trigger"] == "Manual" => {
+                saw_manual_usage_update = true;
+            }
+            Some("query_state.updated") => {
+                let states = message["params"]["payload"]["states"]
+                    .as_array()
+                    .expect("query states");
+                if states.iter().any(|state| {
+                    state["key"]["kind"] == "UsageProfile"
+                        && state["key"]["profile_id"] == profile_id
+                        && state["status"] == "Pending"
+                        && state["trigger"] == "Manual"
+                }) {
+                    saw_manual_query_pending = true;
+                }
+                if saw_manual_query_pending && states.is_empty() {
+                    saw_manual_query_clear = true;
+                }
+            }
+            Some("active_state.updated") => {
+                saw_manual_active_state = true;
+            }
+            _ => {}
+        }
         if message["id"] == "3" {
             break message;
         }
@@ -1768,16 +1909,16 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
             .len(),
         1
     );
-    let mut saw_manual_usage_update = false;
-    let mut saw_manual_active_state = false;
-    let mut saw_manual_query_pending = false;
-    let mut saw_manual_query_clear = false;
-    while !saw_manual_usage_update
-        || !saw_manual_active_state
-        || !saw_manual_query_pending
-        || !saw_manual_query_clear
+    let manual_refresh_deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < manual_refresh_deadline
+        && (!saw_manual_usage_update
+            || !saw_manual_active_state
+            || !saw_manual_query_pending
+            || !saw_manual_query_clear)
     {
-        let message = daemon.read_message();
+        let message = daemon
+            .read_message_timeout(Duration::from_millis(500))
+            .expect("manual refresh update");
         match message["params"]["topic"].as_str().expect("topic") {
             "usage.updated" if message["params"]["payload"]["trigger"] == "Manual" => {
                 saw_manual_usage_update = true;
@@ -1804,6 +1945,10 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
             _ => {}
         }
     }
+    assert!(saw_manual_usage_update, "expected manual usage update");
+    assert!(saw_manual_active_state, "expected manual active_state update");
+    assert!(saw_manual_query_pending, "expected manual query pending");
+    assert!(saw_manual_query_clear, "expected manual query clear");
 
     daemon.shutdown();
 }
@@ -1845,6 +1990,10 @@ fn daemon_stdio_settings_update_persists_all_app_fields_across_restart() {
         settings_snapshot["params"]["payload"]["settings"]["app"]["refresh_interval_seconds"],
         60
     );
+    assert_eq!(
+        settings_snapshot["params"]["payload"]["settings"]["app"]["network_query_concurrency"],
+        10
+    );
 
     daemon.send_request(
         "2",
@@ -1853,7 +2002,8 @@ fn daemon_stdio_settings_update_persists_all_app_fields_across_restart() {
             "app": {
                 "auto_switch_enabled": true,
                 "cooldown_seconds": 321,
-                "refresh_interval_seconds": 120
+                "refresh_interval_seconds": 120,
+                "network_query_concurrency": 16
             }
         }),
     );
@@ -1862,6 +2012,7 @@ fn daemon_stdio_settings_update_persists_all_app_fields_across_restart() {
     assert_eq!(updated["result"]["app"]["auto_switch_enabled"], true);
     assert_eq!(updated["result"]["app"]["cooldown_seconds"], 321);
     assert_eq!(updated["result"]["app"]["refresh_interval_seconds"], 120);
+    assert_eq!(updated["result"]["app"]["network_query_concurrency"], 16);
     let settings_updated = daemon.read_message();
     assert_eq!(settings_updated["params"]["topic"], "settings.updated");
     assert_eq!(
@@ -1876,6 +2027,10 @@ fn daemon_stdio_settings_update_persists_all_app_fields_across_restart() {
         settings_updated["params"]["payload"]["settings"]["app"]["refresh_interval_seconds"],
         120
     );
+    assert_eq!(
+        settings_updated["params"]["payload"]["settings"]["app"]["network_query_concurrency"],
+        16
+    );
 
     daemon.send_request("3", "relay/settings/get", serde_json::json!({}));
     let loaded = daemon.read_message();
@@ -1883,6 +2038,7 @@ fn daemon_stdio_settings_update_persists_all_app_fields_across_restart() {
     assert_eq!(loaded["result"]["app"]["auto_switch_enabled"], true);
     assert_eq!(loaded["result"]["app"]["cooldown_seconds"], 321);
     assert_eq!(loaded["result"]["app"]["refresh_interval_seconds"], 120);
+    assert_eq!(loaded["result"]["app"]["network_query_concurrency"], 16);
 
     daemon.shutdown();
 
@@ -1906,6 +2062,7 @@ fn daemon_stdio_settings_update_persists_all_app_fields_across_restart() {
     assert_eq!(reloaded["result"]["app"]["auto_switch_enabled"], true);
     assert_eq!(reloaded["result"]["app"]["cooldown_seconds"], 321);
     assert_eq!(reloaded["result"]["app"]["refresh_interval_seconds"], 120);
+    assert_eq!(reloaded["result"]["app"]["network_query_concurrency"], 16);
 
     restarted.shutdown();
 }

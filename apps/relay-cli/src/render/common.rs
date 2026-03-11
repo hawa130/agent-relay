@@ -231,6 +231,10 @@ pub(super) fn app_settings_fields(settings: &AppSettings) -> Vec<(&'static str, 
             "Refresh Interval Seconds",
             refresh_interval_label(settings.refresh_interval_seconds),
         ),
+        (
+            "Network Query Concurrency",
+            settings.network_query_concurrency.to_string(),
+        ),
     ]
 }
 
@@ -244,6 +248,10 @@ pub(super) fn autoswitch_fields(settings: &AppSettings) -> Vec<(&'static str, St
         (
             "Refresh Interval Seconds",
             refresh_interval_label(settings.refresh_interval_seconds),
+        ),
+        (
+            "Network Query Concurrency",
+            settings.network_query_concurrency.to_string(),
         ),
     ]
 }

@@ -1,7 +1,9 @@
 use super::{BootstrapMode, RelayApp};
 use crate::models::{Profile, RelayError, UsageSnapshot};
 use crate::services::usage_service;
+use futures_util::stream::{self, StreamExt};
 
+#[derive(Clone)]
 struct UsageContext {
     active_profile: Option<Profile>,
     allow_cache_writes: bool,
@@ -62,9 +64,23 @@ impl RelayApp {
         profiles: &[Profile],
     ) -> Result<Vec<UsageSnapshot>, RelayError> {
         let context = self.usage_context().await?;
-        let mut snapshots = Vec::with_capacity(profiles.len());
-        for profile in profiles {
-            snapshots.push(self.refresh_usage_snapshot(profile, &context).await?);
+        let concurrency = self.settings().await?.network_query_concurrency.max(1) as usize;
+        let app = self.clone();
+        let mut results = stream::iter(profiles.iter().cloned().enumerate().map(
+            move |(index, profile)| {
+                let app = app.clone();
+                let context = context.clone();
+                async move { (index, app.refresh_usage_snapshot(&profile, &context).await) }
+            },
+        ))
+        .buffer_unordered(concurrency)
+        .collect::<Vec<_>>()
+        .await;
+
+        results.sort_by_key(|(index, _)| *index);
+        let mut snapshots = Vec::with_capacity(results.len());
+        for (_, result) in results {
+            snapshots.push(result?);
         }
         Ok(snapshots)
     }

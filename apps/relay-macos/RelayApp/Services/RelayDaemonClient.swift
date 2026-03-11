@@ -287,7 +287,8 @@ actor RelayDaemonClient {
                 app: AppSettingsPatch(
                     autoSwitchEnabled: enabled,
                     cooldownSeconds: nil,
-                    refreshIntervalSeconds: nil
+                    refreshIntervalSeconds: nil,
+                    networkQueryConcurrency: nil
                 ),
                 codex: nil
             ),
@@ -303,7 +304,25 @@ actor RelayDaemonClient {
                 app: AppSettingsPatch(
                     autoSwitchEnabled: nil,
                     cooldownSeconds: nil,
-                    refreshIntervalSeconds: seconds
+                    refreshIntervalSeconds: seconds,
+                    networkQueryConcurrency: nil
+                ),
+                codex: nil
+            ),
+            as: RPCSettingsResult.self
+        )
+        return result.app
+    }
+
+    func setNetworkQueryConcurrency(value: Int) async throws -> AppSettings {
+        let result = try await request(
+            method: "relay/settings/update",
+            params: RPCSettingsUpdatePayload(
+                app: AppSettingsPatch(
+                    autoSwitchEnabled: nil,
+                    cooldownSeconds: nil,
+                    refreshIntervalSeconds: nil,
+                    networkQueryConcurrency: value
                 ),
                 codex: nil
             ),

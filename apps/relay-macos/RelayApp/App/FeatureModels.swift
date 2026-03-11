@@ -22,6 +22,7 @@ public final class SettingsPaneModel: ObservableObject {
 
     var autoSwitchEnabled: Bool { session.autoSwitchEnabled }
     var refreshIntervalSeconds: Int { session.refreshIntervalSeconds }
+    var networkQueryConcurrency: Int { session.networkQueryConcurrency }
     var profilesCount: Int { session.status?.profileCount ?? session.profiles.count }
     var agents: [AgentSettingsDescriptor] { AgentSettingsCatalog.supportedAgents }
     var codexSettings: CodexSettings? { session.codexSettings }
@@ -46,6 +47,10 @@ public final class SettingsPaneModel: ObservableObject {
 
     func setRefreshInterval(seconds: Int) async {
         await session.setRefreshInterval(seconds: seconds)
+    }
+
+    func setNetworkQueryConcurrency(_ value: Int) async {
+        await session.setNetworkQueryConcurrency(value: value)
     }
 
     func restartEngine() async {

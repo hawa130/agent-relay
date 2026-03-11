@@ -2,14 +2,17 @@ use crate::internal::usage_policy::{
     apply_auto_switch_policy, build_usage_window, next_reset_at, unknown_usage_window,
 };
 use crate::models::{
-    Profile, ProfileProbeIdentity, RelayError, UsageConfidence, UsageSnapshot, UsageSource,
+    AppSettings, Profile, ProfileProbeIdentity, RelayError, UsageConfidence, UsageSnapshot,
+    UsageSource,
     UsageWindow,
 };
 use crate::store::SqliteStore;
+use base64::Engine;
 use chrono::{Duration, Utc};
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderName, HeaderValue};
 use reqwest::{Client, ClientBuilder};
 use serde::Deserialize;
+use serde_json::Value;
 use std::env;
 use std::fs;
 use std::time::Duration as StdDuration;
@@ -38,6 +41,14 @@ async fn fetch_official_usage_snapshot(
     profile: &Profile,
     mut identity: ProfileProbeIdentity,
 ) -> Result<UsageSnapshot, RelayError> {
+    if should_refresh_probe_identity(store, &identity).await?
+        && identity
+            .refresh_token()
+            .is_some_and(|token| !token.is_empty())
+    {
+        identity = refresh_probe_identity(store, &identity).await?;
+    }
+
     let mut response = official_usage_request(&identity).await?;
     if should_refresh_official_response(&response)
         && identity
@@ -75,6 +86,45 @@ async fn fetch_official_usage_snapshot(
 
 fn should_refresh_official_response(response: &HttpResponse) -> bool {
     matches!(response.http_code, 401 | 403)
+}
+
+async fn should_refresh_probe_identity(
+    store: &SqliteStore,
+    identity: &ProfileProbeIdentity,
+) -> Result<bool, RelayError> {
+    let Some(refresh_token) = identity.refresh_token() else {
+        return Ok(false);
+    };
+    if refresh_token.is_empty() {
+        return Ok(false);
+    }
+
+    let Some(access_token) = identity.access_token() else {
+        return Ok(true);
+    };
+
+    let Some(expiry) = jwt_expiry(access_token) else {
+        return Ok(true);
+    };
+
+    let refresh_threshold = token_refresh_threshold(store.get_settings().await?);
+    Ok(expiry - Utc::now() <= refresh_threshold)
+}
+
+fn token_refresh_threshold(settings: AppSettings) -> Duration {
+    Duration::seconds(settings.refresh_interval_seconds.max(600))
+}
+
+fn jwt_expiry(token: &str) -> Option<chrono::DateTime<Utc>> {
+    let mut segments = token.split('.');
+    let _header = segments.next()?;
+    let payload = segments.next()?;
+    let decoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .decode(payload)
+        .ok()?;
+    let value: Value = serde_json::from_slice(&decoded).ok()?;
+    let exp = value.get("exp")?.as_i64()?;
+    chrono::DateTime::<Utc>::from_timestamp(exp, 0)
 }
 
 async fn refresh_probe_identity(
@@ -269,4 +319,110 @@ struct OfficialRefreshResponse {
     access_token: String,
     refresh_token: Option<String>,
     id_token: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{jwt_expiry, should_refresh_probe_identity, token_refresh_threshold};
+    use crate::models::{AppSettings, ProfileProbeIdentity};
+    use crate::store::SqliteStore;
+    use base64::Engine;
+    use chrono::{Duration, Utc};
+    use tempfile::tempdir;
+
+    #[test]
+    fn jwt_expiry_decodes_exp_claim() {
+        let expiry = Utc::now() + Duration::minutes(30);
+        let token = jwt_with_expiry(expiry);
+        let decoded = jwt_expiry(&token).expect("jwt expiry");
+        assert_eq!(decoded.timestamp(), expiry.timestamp());
+    }
+
+    #[test]
+    fn token_refresh_threshold_uses_max_of_ten_minutes_and_refresh_interval() {
+        let short_interval = AppSettings {
+            refresh_interval_seconds: 60,
+            ..AppSettings::default()
+        };
+        assert_eq!(token_refresh_threshold(short_interval), Duration::minutes(10));
+
+        let long_interval = AppSettings {
+            refresh_interval_seconds: 900,
+            ..AppSettings::default()
+        };
+        assert_eq!(token_refresh_threshold(long_interval), Duration::minutes(15));
+    }
+
+    #[tokio::test]
+    async fn non_jwt_tokens_refresh_on_every_request_when_refresh_token_exists() {
+        let temp = tempdir().expect("tempdir");
+        let store = SqliteStore::new(temp.path().join("relay.db"))
+            .await
+            .expect("store");
+        let identity = probe_identity("not-a-jwt", Some("refresh-token"));
+        assert!(
+            should_refresh_probe_identity(&store, &identity)
+                .await
+                .expect("should refresh"),
+            "non-jwt token should refresh eagerly"
+        );
+    }
+
+    #[tokio::test]
+    async fn jwt_refresh_uses_refresh_interval_threshold() {
+        let temp = tempdir().expect("tempdir");
+        let store = SqliteStore::new(temp.path().join("relay.db"))
+            .await
+            .expect("store");
+        store
+            .set_refresh_interval_seconds(900)
+            .await
+            .expect("set refresh interval");
+
+        let fresh_identity = probe_identity(
+            &jwt_with_expiry(Utc::now() + Duration::minutes(20)),
+            Some("refresh-token"),
+        );
+        assert!(
+            !should_refresh_probe_identity(&store, &fresh_identity)
+                .await
+                .expect("fresh token"),
+            "token beyond threshold should not refresh"
+        );
+
+        let stale_identity = probe_identity(
+            &jwt_with_expiry(Utc::now() + Duration::minutes(10)),
+            Some("refresh-token"),
+        );
+        assert!(
+            should_refresh_probe_identity(&store, &stale_identity)
+                .await
+                .expect("stale token"),
+            "token inside threshold should refresh"
+        );
+    }
+
+    fn probe_identity(access_token: &str, refresh_token: Option<&str>) -> ProfileProbeIdentity {
+        let now = Utc::now().to_rfc3339();
+        ProfileProbeIdentity::codex_official(
+            "p_test".into(),
+            "acct".into(),
+            access_token.into(),
+            refresh_token.map(str::to_string),
+            None,
+            Some("test@example.com".into()),
+            Some("plus".into()),
+            now.clone(),
+            now,
+        )
+    }
+
+    fn jwt_with_expiry(expiry: chrono::DateTime<Utc>) -> String {
+        let header = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(br#"{"alg":"HS256","typ":"JWT"}"#);
+        let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(
+            format!(r#"{{"exp":{}}}"#, expiry.timestamp()).as_bytes(),
+        );
+        format!("{header}.{payload}.signature")
+    }
 }

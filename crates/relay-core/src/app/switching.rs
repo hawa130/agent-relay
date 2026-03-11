@@ -77,6 +77,24 @@ impl RelayApp {
         Ok(settings)
     }
 
+    pub async fn set_network_query_concurrency(
+        &self,
+        value: i64,
+    ) -> Result<AppSettings, RelayError> {
+        if !(1..=32).contains(&value) {
+            return Err(RelayError::InvalidInput(
+                "network query concurrency must be between 1 and 32".into(),
+            ));
+        }
+        let settings = self.store.set_network_query_concurrency(value).await?;
+        self.log_store.append(
+            "info",
+            "network_query_concurrency.updated",
+            format!("value={value}"),
+        )?;
+        Ok(settings)
+    }
+
     pub async fn update_system_settings(
         &self,
         request: SystemSettingsUpdateRequest,
@@ -85,6 +103,13 @@ impl RelayApp {
             if value != 0 && !(15..=900).contains(&value) {
                 return Err(RelayError::InvalidInput(
                     "refresh interval must be 0 or between 15 and 900 seconds".into(),
+                ));
+            }
+        }
+        if let Some(value) = request.network_query_concurrency {
+            if !(1..=32).contains(&value) {
+                return Err(RelayError::InvalidInput(
+                    "network query concurrency must be between 1 and 32".into(),
                 ));
             }
         }
@@ -97,6 +122,9 @@ impl RelayApp {
         }
         if let Some(value) = request.refresh_interval_seconds {
             self.set_refresh_interval_seconds(value).await?;
+        }
+        if let Some(value) = request.network_query_concurrency {
+            self.set_network_query_concurrency(value).await?;
         }
         self.store.get_settings().await
     }

@@ -19,6 +19,7 @@ chrono = { version = "0.4", features = ["clock", "serde"] }
 clap = { version = "4.5", features = ["derive"] }
 comfy-table = "7.1"
 dirs = "6.0"
+futures-util = "=0.3.31"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 sea-orm = { version = "2.0.0-rc.37", default-features = false, features = ["macros", "runtime-tokio-rustls", "schema-sync", "sqlx-sqlite"] }
 serde = { version = "1.0", features = ["derive"] }

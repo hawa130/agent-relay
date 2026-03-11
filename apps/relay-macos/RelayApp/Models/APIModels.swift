@@ -75,11 +75,13 @@ struct AppSettings: Decodable, Sendable {
     let autoSwitchEnabled: Bool
     let cooldownSeconds: Int
     let refreshIntervalSeconds: Int
+    let networkQueryConcurrency: Int
 
     private enum CodingKeys: String, CodingKey {
         case autoSwitchEnabled
         case cooldownSeconds
         case refreshIntervalSeconds
+        case networkQueryConcurrency
     }
 
     init(from decoder: Decoder) throws {
@@ -93,16 +95,21 @@ struct AppSettings: Decodable, Sendable {
         refreshIntervalSeconds =
             try container.decodeIfPresent(Int.self, forKey: .refreshIntervalSeconds)
             ?? 60
+        networkQueryConcurrency =
+            try container.decodeIfPresent(Int.self, forKey: .networkQueryConcurrency)
+            ?? 10
     }
 
     init(
         autoSwitchEnabled: Bool,
         cooldownSeconds: Int,
-        refreshIntervalSeconds: Int
+        refreshIntervalSeconds: Int,
+        networkQueryConcurrency: Int
     ) {
         self.autoSwitchEnabled = autoSwitchEnabled
         self.cooldownSeconds = cooldownSeconds
         self.refreshIntervalSeconds = refreshIntervalSeconds
+        self.networkQueryConcurrency = networkQueryConcurrency
     }
 }
 
@@ -301,6 +308,7 @@ struct AppSettingsPatch: Encodable, Sendable {
     let autoSwitchEnabled: Bool?
     let cooldownSeconds: Int?
     let refreshIntervalSeconds: Int?
+    let networkQueryConcurrency: Int?
 }
 
 struct RPCSettingsUpdatePayload: Encodable, Sendable {

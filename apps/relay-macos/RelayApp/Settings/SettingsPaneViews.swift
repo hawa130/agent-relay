@@ -95,6 +95,10 @@ private struct GeneralSettingsDetailView: View {
         Array(Set([0, 15, 30, 60, 120, 180, 300, 600, 900, model.refreshIntervalSeconds])).sorted()
     }
 
+    private var networkQueryConcurrencyOptions: [Int] {
+        Array(Set([1, 2, 4, 6, 8, 10, 12, 16, 24, 32, model.networkQueryConcurrency])).sorted()
+    }
+
     var body: some View {
         Form {
             Section("Behavior") {
@@ -125,6 +129,22 @@ private struct GeneralSettingsDetailView: View {
                 ) {
                     ForEach(refreshIntervalOptions, id: \.self) { seconds in
                         Text(refreshIntervalLabel(for: seconds)).tag(seconds)
+                    }
+                }
+
+                Picker(
+                    "Network query concurrency",
+                    selection: Binding(
+                        get: { model.networkQueryConcurrency },
+                        set: { value in
+                            Task {
+                                await model.setNetworkQueryConcurrency(value)
+                            }
+                        }
+                    )
+                ) {
+                    ForEach(networkQueryConcurrencyOptions, id: \.self) { value in
+                        Text("\(value)").tag(value)
                     }
                 }
             }

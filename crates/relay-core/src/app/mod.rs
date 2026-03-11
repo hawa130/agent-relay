@@ -45,6 +45,7 @@ pub struct EditProfileRequest {
     pub auth_mode: Option<crate::models::AuthMode>,
 }
 
+#[derive(Clone)]
 pub struct RelayApp {
     paths: RelayPaths,
     store: SqliteStore,
@@ -75,6 +76,7 @@ pub struct SystemSettingsUpdateRequest {
     pub auto_switch_enabled: Option<bool>,
     pub cooldown_seconds: Option<i64>,
     pub refresh_interval_seconds: Option<i64>,
+    pub network_query_concurrency: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

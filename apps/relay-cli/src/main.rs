@@ -91,6 +91,22 @@ struct SettingsCommand {
 enum SettingsSubcommand {
     #[command(about = "Show current relay settings")]
     Show,
+    #[command(about = "Update relay settings")]
+    Set(SettingsSetArgs),
+}
+
+#[derive(Debug, Args)]
+struct SettingsSetArgs {
+    #[arg(long, help = "Enable or disable automatic switching")]
+    auto_switch_enabled: Option<bool>,
+    #[arg(long, help = "Set the cooldown in seconds")]
+    cooldown_seconds: Option<i64>,
+    #[arg(long, help = "Set automatic usage refresh interval in seconds, or 0 to disable")]
+    refresh_interval_seconds: Option<i64>,
+    #[arg(long, help = "Set the maximum number of concurrent network queries")]
+    network_query_concurrency: Option<i64>,
+    #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
+    input_json: Option<PathBuf>,
 }
 
 #[derive(Debug, Args)]
@@ -150,6 +166,14 @@ struct AutoswitchSetArgs {
     enabled: Option<bool>,
     #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SettingsSetInput {
+    auto_switch_enabled: Option<bool>,
+    cooldown_seconds: Option<i64>,
+    refresh_interval_seconds: Option<i64>,
+    network_query_concurrency: Option<i64>,
 }
 
 #[derive(Debug, Args)]
@@ -561,6 +585,7 @@ fn system_settings_request_from_args(
             auto_switch_enabled: Some(payload.enabled),
             cooldown_seconds: None,
             refresh_interval_seconds: None,
+            network_query_concurrency: None,
         });
     }
 
@@ -571,7 +596,46 @@ fn system_settings_request_from_args(
         )?),
         cooldown_seconds: None,
         refresh_interval_seconds: None,
+        network_query_concurrency: None,
     })
+}
+
+fn settings_request_from_args(args: SettingsSetArgs) -> Result<SystemSettingsUpdateRequest, RelayError> {
+    if let Some(input_json) = args.input_json.as_ref() {
+        ensure_json_input_is_exclusive(
+            input_json,
+            &[
+                args.auto_switch_enabled.is_some(),
+                args.cooldown_seconds.is_some(),
+                args.refresh_interval_seconds.is_some(),
+                args.network_query_concurrency.is_some(),
+            ],
+        )?;
+        let payload: SettingsSetInput = read_json_input(input_json)?;
+        return Ok(SystemSettingsUpdateRequest {
+            auto_switch_enabled: payload.auto_switch_enabled,
+            cooldown_seconds: payload.cooldown_seconds,
+            refresh_interval_seconds: payload.refresh_interval_seconds,
+            network_query_concurrency: payload.network_query_concurrency,
+        });
+    }
+
+    let request = SystemSettingsUpdateRequest {
+        auto_switch_enabled: args.auto_switch_enabled,
+        cooldown_seconds: args.cooldown_seconds,
+        refresh_interval_seconds: args.refresh_interval_seconds,
+        network_query_concurrency: args.network_query_concurrency,
+    };
+    if request.auto_switch_enabled.is_none()
+        && request.cooldown_seconds.is_none()
+        && request.refresh_interval_seconds.is_none()
+        && request.network_query_concurrency.is_none()
+    {
+        return Err(RelayError::InvalidInput(
+            "at least one settings field must be provided".into(),
+        ));
+    }
+    Ok(request)
 }
 
 enum ShowTarget {
