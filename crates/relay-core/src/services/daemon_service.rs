@@ -4,22 +4,23 @@ use crate::models::{
     AddProfileParams, DoctorUpdatedPayload, EditProfileParams, EngineConnectionState, EngineState,
     HealthUpdatedPayload, ImportProfileParams, InitialState, InitializeParams, InitializeResult,
     LoginProfileParams, LogsTailParams, LogsTailResult, ProfileIdParams,
-    ProfilesUpdatedPayload, RefreshUsageParams, RefreshUsageResult, RelayRpcTopic,
-    RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo, RpcSuccessResponse,
-    SessionUpdate, SetProfileEnabledParams, SettingsResult, SettingsUpdateParams,
-    SettingsUpdatedPayload, SubscribeParams, SubscribeResult, SwitchCompletedPayload,
-    SwitchFailedPayload, SwitchTrigger, UsageGetParams, UsageResult, UsageUpdateTrigger,
-    UsageUpdatedPayload, rpc_from_error, rpc_internal_error, rpc_invalid_params,
-    rpc_invalid_request, rpc_method_not_found,
+    ProfilesUpdatedPayload, QueryStateItem, QueryStateKey, QueryStateKind, QueryStateStatus,
+    QueryStateTrigger, QueryStateUpdatedPayload, RefreshUsageParams, RefreshUsageResult,
+    RelayRpcTopic, RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo,
+    RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
+    SettingsUpdateParams, SettingsUpdatedPayload, SubscribeParams, SubscribeResult,
+    SwitchCompletedPayload, SwitchFailedPayload, SwitchTrigger, UsageGetParams, UsageResult,
+    UsageUpdateTrigger, UsageUpdatedPayload, rpc_from_error, rpc_internal_error,
+    rpc_invalid_params, rpc_invalid_request, rpc_method_not_found,
 };
 use crate::{
-    ActivityEventsQuery, CodexSettingsUpdateRequest, FailureReason, RelayApp, RelayError,
-    SystemSettingsUpdateRequest,
+    ActivityEventsQuery, CodexSettingsUpdateRequest, FailureReason, Profile, RelayApp,
+    RelayError, SystemSettingsUpdateRequest,
 };
 use chrono::Utc;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use tokio::sync::mpsc;
 
 pub struct DaemonService {
@@ -28,6 +29,7 @@ pub struct DaemonService {
     started_at: chrono::DateTime<Utc>,
     seq: u64,
     subscribed_topics: HashSet<RelayRpcTopic>,
+    query_states: BTreeMap<String, QueryStateItem>,
     connection_state: EngineConnectionState,
     shutdown_requested: bool,
 }
@@ -43,6 +45,7 @@ impl DaemonService {
             started_at: Utc::now(),
             seq: 0,
             subscribed_topics: HashSet::new(),
+            query_states: BTreeMap::new(),
             connection_state: EngineConnectionState::Starting,
             shutdown_requested: false,
         }
@@ -436,25 +439,28 @@ impl DaemonService {
         let params: RefreshUsageParams = parse_params(params)?;
         let snapshots = if let Some(profile_id) = params.profile_id {
             vec![
-                self.app
-                    .refresh_usage_profile(&profile_id)
+                self.refresh_usage_profile_with_query_state(&profile_id, UsageUpdateTrigger::Manual)
                     .await
                     .map_err(|e| rpc_from_error(&e))?,
             ]
         } else if params.include_disabled {
-            self.app
-                .refresh_all_usage_reports()
+            let profiles = self.app.list_profiles().await.map_err(|e| rpc_from_error(&e))?;
+            self.refresh_usage_profiles(profiles, UsageUpdateTrigger::Manual)
                 .await
                 .map_err(|e| rpc_from_error(&e))?
         } else {
-            self.app
-                .refresh_enabled_usage_reports()
+            let profiles = self
+                .app
+                .list_profiles()
+                .await
+                .map_err(|e| rpc_from_error(&e))?
+                .into_iter()
+                .filter(|profile| profile.enabled)
+                .collect();
+            self.refresh_usage_profiles(profiles, UsageUpdateTrigger::Manual)
                 .await
                 .map_err(|e| rpc_from_error(&e))?
         };
-        self.publish_usage_updated(snapshots.clone(), UsageUpdateTrigger::Manual)
-            .await
-            .map_err(|e| rpc_internal_error(e.to_string()))?;
         self.publish_active_state_updated()
             .await
             .map_err(|e| rpc_internal_error(e.to_string()))?;
@@ -565,9 +571,14 @@ impl DaemonService {
         &mut self,
         trigger: UsageUpdateTrigger,
     ) -> Result<(), RelayError> {
-        let snapshots = self.app.refresh_enabled_usage_reports().await?;
-        self.publish_usage_updated(snapshots.clone(), trigger)
-            .await?;
+        let profiles: Vec<Profile> = self
+            .app
+            .list_profiles()
+            .await?
+            .into_iter()
+            .filter(|profile| profile.enabled)
+            .collect();
+        let snapshots = self.refresh_usage_profiles(profiles, trigger).await?;
         self.publish_active_state_updated().await?;
 
         let settings = self.app.settings().await?;
@@ -593,8 +604,15 @@ impl DaemonService {
                 self.publish_switch_completed(report, SwitchTrigger::Auto)
                     .await?;
                 self.publish_profiles_updated().await?;
-                let post_switch = self.app.refresh_enabled_usage_reports().await?;
-                self.publish_usage_updated(post_switch, UsageUpdateTrigger::PostSwitch)
+                let profiles: Vec<Profile> = self
+                    .app
+                    .list_profiles()
+                    .await?
+                    .into_iter()
+                    .filter(|profile| profile.enabled)
+                    .collect();
+                let _ = self
+                    .refresh_usage_profiles(profiles, UsageUpdateTrigger::PostSwitch)
                     .await?;
                 self.publish_active_state_updated().await?;
             }
@@ -615,6 +633,16 @@ impl DaemonService {
         self.publish(
             RelayRpcTopic::UsageUpdated,
             UsageUpdatedPayload { snapshots, trigger },
+        )
+        .await
+    }
+
+    async fn publish_query_state_updated(&mut self) -> Result<(), RelayError> {
+        self.publish(
+            RelayRpcTopic::QueryStateUpdated,
+            QueryStateUpdatedPayload {
+                states: self.query_states.values().cloned().collect(),
+            },
         )
         .await
     }
@@ -747,6 +775,9 @@ impl DaemonService {
                     self.publish_usage_updated(snapshots, UsageUpdateTrigger::Startup)
                         .await?;
                 }
+                RelayRpcTopic::QueryStateUpdated => {
+                    self.publish_query_state_updated().await?;
+                }
                 RelayRpcTopic::ActiveStateUpdated => {
                     self.publish_active_state_updated().await?;
                 }
@@ -789,6 +820,99 @@ impl DaemonService {
         Ok(())
     }
 
+    async fn refresh_usage_profiles(
+        &mut self,
+        profiles: Vec<Profile>,
+        trigger: UsageUpdateTrigger,
+    ) -> Result<Vec<crate::UsageSnapshot>, RelayError> {
+        let mut snapshots = Vec::with_capacity(profiles.len());
+        let mut first_error = None;
+        for profile in profiles {
+            match self
+                .refresh_usage_profile_with_query_state(&profile.id, trigger)
+                .await
+            {
+                Ok(snapshot) => snapshots.push(snapshot),
+                Err(error) => {
+                    if first_error.is_none() {
+                        first_error = Some(error);
+                    }
+                }
+            }
+        }
+
+        if snapshots.is_empty() {
+            if let Some(error) = first_error {
+                return Err(error);
+            }
+        }
+        Ok(snapshots)
+    }
+
+    async fn refresh_usage_profile_with_query_state(
+        &mut self,
+        profile_id: &str,
+        trigger: UsageUpdateTrigger,
+    ) -> Result<crate::UsageSnapshot, RelayError> {
+        let key = usage_profile_query_key(profile_id);
+        self.set_query_state_pending(key.clone(), trigger).await?;
+        match self.app.refresh_usage_profile(profile_id).await {
+            Ok(snapshot) => {
+                self.publish_usage_updated(vec![snapshot.clone()], trigger).await?;
+                self.clear_query_state(&key).await?;
+                Ok(snapshot)
+            }
+            Err(error) => {
+                self.set_query_state_error(key, trigger, &error).await?;
+                Err(error)
+            }
+        }
+    }
+
+    async fn set_query_state_pending(
+        &mut self,
+        key: QueryStateKey,
+        trigger: UsageUpdateTrigger,
+    ) -> Result<(), RelayError> {
+        self.query_states.insert(
+            query_state_storage_key(&key),
+            QueryStateItem {
+                key,
+                status: QueryStateStatus::Pending,
+                trigger: query_state_trigger(trigger),
+                error_code: None,
+                message: None,
+                updated_at: Utc::now(),
+            },
+        );
+        self.publish_query_state_updated().await
+    }
+
+    async fn set_query_state_error(
+        &mut self,
+        key: QueryStateKey,
+        trigger: UsageUpdateTrigger,
+        error: &RelayError,
+    ) -> Result<(), RelayError> {
+        self.query_states.insert(
+            query_state_storage_key(&key),
+            QueryStateItem {
+                key,
+                status: QueryStateStatus::Error,
+                trigger: query_state_trigger(trigger),
+                error_code: Some(error.code().as_str().to_string()),
+                message: Some(error.to_string()),
+                updated_at: Utc::now(),
+            },
+        );
+        self.publish_query_state_updated().await
+    }
+
+    async fn clear_query_state(&mut self, key: &QueryStateKey) -> Result<(), RelayError> {
+        self.query_states.remove(&query_state_storage_key(key));
+        self.publish_query_state_updated().await
+    }
+
     async fn publish<T: serde::Serialize>(
         &mut self,
         topic: RelayRpcTopic,
@@ -811,6 +935,29 @@ impl DaemonService {
                 },
             })
             .map_err(|error| RelayError::Internal(error.to_string()))
+    }
+}
+
+fn usage_profile_query_key(profile_id: &str) -> QueryStateKey {
+    QueryStateKey {
+        kind: QueryStateKind::UsageProfile,
+        profile_id: Some(profile_id.to_string()),
+    }
+}
+
+fn query_state_storage_key(key: &QueryStateKey) -> String {
+    match (&key.kind, key.profile_id.as_deref()) {
+        (QueryStateKind::UsageProfile, Some(profile_id)) => format!("usage.profile:{profile_id}"),
+        (QueryStateKind::UsageProfile, None) => "usage.profile:".into(),
+    }
+}
+
+fn query_state_trigger(trigger: UsageUpdateTrigger) -> QueryStateTrigger {
+    match trigger {
+        UsageUpdateTrigger::Startup => QueryStateTrigger::Startup,
+        UsageUpdateTrigger::Interval => QueryStateTrigger::Interval,
+        UsageUpdateTrigger::Manual => QueryStateTrigger::Manual,
+        UsageUpdateTrigger::PostSwitch => QueryStateTrigger::PostSwitch,
     }
 }
 
