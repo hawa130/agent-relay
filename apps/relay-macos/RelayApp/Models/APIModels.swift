@@ -33,14 +33,12 @@ struct ActiveState: Decodable, Sendable {
     let lastSwitchAt: Date?
     let lastSwitchResult: SwitchOutcome
     let autoSwitchEnabled: Bool
-    let lastError: String?
 
     private enum CodingKeys: String, CodingKey {
         case activeProfileId
         case lastSwitchAt
         case lastSwitchResult
         case autoSwitchEnabled
-        case lastError
     }
 
     init(from decoder: Decoder) throws {
@@ -53,21 +51,18 @@ struct ActiveState: Decodable, Sendable {
         autoSwitchEnabled =
             try container.decodeIfPresent(Bool.self, forKey: .autoSwitchEnabled)
             ?? false
-        lastError = try container.decodeIfPresent(String.self, forKey: .lastError)
     }
 
     init(
         activeProfileId: String?,
         lastSwitchAt: Date?,
         lastSwitchResult: SwitchOutcome,
-        autoSwitchEnabled: Bool,
-        lastError: String?
+        autoSwitchEnabled: Bool
     ) {
         self.activeProfileId = activeProfileId
         self.lastSwitchAt = lastSwitchAt
         self.lastSwitchResult = lastSwitchResult
         self.autoSwitchEnabled = autoSwitchEnabled
-        self.lastError = lastError
     }
 }
 

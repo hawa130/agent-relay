@@ -50,13 +50,11 @@ mod tests {
         let store = FileStateStore::new(temp.path().join("state.json"));
         let state = ActiveState {
             auto_switch_enabled: true,
-            last_error: Some("boom".into()),
             ..ActiveState::default()
         };
 
         store.save(&state).expect("save");
         let loaded = store.load().expect("load");
         assert!(loaded.auto_switch_enabled);
-        assert_eq!(loaded.last_error.as_deref(), Some("boom"));
     }
 }

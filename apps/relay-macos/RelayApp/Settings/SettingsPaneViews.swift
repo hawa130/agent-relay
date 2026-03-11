@@ -167,14 +167,6 @@ private struct GeneralSettingsDetailView: View {
             Section("About") {
                 NativeDetailRow(title: "Version", value: appVersion)
             }
-
-            if let error = model.lastErrorMessage {
-                Section("Last Error") {
-                    Text(error)
-                        .foregroundStyle(.red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
         }
         .formStyle(.grouped)
     }
@@ -249,14 +241,6 @@ private struct AgentSettingsDetailView: View {
                     Text((model.codexSettings?.usageSourceMode ?? .auto).helpText)
                         .font(NativePreferencesTheme.Typography.detail)
                         .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-
-            if let error = model.lastErrorMessage {
-                Section("Last Error") {
-                    Text(error)
-                        .foregroundStyle(.red)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }

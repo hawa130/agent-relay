@@ -42,7 +42,6 @@ pub async fn switch_to_profile(
                 last_switch_at: Some(switched_at),
                 last_switch_result: SwitchOutcome::Success,
                 auto_switch_enabled: current_state.auto_switch_enabled,
-                last_error: None,
             };
             state_store.save(&next_state)?;
             if let Err(error) = store
@@ -84,7 +83,6 @@ pub async fn switch_to_profile(
                 last_switch_at: Some(now),
                 last_switch_result: SwitchOutcome::Failed,
                 auto_switch_enabled: current_state.auto_switch_enabled,
-                last_error: Some(error.to_string()),
             };
             state_store.save(&next_state)?;
             if let Err(persist_error) = store

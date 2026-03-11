@@ -213,10 +213,6 @@ pub(super) fn active_state_fields(state: &ActiveState) -> Vec<(&'static str, Str
             "Auto-switch Enabled",
             yes_no(state.auto_switch_enabled).into(),
         ),
-        (
-            "Last Error",
-            state.last_error.clone().unwrap_or_else(|| "-".into()),
-        ),
     ]
 }
 

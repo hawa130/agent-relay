@@ -14,7 +14,6 @@ pub struct ActiveState {
     pub last_switch_at: Option<DateTime<Utc>>,
     pub last_switch_result: SwitchOutcome,
     pub auto_switch_enabled: bool,
-    pub last_error: Option<String>,
 }
 
 impl Default for ActiveState {
@@ -24,7 +23,6 @@ impl Default for ActiveState {
             last_switch_at: None,
             last_switch_result: SwitchOutcome::NotRun,
             auto_switch_enabled: false,
-            last_error: None,
         }
     }
 }

@@ -1511,8 +1511,7 @@ fn recover_rebuilds_profiles_from_saved_snapshots() {
             "active_profile_id": "old-profile-id",
             "last_switch_at": null,
             "last_switch_result": "Success",
-            "auto_switch_enabled": true,
-            "last_error": "stale"
+            "auto_switch_enabled": true
         })
         .to_string(),
     )

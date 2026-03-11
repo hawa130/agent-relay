@@ -46,10 +46,9 @@ public final class RelayAppModel: ObservableObject {
     @Published private(set) var isSwitching = false
     @Published private(set) var isMutatingProfiles = false
     @Published private(set) var isLoggingIn = false
-    @Published private(set) var isRefreshingEnabledUsage = false
-    @Published private(set) var refreshingUsageProfileIds: Set<String> = []
+    @Published private(set) var isFetchingEnabledUsage = false
+    @Published private(set) var fetchingUsageProfileIds: Set<String> = []
     @Published var selectedProfileId: String?
-    @Published var lastErrorMessage: String?
 
     private enum QueryPendingKey: Hashable {
         case usageAll
@@ -127,9 +126,8 @@ public final class RelayAppModel: ObservableObject {
         usageSnapshots.first { $0.profileId == profileId }
     }
 
-    func isRefreshingUsage(profileId: String) -> Bool {
-        queryPending.contains(.usageProfile(profileId))
-            || usageQueryState(for: profileId)?.status == .pending
+    func isFetchingUsage(profileId: String) -> Bool {
+        usageQueryState(for: profileId)?.status == .pending
     }
 
     func usageRefreshError(profileId: String) -> String? {
@@ -173,7 +171,6 @@ public final class RelayAppModel: ObservableObject {
             triggerRefreshActivity(notifyOnFailure: notifyOnFailure)
             triggerRefreshDoctor(notifyOnFailure: notifyOnFailure)
         } catch {
-            lastErrorMessage = error.localizedDescription
             if notifyOnFailure {
                 await notificationService.post(
                     title: "Relay refresh failed",
@@ -197,13 +194,11 @@ public final class RelayAppModel: ObservableObject {
             try await ensureSessionStateLoaded()
             let report = try await daemonClient.switchToProfile(profileId)
             selectProfile(profileId)
-            lastErrorMessage = nil
             await notificationService.post(
                 title: "Relay switched profile",
                 body: report.message
             )
         } catch {
-            lastErrorMessage = error.localizedDescription
             await notificationService.post(
                 title: "Relay switch failed",
                 body: error.localizedDescription
@@ -220,13 +215,11 @@ public final class RelayAppModel: ObservableObject {
             previousCodexSettings = codexSettings
             applyAppSettingsOptimistic(autoSwitchEnabled: enabled)
             _ = try await daemonClient.setAutoSwitch(enabled: enabled)
-            lastErrorMessage = nil
         } catch {
             rollbackSettingsIfNeeded(
                 previousStatus: previousStatus,
                 previousCodexSettings: previousCodexSettings
             )
-            lastErrorMessage = error.localizedDescription
             await notificationService.post(
                 title: "Relay settings update failed",
                 body: error.localizedDescription
@@ -243,13 +236,11 @@ public final class RelayAppModel: ObservableObject {
             previousCodexSettings = codexSettings
             applyAppSettingsOptimistic(refreshIntervalSeconds: seconds)
             _ = try await daemonClient.setRefreshInterval(seconds: seconds)
-            lastErrorMessage = nil
         } catch {
             rollbackSettingsIfNeeded(
                 previousStatus: previousStatus,
                 previousCodexSettings: previousCodexSettings
             )
-            lastErrorMessage = error.localizedDescription
             await notificationService.post(
                 title: "Relay settings update failed",
                 body: error.localizedDescription
@@ -266,13 +257,11 @@ public final class RelayAppModel: ObservableObject {
             previousCodexSettings = codexSettings
             applyAppSettingsOptimistic(networkQueryConcurrency: value)
             _ = try await daemonClient.setNetworkQueryConcurrency(value: value)
-            lastErrorMessage = nil
         } catch {
             rollbackSettingsIfNeeded(
                 previousStatus: previousStatus,
                 previousCodexSettings: previousCodexSettings
             )
-            lastErrorMessage = error.localizedDescription
             await notificationService.post(
                 title: "Relay settings update failed",
                 body: error.localizedDescription
@@ -286,7 +275,7 @@ public final class RelayAppModel: ObservableObject {
 
     func refreshUsage(profileId: String) async {
         guard
-            !isRefreshingUsage(profileId: profileId),
+            !isFetchingUsage(profileId: profileId),
             !queryPending.contains(.usageProfile(profileId))
         else {
             return
@@ -297,19 +286,19 @@ public final class RelayAppModel: ObservableObject {
                 _ = try await daemonClient.refreshUsage(profileId: profileId)
             }
         } catch {
-            lastErrorMessage = error.localizedDescription
+            return
         }
     }
 
     func refreshEnabledUsage() async {
-        guard !isRefreshingEnabledUsage, !queryPending.contains(.usageAll) else {
+        guard !isFetchingEnabledUsage, !queryPending.contains(.usageAll) else {
             return
         }
         do {
             try await ensureSessionStateLoaded()
             triggerRefreshEnabledUsage(notifyOnFailure: false)
         } catch {
-            lastErrorMessage = error.localizedDescription
+            return
         }
     }
 
@@ -400,11 +389,11 @@ public final class RelayAppModel: ObservableObject {
                     _ = try? await daemonClient.cancelTask(taskId: taskID)
                 }
             }
-            await applyAddAccountOutcome(outcome, agent: agent)
+            await applyAddAccountOutcome(outcome)
             return outcome
         } catch {
             let outcome = addAccountResult(for: error, agent: agent)
-            await applyAddAccountOutcome(outcome, agent: agent)
+            await applyAddAccountOutcome(outcome)
             return outcome
         }
     }
@@ -427,9 +416,7 @@ public final class RelayAppModel: ObservableObject {
     func exportDiagnostics() async {
         do {
             diagnosticsExport = try await daemonClient.exportDiagnostics()
-            lastErrorMessage = nil
         } catch {
-            lastErrorMessage = error.localizedDescription
             await notificationService.post(
                 title: "Relay diagnostics export failed",
                 body: error.localizedDescription
@@ -451,10 +438,8 @@ public final class RelayAppModel: ObservableObject {
         do {
             let initial = try await daemonClient.restart()
             apply(initialState: initial)
-            lastErrorMessage = nil
         } catch {
             engineConnectionState = .degraded
-            lastErrorMessage = error.localizedDescription
             await notificationService.post(
                 title: "Relay engine restart failed",
                 body: error.localizedDescription
@@ -477,9 +462,7 @@ public final class RelayAppModel: ObservableObject {
         do {
             try await ensureSessionStateLoaded()
             try await operation()
-            lastErrorMessage = nil
         } catch {
-            lastErrorMessage = error.localizedDescription
             await notificationService.post(
                 title: "Relay profile update failed",
                 body: error.localizedDescription
@@ -498,13 +481,11 @@ public final class RelayAppModel: ObservableObject {
                 codexSettings = CodexSettings(usageSourceMode: sourceMode)
             }
             _ = try await daemonClient.setCodexSettings(draft)
-            lastErrorMessage = nil
         } catch {
             rollbackSettingsIfNeeded(
                 previousStatus: previousStatus,
                 previousCodexSettings: previousCodexSettings
             )
-            lastErrorMessage = error.localizedDescription
             await notificationService.post(
                 title: "Relay Codex settings update failed",
                 body: error.localizedDescription
@@ -519,7 +500,6 @@ public final class RelayAppModel: ObservableObject {
             startNotificationStreamIfNeeded()
         } catch {
             engineConnectionState = .degraded
-            lastErrorMessage = error.localizedDescription
         }
     }
 
@@ -590,7 +570,7 @@ public final class RelayAppModel: ObservableObject {
             endQuery(.doctor)
             finalizeStateUpdate()
         case let .switchCompleted(payload):
-            lastErrorMessage = nil
+            applySwitchCompleted(payload.report)
             if payload.trigger == .auto {
                 Task {
                     await notificationService.post(
@@ -600,7 +580,7 @@ public final class RelayAppModel: ObservableObject {
                 }
             }
         case let .switchFailed(payload):
-            lastErrorMessage = "\(payload.errorCode): \(payload.message)"
+            applySwitchFailed(payload)
             if payload.trigger == .auto {
                 Task {
                     await notificationService.post(
@@ -615,7 +595,6 @@ public final class RelayAppModel: ObservableObject {
         case let .healthUpdated(payload):
             engineConnectionState = payload.state
             if let detail = payload.detail, payload.state == .degraded {
-                lastErrorMessage = detail
                 failPendingTasks(detail: detail)
             }
             finalizeStateUpdate()
@@ -674,11 +653,9 @@ public final class RelayAppModel: ObservableObject {
             return .failed(detail: "Login task did not complete.")
         case .succeeded:
             guard let result = task.profileLoginResult else {
-                lastErrorMessage = "\(agent.rawValue) login completed without a result."
                 return .failed(detail: "\(agent.rawValue) login completed without a result.")
             }
             selectProfile(result.profile.id)
-            lastErrorMessage = nil
             return .success
         case .cancelled:
             return .notSignedIn(detail: "Browser sign-in was cancelled or did not complete.")
@@ -687,11 +664,9 @@ public final class RelayAppModel: ObservableObject {
                 task.message
                 ?? "\(task.errorCode ?? "RELAY_INTERNAL"): login failed"
             if let errorCode = task.errorCode {
-                lastErrorMessage = "\(errorCode): \(detail)"
-            } else {
-                lastErrorMessage = detail
+                return .failed(detail: "\(errorCode): \(detail)")
             }
-            return .failed(detail: lastErrorMessage ?? detail)
+            return .failed(detail: detail)
         }
     }
 
@@ -737,7 +712,6 @@ public final class RelayAppModel: ObservableObject {
             } catch {
                 await MainActor.run {
                     self?.endQueries(keys)
-                    self?.lastErrorMessage = error.localizedDescription
                 }
                 if let failureTitle {
                     await self?.notificationService.post(
@@ -778,10 +752,8 @@ public final class RelayAppModel: ObservableObject {
         let activeUsageStates = queryStates.values.filter { item in
             item.key.kind == .usageProfile
         }
-        isRefreshingEnabledUsage =
-            queryPending.contains(.usageAll)
-            || activeUsageStates.contains { $0.status == .pending }
-        let pendingProfileIDs = Set<String>(
+        isFetchingEnabledUsage = activeUsageStates.contains { $0.status == .pending }
+        fetchingUsageProfileIds = Set<String>(
             activeUsageStates.compactMap { item in
                 guard item.status == .pending else {
                     return nil
@@ -789,16 +761,7 @@ public final class RelayAppModel: ObservableObject {
                 return item.key.profileId
             }
         )
-        let localPendingProfileIDs = Set<String>(
-            queryPending.compactMap { key in
-                guard case let .usageProfile(profileID) = key else {
-                    return nil
-                }
-                return profileID
-            }
-        )
-        refreshingUsageProfileIds = pendingProfileIDs.union(localPendingProfileIDs)
-        isRefreshing = !queryPending.isEmpty || isRefreshingEnabledUsage
+        isRefreshing = !queryPending.isEmpty || isFetchingEnabledUsage
         isSwitching = mutationPending.contains(.switching)
         isMutatingProfiles = mutationPending.contains(.profileMutation)
         isLoggingIn = mutationPending.contains(.loginTask)
@@ -822,14 +785,11 @@ public final class RelayAppModel: ObservableObject {
         return .failed(detail: description.isEmpty ? "\(agent.rawValue) login failed." : description)
     }
 
-    private func applyAddAccountOutcome(_ outcome: AddAccountResult, agent: AgentKind) async {
+    private func applyAddAccountOutcome(_ outcome: AddAccountResult) async {
         switch outcome {
-        case .success, .cancelled:
-            lastErrorMessage = nil
-        case let .notSignedIn(detail):
-            lastErrorMessage = "\(agent.rawValue): Not signed in. \(detail)"
+        case .success, .cancelled, .notSignedIn:
+            return
         case let .failed(detail):
-            lastErrorMessage = detail
             await notificationService.post(
                 title: "Relay profile update failed",
                 body: detail
@@ -886,8 +846,7 @@ public final class RelayAppModel: ObservableObject {
             activeProfileId: status.activeState.activeProfileId,
             lastSwitchAt: status.activeState.lastSwitchAt,
             lastSwitchResult: status.activeState.lastSwitchResult,
-            autoSwitchEnabled: autoSwitchEnabled ?? status.activeState.autoSwitchEnabled,
-            lastError: status.activeState.lastError
+            autoSwitchEnabled: autoSwitchEnabled ?? status.activeState.autoSwitchEnabled
         )
 
         self.status = StatusReport(
@@ -992,6 +951,44 @@ public final class RelayAppModel: ObservableObject {
                     return true
                 }
             }
+        )
+    }
+
+    private func applySwitchCompleted(_ report: SwitchReport) {
+        guard let status else {
+            return
+        }
+        self.status = StatusReport(
+            relayHome: status.relayHome,
+            liveAgentHome: status.liveAgentHome,
+            profileCount: status.profileCount,
+            activeState: ActiveState(
+                activeProfileId: report.profileId,
+                lastSwitchAt: report.switchedAt,
+                lastSwitchResult: .success,
+                autoSwitchEnabled: status.activeState.autoSwitchEnabled
+            ),
+            settings: status.settings
+        )
+        normalizeSelection()
+        synchronizeActiveUsage()
+    }
+
+    private func applySwitchFailed(_ payload: SwitchFailedNotification) {
+        guard let status else {
+            return
+        }
+        self.status = StatusReport(
+            relayHome: status.relayHome,
+            liveAgentHome: status.liveAgentHome,
+            profileCount: status.profileCount,
+            activeState: ActiveState(
+                activeProfileId: status.activeState.activeProfileId,
+                lastSwitchAt: status.activeState.lastSwitchAt,
+                lastSwitchResult: .failed,
+                autoSwitchEnabled: status.activeState.autoSwitchEnabled
+            ),
+            settings: status.settings
         )
     }
 }
