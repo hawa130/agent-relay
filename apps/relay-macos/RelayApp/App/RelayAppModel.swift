@@ -43,6 +43,7 @@ public final class RelayAppModel: ObservableObject {
     private var daemonNotificationsTask: Task<Void, Never>?
     private var queryPending: Set<QueryPendingKey> = []
     private var mutationPending: Set<MutationPendingKey> = []
+    private var queryStates: [QueryStateKey: QueryStateItem] = [:]
 
     public init() {
         selectedProfileId = Defaults[.selectedProfileId]
@@ -90,7 +91,15 @@ public final class RelayAppModel: ObservableObject {
     }
 
     func isRefreshingUsage(profileId: String) -> Bool {
-        refreshingUsageProfileIds.contains(profileId)
+        queryPending.contains(.usageProfile(profileId))
+            || usageQueryState(for: profileId)?.status == .pending
+    }
+
+    func usageRefreshError(profileId: String) -> String? {
+        guard let state = usageQueryState(for: profileId), state.status == .error else {
+            return nil
+        }
+        return state.message
     }
 
     func selectProfile(_ profileId: String?) {
@@ -216,12 +225,15 @@ public final class RelayAppModel: ObservableObject {
     }
 
     func refreshUsage(profileId: String) async {
+        guard
+            !isRefreshingUsage(profileId: profileId),
+            !queryPending.contains(.usageProfile(profileId))
+        else {
+            return
+        }
         do {
             try await ensureSessionStateLoaded()
-            triggerBackgroundQuery(
-                [.usageProfile(profileId)],
-                failureTitle: "Relay usage refresh failed"
-            ) { [daemonClient] in
+            triggerBackgroundQuery([.usageProfile(profileId)], failureTitle: "Relay usage refresh failed") { [daemonClient] in
                 _ = try await daemonClient.refreshUsage(profileId: profileId)
             }
         } catch {
@@ -230,6 +242,9 @@ public final class RelayAppModel: ObservableObject {
     }
 
     func refreshEnabledUsage() async {
+        guard !isRefreshingEnabledUsage, !queryPending.contains(.usageAll) else {
+            return
+        }
         do {
             try await ensureSessionStateLoaded()
             triggerRefreshEnabledUsage(notifyOnFailure: false)
@@ -450,7 +465,9 @@ public final class RelayAppModel: ObservableObject {
             for snapshot in payload.snapshots {
                 mergeUsageSnapshot(snapshot)
             }
-            clearUsagePending(for: payload.snapshots)
+            finalizeStateUpdate()
+        case let .queryStateUpdated(payload):
+            applyQueryStates(payload.states)
             finalizeStateUpdate()
         case let .activeStateUpdated(payload):
             if var status {
@@ -511,10 +528,7 @@ public final class RelayAppModel: ObservableObject {
     }
 
     private func triggerRefreshEnabledUsage(notifyOnFailure: Bool) {
-        triggerBackgroundQuery(
-            [.usageAll],
-            failureTitle: notifyOnFailure ? "Relay refresh failed" : nil
-        ) { [daemonClient] in
+        triggerBackgroundQuery([.usageAll], failureTitle: notifyOnFailure ? "Relay refresh failed" : nil) { [daemonClient] in
             _ = try await daemonClient.refreshEnabledUsage()
         }
     }
@@ -591,28 +605,32 @@ public final class RelayAppModel: ObservableObject {
     }
 
     private func synchronizePendingState() {
-        isRefreshing = !queryPending.isEmpty
-        isRefreshingEnabledUsage = queryPending.contains(.usageAll)
-        refreshingUsageProfileIds = Set(
-            queryPending.compactMap { key in
-                if case let .usageProfile(profileID) = key {
-                    return profileID
+        let activeUsageStates = queryStates.values.filter { item in
+            item.key.kind == .usageProfile
+        }
+        isRefreshingEnabledUsage =
+            queryPending.contains(.usageAll)
+            || activeUsageStates.contains { $0.status == .pending }
+        let pendingProfileIDs = Set<String>(
+            activeUsageStates.compactMap { item in
+                guard item.status == .pending else {
+                    return nil
                 }
-                return nil
+                return item.key.profileId
             }
         )
+        let localPendingProfileIDs = Set<String>(
+            queryPending.compactMap { key in
+                guard case let .usageProfile(profileID) = key else {
+                    return nil
+                }
+                return profileID
+            }
+        )
+        refreshingUsageProfileIds = pendingProfileIDs.union(localPendingProfileIDs)
+        isRefreshing = !queryPending.isEmpty || isRefreshingEnabledUsage
         isSwitching = mutationPending.contains(.switching)
         isMutatingProfiles = mutationPending.contains(.profileMutation)
-    }
-
-    private func clearUsagePending(for snapshots: [UsageSnapshot]) {
-        queryPending.remove(.usageAll)
-        for snapshot in snapshots {
-            if let profileId = snapshot.profileId {
-                queryPending.remove(.usageProfile(profileId))
-            }
-        }
-        synchronizePendingState()
     }
 
     private func addAccountResult(for error: Error, agent: AgentKind) -> AddAccountResult {
@@ -637,12 +655,14 @@ public final class RelayAppModel: ObservableObject {
         status = initialState.status
         codexSettings = initialState.codexSettings
         applyProfileItems(initialState.profiles)
+        queryStates = [:]
         doctor = nil
         events = []
         logTail = nil
         engineConnectionState = initialState.engine.connectionState
         normalizeSelection()
         synchronizeActiveUsage()
+        synchronizePendingState()
         finalizeStateUpdate()
     }
 
@@ -762,5 +782,28 @@ public final class RelayAppModel: ObservableObject {
 
     private func finalizeStateUpdate() {
         lastRefresh = Date()
+    }
+
+    private func usageQueryState(for profileId: String) -> QueryStateItem? {
+        queryStates[QueryStateKey(kind: .usageProfile, profileId: profileId)]
+    }
+
+    private func applyQueryStates(_ states: [QueryStateItem]) {
+        queryStates = Dictionary(uniqueKeysWithValues: states.map { ($0.key, $0) })
+        clearLocalUsageQueryGates()
+        synchronizePendingState()
+    }
+
+    private func clearLocalUsageQueryGates() {
+        queryPending = Set(
+            queryPending.filter { key in
+                switch key {
+                case .usageAll, .usageProfile:
+                    return false
+                default:
+                    return true
+                }
+            }
+        )
     }
 }

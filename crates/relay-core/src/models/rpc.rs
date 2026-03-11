@@ -130,6 +130,8 @@ pub struct SubscribeResult {
 pub enum RelayRpcTopic {
     #[serde(rename = "usage.updated")]
     UsageUpdated,
+    #[serde(rename = "query_state.updated")]
+    QueryStateUpdated,
     #[serde(rename = "active_state.updated")]
     ActiveStateUpdated,
     #[serde(rename = "settings.updated")]
@@ -311,6 +313,49 @@ pub enum UsageUpdateTrigger {
     Interval,
     Manual,
     PostSwitch,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum QueryStateStatus {
+    Pending,
+    Error,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum QueryStateTrigger {
+    Startup,
+    Interval,
+    Manual,
+    PostSwitch,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct QueryStateKey {
+    pub kind: QueryStateKind,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub profile_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum QueryStateKind {
+    UsageProfile,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryStateItem {
+    pub key: QueryStateKey,
+    pub status: QueryStateStatus,
+    pub trigger: QueryStateTrigger,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QueryStateUpdatedPayload {
+    pub states: Vec<QueryStateItem>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

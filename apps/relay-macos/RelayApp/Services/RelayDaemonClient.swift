@@ -115,6 +115,7 @@ actor RelayDaemonClient {
             params: RPCSubscribeParams(
                 topics: [
                     "usage.updated",
+                    "query_state.updated",
                     "active_state.updated",
                     "settings.updated",
                     "profiles.updated",
@@ -443,6 +444,8 @@ actor RelayDaemonClient {
         switch topic {
         case "usage.updated":
             return try? .usageUpdated(decoder.decode(UsageUpdatedNotification.self, from: payloadData))
+        case "query_state.updated":
+            return try? .queryStateUpdated(decoder.decode(QueryStateUpdatedNotification.self, from: payloadData))
         case "active_state.updated":
             return try? .activeStateUpdated(decoder.decode(ActiveStateUpdatedNotification.self, from: payloadData))
         case "settings.updated":

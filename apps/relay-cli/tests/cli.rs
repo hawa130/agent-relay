@@ -1648,6 +1648,7 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
         &add_payload,
     );
     assert_eq!(add["data"]["nickname"], "daemon-profile");
+    let profile_id = add["data"]["id"].as_str().expect("profile id");
 
     let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
     daemon.send_request(
@@ -1676,6 +1677,7 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
         serde_json::json!({
             "topics": [
                 "usage.updated",
+                "query_state.updated",
                 "active_state.updated",
                 "settings.updated",
                 "profiles.updated",
@@ -1690,6 +1692,7 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
     assert_eq!(subscribe["id"], "2");
     let expected_topics = HashSet::from([
         "usage.updated",
+        "query_state.updated",
         "active_state.updated",
         "settings.updated",
         "profiles.updated",
@@ -1744,11 +1747,33 @@ fn daemon_stdio_initialize_subscribe_refresh_and_shutdown_work() {
     );
     let mut saw_manual_usage_update = false;
     let mut saw_manual_active_state = false;
-    while !saw_manual_usage_update || !saw_manual_active_state {
+    let mut saw_manual_query_pending = false;
+    let mut saw_manual_query_clear = false;
+    while !saw_manual_usage_update
+        || !saw_manual_active_state
+        || !saw_manual_query_pending
+        || !saw_manual_query_clear
+    {
         let message = daemon.read_message();
         match message["params"]["topic"].as_str().expect("topic") {
             "usage.updated" if message["params"]["payload"]["trigger"] == "Manual" => {
                 saw_manual_usage_update = true;
+            }
+            "query_state.updated" => {
+                let states = message["params"]["payload"]["states"]
+                    .as_array()
+                    .expect("query states");
+                if states.iter().any(|state| {
+                    state["key"]["kind"] == "UsageProfile"
+                        && state["key"]["profile_id"] == profile_id
+                        && state["status"] == "Pending"
+                        && state["trigger"] == "Manual"
+                }) {
+                    saw_manual_query_pending = true;
+                }
+                if saw_manual_query_pending && states.is_empty() {
+                    saw_manual_query_clear = true;
+                }
             }
             "active_state.updated" => {
                 saw_manual_active_state = true;

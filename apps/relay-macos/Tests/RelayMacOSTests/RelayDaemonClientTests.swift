@@ -96,6 +96,32 @@ final class RelayDaemonClientTests: XCTestCase {
         await client.stop()
     }
 
+    func testQueryStateNotificationIsDecodedAndDelivered() async throws {
+        let fixture = try RelayDaemonFixture.make(mode: "query_state_then_refresh_response")
+        defer { fixture.cleanup() }
+
+        let client = RelayDaemonClient(
+            relayCLIPathOverride: fixture.scriptPath,
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "query_state_then_refresh_response"]
+        )
+
+        async let refreshed = client.refreshEnabledUsage()
+        let notification = try await nextNotification(from: client.notifications)
+        let snapshots = try await refreshed
+
+        guard case let .queryStateUpdated(payload) = notification else {
+            return XCTFail("expected query_state.updated notification")
+        }
+
+        XCTAssertEqual(payload.states.first?.key.kind, .usageProfile)
+        XCTAssertEqual(payload.states.first?.key.profileId, "p_alt")
+        XCTAssertEqual(payload.states.first?.status, .pending)
+        XCTAssertEqual(payload.states.first?.trigger, .manual)
+        XCTAssertEqual(snapshots.first?.profileId, "p_alt")
+
+        await client.stop()
+    }
+
     func testPendingRequestFailsWhenDaemonExitsUnexpectedly() async throws {
         let fixture = try RelayDaemonFixture.make(mode: "crash_on_status")
         defer { fixture.cleanup() }
@@ -274,7 +300,7 @@ EOF
         session/subscribe)
           printf '%s\n' 'rpc session/subscribe' >> "$script_dir/commands.log"
           cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","active_state.updated","switch.completed","switch.failed","health.updated"]}}
+{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","query_state.updated","active_state.updated","switch.completed","switch.failed","health.updated"]}}
 EOF
           ;;
         relay/status/get)
@@ -303,6 +329,13 @@ EOF
           if [ "$mode" = "notification_then_refresh_response" ]; then
             cat <<EOF
 {"jsonrpc":"2.0","method":"session/update","params":{"topic":"usage.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}],"trigger":"Manual"}}}
+EOF
+            sleep 0.1
+          elif [ "$mode" = "query_state_then_refresh_response" ]; then
+            cat <<EOF
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"states":[{"key":{"kind":"UsageProfile","profile_id":"p_alt"},"status":"Pending","trigger":"Manual","updated_at":"2026-03-08T12:27:12Z"}]}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"usage.updated","seq":2,"timestamp":"2026-03-08T12:27:12Z","payload":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}],"trigger":"Manual"}}}
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":3,"timestamp":"2026-03-08T12:27:13Z","payload":{"states":[]}}}
 EOF
             sleep 0.1
           fi

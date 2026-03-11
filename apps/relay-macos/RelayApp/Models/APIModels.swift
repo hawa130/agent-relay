@@ -323,6 +323,7 @@ struct RPCActivityRefreshResult: Decodable, Sendable {
 
 enum RelaySessionUpdate: Sendable {
     case usageUpdated(UsageUpdatedNotification)
+    case queryStateUpdated(QueryStateUpdatedNotification)
     case activeStateUpdated(ActiveStateUpdatedNotification)
     case settingsUpdated(SettingsUpdatedNotification)
     case profilesUpdated(ProfilesUpdatedNotification)
@@ -337,6 +338,40 @@ enum RelaySessionUpdate: Sendable {
 struct UsageUpdatedNotification: Decodable, Sendable {
     let snapshots: [UsageSnapshot]
     let trigger: UsageUpdateTrigger
+}
+
+struct QueryStateUpdatedNotification: Decodable, Sendable {
+    let states: [QueryStateItem]
+}
+
+struct QueryStateItem: Decodable, Hashable, Sendable {
+    let key: QueryStateKey
+    let status: QueryStateStatus
+    let trigger: QueryStateTrigger
+    let errorCode: String?
+    let message: String?
+    let updatedAt: Date
+}
+
+struct QueryStateKey: Decodable, Hashable, Sendable {
+    let kind: QueryStateKind
+    let profileId: String?
+}
+
+enum QueryStateKind: String, Decodable, Hashable, Sendable {
+    case usageProfile = "UsageProfile"
+}
+
+enum QueryStateStatus: String, Decodable, Hashable, Sendable {
+    case pending = "Pending"
+    case error = "Error"
+}
+
+enum QueryStateTrigger: String, Decodable, Hashable, Sendable {
+    case startup = "Startup"
+    case interval = "Interval"
+    case manual = "Manual"
+    case postSwitch = "PostSwitch"
 }
 
 struct ActiveStateUpdatedNotification: Decodable, Sendable {

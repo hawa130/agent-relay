@@ -63,6 +63,26 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
                 && model.usageSnapshot(for: "p_alt")?.source == .webEnhanced
         }
     }
+
+    func testStartAppliesUsageQueryStateNotifications() async throws {
+        let fixture = try RelayAppModelNotificationFixture.make(mode: "query_state_error")
+        defer { fixture.cleanup() }
+
+        let scope = RelayFixtureEnvironment(
+            relayCLIPath: fixture.scriptPath,
+            fixtureMode: "query_state_error"
+        )
+        scope.install()
+        defer { scope.uninstall() }
+
+        let model = RelayAppModel()
+        model.start()
+
+        try await waitUntil {
+            model.usageRefreshError(profileId: "p_alt") == "remote usage timed out"
+                && !model.isRefreshingUsage(profileId: "p_alt")
+        }
+    }
 }
 
 private struct RelayFixtureEnvironment {
@@ -161,7 +181,7 @@ EOF
           ;;
         session/subscribe)
           cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","active_state.updated","settings.updated","profiles.updated","activity.events.updated","activity.logs.updated","doctor.updated","switch.completed","switch.failed","health.updated"]}}
+{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","query_state.updated","active_state.updated","settings.updated","profiles.updated","activity.events.updated","activity.logs.updated","doctor.updated","switch.completed","switch.failed","health.updated"]}}
 EOF
           case "$mode" in
             health_update)
@@ -184,6 +204,16 @@ EOF
               sleep 0.05
               cat <<EOF
 {"jsonrpc":"2.0","method":"session/update","params":{"topic":"active_state.updated","seq":2,"timestamp":"2026-03-08T12:27:13Z","payload":{"active_state":{"active_profile_id":"p_alt","last_switch_at":"2026-03-08T12:27:13Z","last_switch_result":"Success","auto_switch_enabled":false,"last_error":null},"active_profile":$alt_profile_item}}}
+EOF
+              ;;
+            query_state_error)
+              sleep 0.05
+              cat <<EOF
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"states":[{"key":{"kind":"UsageProfile","profile_id":"p_alt"},"status":"Pending","trigger":"Manual","updated_at":"2026-03-08T12:27:12Z"}]}}}
+EOF
+              sleep 0.05
+              cat <<EOF
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":2,"timestamp":"2026-03-08T12:27:13Z","payload":{"states":[{"key":{"kind":"UsageProfile","profile_id":"p_alt"},"status":"Error","trigger":"Manual","error_code":"RELAY_EXTERNAL_COMMAND","message":"remote usage timed out","updated_at":"2026-03-08T12:27:13Z"}]}}}
 EOF
               ;;
           esac
