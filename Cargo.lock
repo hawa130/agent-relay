@@ -3,6 +3,41 @@
 version = 4
 
 [[package]]
+name = "agrelay-cli"
+version = "0.1.0"
+dependencies = [
+ "agrelay-core",
+ "chrono",
+ "clap",
+ "comfy-table",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "agrelay-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "base64",
+ "chrono",
+ "dirs",
+ "futures-util",
+ "reqwest",
+ "sea-orm",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1494,41 +1529,6 @@ name = "regex-syntax"
 version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc897dd8d9e8bd1ed8cdad82b5966c3e0ecae09fb1907d58efaa013543185d0a"
-
-[[package]]
-name = "relay-cli"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "clap",
- "comfy-table",
- "relay-core",
- "sea-orm",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "relay-core"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "base64",
- "chrono",
- "dirs",
- "futures-util",
- "reqwest",
- "sea-orm",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror",
- "tokio",
-]
 
 [[package]]
 name = "reqwest"

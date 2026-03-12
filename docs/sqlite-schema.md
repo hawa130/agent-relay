@@ -1,6 +1,6 @@
 # SQLite Schema
 
-Relay now manages SQLite schema changes with SeaORM 2.x entity-first workflow.
+AgentRelay now manages SQLite schema changes with SeaORM 2.x entity-first workflow.
 The hand-written entities inside `relay-core` are the schema source of truth,
 and write bootstrap uses SeaORM schema sync to create or extend the database.
 
@@ -9,7 +9,7 @@ and write bootstrap uses SeaORM schema sync to create or extend the database.
 - `relay-core::store::entities` is the only source of truth for managed SQLite schema.
 - `SqliteStore::new` opens the database, rejects legacy schemas, and runs SeaORM schema sync before any service logic proceeds.
 - A read-only bootstrap path may open an existing database without running schema sync.
-- Existing migration-based Relay databases are treated as incompatible and must be recreated.
+- Existing migration-based AgentRelay databases are treated as incompatible and must be recreated.
 
 ## Current Baseline
 
@@ -35,5 +35,5 @@ When introducing a schema revision:
 
 ## Operational Notes
 
-- Relay assumes the current entity-first schema baseline during development.
+- AgentRelay assumes the current entity-first schema baseline during development.
 - If schema sync or schema validation fails, startup must fail before any user-visible mutation proceeds.

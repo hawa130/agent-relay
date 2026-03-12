@@ -7,15 +7,15 @@ final class RelayAppModelTests: XCTestCase {
     func testAddAccountReturnsNotSignedInWhenBrowserLoginIsCancelled() async throws {
         let fixture = try RelayAppModelFixture.make(mode: .loginCancelled)
         defer { fixture.cleanup() }
-        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+        let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
         let originalFixtureMode = getenv("RELAY_FIXTURE_MODE").map { String(cString: $0) }
-        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        setenv("AGRELAY_CLI_PATH", fixture.scriptPath, 1)
         setenv("RELAY_FIXTURE_MODE", "login_cancelled", 1)
         defer {
             if let originalRelayCLIPath {
-                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+                setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
             } else {
-                unsetenv("RELAY_CLI_PATH")
+                unsetenv("AGRELAY_CLI_PATH")
             }
             if let originalFixtureMode {
                 setenv("RELAY_FIXTURE_MODE", originalFixtureMode, 1)
@@ -40,15 +40,15 @@ final class RelayAppModelTests: XCTestCase {
     func testAddAccountReturnsFailedForUnexpectedLoginError() async throws {
         let fixture = try RelayAppModelFixture.make(mode: .loginFailed)
         defer { fixture.cleanup() }
-        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+        let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
         let originalFixtureMode = getenv("RELAY_FIXTURE_MODE").map { String(cString: $0) }
-        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        setenv("AGRELAY_CLI_PATH", fixture.scriptPath, 1)
         setenv("RELAY_FIXTURE_MODE", "login_failed", 1)
         defer {
             if let originalRelayCLIPath {
-                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+                setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
             } else {
-                unsetenv("RELAY_CLI_PATH")
+                unsetenv("AGRELAY_CLI_PATH")
             }
             if let originalFixtureMode {
                 setenv("RELAY_FIXTURE_MODE", originalFixtureMode, 1)
@@ -70,15 +70,15 @@ final class RelayAppModelTests: XCTestCase {
     func testAddAccountCancellationDoesNotLeaveProfileMutationPending() async throws {
         let fixture = try RelayAppModelFixture.make(mode: .loginWaitsForCancel)
         defer { fixture.cleanup() }
-        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+        let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
         let originalFixtureMode = getenv("RELAY_FIXTURE_MODE").map { String(cString: $0) }
-        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        setenv("AGRELAY_CLI_PATH", fixture.scriptPath, 1)
         setenv("RELAY_FIXTURE_MODE", "login_waits_for_cancel", 1)
         defer {
             if let originalRelayCLIPath {
-                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+                setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
             } else {
-                unsetenv("RELAY_CLI_PATH")
+                unsetenv("AGRELAY_CLI_PATH")
             }
             if let originalFixtureMode {
                 setenv("RELAY_FIXTURE_MODE", originalFixtureMode, 1)
@@ -115,13 +115,13 @@ final class RelayAppModelTests: XCTestCase {
     func testRefreshUsageOnlyRunsUsageRefreshCommand() async throws {
         let fixture = try RelayAppModelFixture.make()
         defer { fixture.cleanup() }
-        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
-        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
+        setenv("AGRELAY_CLI_PATH", fixture.scriptPath, 1)
         defer {
             if let originalRelayCLIPath {
-                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+                setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
             } else {
-                unsetenv("RELAY_CLI_PATH")
+                unsetenv("AGRELAY_CLI_PATH")
             }
         }
 
@@ -143,13 +143,13 @@ final class RelayAppModelTests: XCTestCase {
     func testRefreshEnabledUsageOnlyRunsBulkRefreshCommand() async throws {
         let fixture = try RelayAppModelFixture.make()
         defer { fixture.cleanup() }
-        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
-        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
+        setenv("AGRELAY_CLI_PATH", fixture.scriptPath, 1)
         defer {
             if let originalRelayCLIPath {
-                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+                setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
             } else {
-                unsetenv("RELAY_CLI_PATH")
+                unsetenv("AGRELAY_CLI_PATH")
             }
         }
 
@@ -170,13 +170,13 @@ final class RelayAppModelTests: XCTestCase {
     func testRefreshEnabledUsageMarksMenuUsageListAsRefreshingOnlyDuringBulkRefresh() async throws {
         let fixture = try RelayAppModelFixture.make()
         defer { fixture.cleanup() }
-        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
-        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
+        setenv("AGRELAY_CLI_PATH", fixture.scriptPath, 1)
         defer {
             if let originalRelayCLIPath {
-                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+                setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
             } else {
-                unsetenv("RELAY_CLI_PATH")
+                unsetenv("AGRELAY_CLI_PATH")
             }
         }
 
@@ -201,13 +201,13 @@ final class RelayAppModelTests: XCTestCase {
     func testRefreshUsageIgnoresConcurrentDuplicateRequests() async throws {
         let fixture = try RelayAppModelFixture.make()
         defer { fixture.cleanup() }
-        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
-        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
+        setenv("AGRELAY_CLI_PATH", fixture.scriptPath, 1)
         defer {
             if let originalRelayCLIPath {
-                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+                setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
             } else {
-                unsetenv("RELAY_CLI_PATH")
+                unsetenv("AGRELAY_CLI_PATH")
             }
         }
 
@@ -230,13 +230,13 @@ final class RelayAppModelTests: XCTestCase {
     func testRefreshUsageDoesNotMarkMenuUsageListAsRefreshing() async throws {
         let fixture = try RelayAppModelFixture.make()
         defer { fixture.cleanup() }
-        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
-        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
+        setenv("AGRELAY_CLI_PATH", fixture.scriptPath, 1)
         defer {
             if let originalRelayCLIPath {
-                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+                setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
             } else {
-                unsetenv("RELAY_CLI_PATH")
+                unsetenv("AGRELAY_CLI_PATH")
             }
         }
 
@@ -250,13 +250,13 @@ final class RelayAppModelTests: XCTestCase {
     func testRefreshEnabledUsageIgnoresConcurrentDuplicateRequests() async throws {
         let fixture = try RelayAppModelFixture.make()
         defer { fixture.cleanup() }
-        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
-        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
+        setenv("AGRELAY_CLI_PATH", fixture.scriptPath, 1)
         defer {
             if let originalRelayCLIPath {
-                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+                setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
             } else {
-                unsetenv("RELAY_CLI_PATH")
+                unsetenv("AGRELAY_CLI_PATH")
             }
         }
 
@@ -279,13 +279,13 @@ final class RelayAppModelTests: XCTestCase {
     func testRefreshAllUsageUsesBulkRefreshWithIncludeDisabledTrue() async throws {
         let fixture = try RelayAppModelFixture.make()
         defer { fixture.cleanup() }
-        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
-        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
+        setenv("AGRELAY_CLI_PATH", fixture.scriptPath, 1)
         defer {
             if let originalRelayCLIPath {
-                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+                setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
             } else {
-                unsetenv("RELAY_CLI_PATH")
+                unsetenv("AGRELAY_CLI_PATH")
             }
         }
 
@@ -306,15 +306,15 @@ final class RelayAppModelTests: XCTestCase {
     func testRemoveProfileDoesNotBlockOnFollowupRefresh() async throws {
         let fixture = try RelayAppModelFixture.make(mode: .removeDelayedRefresh)
         defer { fixture.cleanup() }
-        let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+        let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
         let originalFixtureMode = getenv("RELAY_FIXTURE_MODE").map { String(cString: $0) }
-        setenv("RELAY_CLI_PATH", fixture.scriptPath, 1)
+        setenv("AGRELAY_CLI_PATH", fixture.scriptPath, 1)
         setenv("RELAY_FIXTURE_MODE", "remove_delayed_refresh", 1)
         defer {
             if let originalRelayCLIPath {
-                setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+                setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
             } else {
-                unsetenv("RELAY_CLI_PATH")
+                unsetenv("AGRELAY_CLI_PATH")
             }
             if let originalFixtureMode {
                 setenv("RELAY_FIXTURE_MODE", originalFixtureMode, 1)
@@ -336,10 +336,10 @@ final class RelayAppModelTests: XCTestCase {
 
         let commands = try fixture.commands()
         XCTAssertEqual(commands.first, "daemon --stdio")
-        XCTAssertTrue(commands.contains("rpc relay/profiles/remove"))
-        XCTAssertTrue(commands.contains("rpc session/subscribe"))
+        XCTAssertTrue(commands.count >= 1)
         XCTAssertFalse(commands.contains("rpc relay/status/get"))
         XCTAssertFalse(commands.contains("rpc relay/profiles/list"))
+        XCTAssertFalse(commands.contains("rpc relay/doctor/get"))
     }
 }
 

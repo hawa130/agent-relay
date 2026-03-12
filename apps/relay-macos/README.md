@@ -1,11 +1,11 @@
-# Relay for macOS
+# AgentRelay for macOS
 
-`apps/relay-macos` is the native macOS control plane for Relay.
+`apps/relay-macos` is the native macOS control plane for AgentRelay.
 
 V1 rules:
 
 - The app is a control plane only.
-- All real profile, switch, validation, and diagnostics operations go through `relay --json`.
+- All real profile, switch, validation, and diagnostics operations go through `agrelay --json`.
 - No UI code mutates Codex configuration files directly.
 
 ## Build
@@ -27,26 +27,26 @@ cd apps/relay-macos
 Output:
 
 ```bash
-apps/relay-macos/dist/RelayMacOS.app
+apps/relay-macos/dist/AgentRelay.app
 ```
 
-The bundle includes an embedded `relay` CLI at:
+The bundle includes an embedded `agrelay` CLI at:
 
 ```bash
-RelayMacOS.app/Contents/Resources/bin/relay
+AgentRelay.app/Contents/Resources/bin/agrelay
 ```
 
 Run the menu bar app:
 
 ```bash
 cd apps/relay-macos
-swift run RelayMacOS
+swift run AgentRelay
 ```
 
 Override the embedded CLI if needed:
 
 ```bash
-RELAY_CLI_PATH=/absolute/path/to/relay swift run RelayMacOS
+AGRELAY_CLI_PATH=/absolute/path/to/agrelay swift run AgentRelay
 ```
 
 ## Current Structure
@@ -77,6 +77,6 @@ RelayApp/
 
 - `swift run` is useful for source-level iteration, but it is not the right final distribution shape for a menu bar app.
 - For reliable menu bar behavior, login item integration, and Finder launch, use the `.app` bundle built by `./scripts/build-app.sh`.
-- The app resolves `relay` in this order: `RELAY_CLI_PATH`, bundled `Contents/Resources/bin/relay`, then `PATH`.
+- The app resolves `agrelay` in this order: `AGRELAY_CLI_PATH`, bundled `Contents/Resources/bin/agrelay`, then `PATH`.
 - `SMAppService` launch-at-login support requires running from a proper app bundle; the toggle is wired now but may report unsupported when running directly from `swift run`.
-- The app expects the Relay CLI JSON contract to stay stable.
+- The app expects the AgentRelay CLI JSON contract to stay stable.

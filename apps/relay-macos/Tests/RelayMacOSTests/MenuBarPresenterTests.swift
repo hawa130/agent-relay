@@ -96,4 +96,5 @@ final class MenuBarPresenterTests: XCTestCase {
             .warning
         )
     }
+
 }

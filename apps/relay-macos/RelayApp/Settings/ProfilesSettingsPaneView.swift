@@ -137,7 +137,7 @@ public struct ProfilesSettingsPaneView: View {
                 deletingProfile = nil
             }
         } message: { profile in
-            Text("Remove profile \"\(profile.nickname)\" from Relay?")
+            Text("Remove profile \"\(profile.nickname)\" from AgentRelay?")
         }
     }
 

@@ -383,8 +383,8 @@ fn initialize_request() -> Value {
         "method": "initialize",
         "params": {
             "clientInfo": {
-                "name": "relay",
-                "title": "Relay",
+                "name": "agrelay",
+                "title": "AgentRelay",
                 "version": env!("CARGO_PKG_VERSION")
             },
             "capabilities": {

@@ -29,9 +29,9 @@ mod render;
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "relay",
+    name = "agrelay",
     version,
-    about = "Local coding agent profile orchestrator"
+    about = "AgentRelay - local coding agent profile orchestrator"
 )]
 struct Cli {
     #[arg(long, global = true, help = "Emit machine-readable JSON output")]
@@ -42,7 +42,7 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    #[command(about = "Show current relay state and active profile")]
+    #[command(about = "Show current AgentRelay state and active profile")]
     Status,
     #[command(about = "List managed profiles with usage summaries")]
     List,
@@ -54,13 +54,13 @@ enum Commands {
     Refresh(RefreshCommand),
     #[command(about = "Manage Codex profiles, login flows, and settings")]
     Codex(CodexCommand),
-    #[command(about = "Inspect relay events, logs, and diagnostics")]
+    #[command(about = "Inspect AgentRelay events, logs, and diagnostics")]
     Activity(ActivityCommand),
-    #[command(about = "Inspect relay environment, paths, and binary health")]
+    #[command(about = "Inspect AgentRelay environment, paths, and binary health")]
     Doctor,
-    #[command(about = "Run the relay daemon over stdio JSON-RPC")]
+    #[command(about = "Run the AgentRelay daemon over stdio JSON-RPC")]
     Daemon(DaemonCommand),
-    #[command(about = "Inspect relay settings")]
+    #[command(about = "Inspect AgentRelay settings")]
     Settings(SettingsCommand),
     #[command(about = "Inspect or change automatic switching behavior")]
     Autoswitch(AutoswitchCommand),
@@ -81,7 +81,7 @@ struct DaemonCommand {
 }
 
 #[derive(Debug, Args)]
-#[command(about = "Inspect relay settings")]
+#[command(about = "Inspect AgentRelay settings")]
 struct SettingsCommand {
     #[command(subcommand)]
     command: Option<SettingsSubcommand>,
@@ -89,9 +89,9 @@ struct SettingsCommand {
 
 #[derive(Debug, Subcommand)]
 enum SettingsSubcommand {
-    #[command(about = "Show current relay settings")]
+    #[command(about = "Show current AgentRelay settings")]
     Show,
-    #[command(about = "Update relay settings")]
+    #[command(about = "Update AgentRelay settings")]
     Set(SettingsSetArgs),
 }
 
@@ -180,7 +180,7 @@ struct SettingsSetInput {
 }
 
 #[derive(Debug, Args)]
-#[command(about = "Inspect relay events, logs, and diagnostics")]
+#[command(about = "Inspect AgentRelay events, logs, and diagnostics")]
 struct ActivityCommand {
     #[command(subcommand)]
     command: ActivitySubcommand,
@@ -190,7 +190,7 @@ struct ActivityCommand {
 enum ActivitySubcommand {
     #[command(about = "Inspect recorded switch failures and cooldowns")]
     Events(ActivityEventsCommand),
-    #[command(about = "Read relay log output")]
+    #[command(about = "Read AgentRelay log output")]
     Logs(LogsCommand),
     #[command(about = "Export a diagnostic bundle for debugging")]
     Diagnostics(DiagnosticsCommand),
@@ -210,7 +210,7 @@ enum ActivityEventsSubcommand {
 }
 
 #[derive(Debug, Args)]
-#[command(about = "Read relay log output")]
+#[command(about = "Read AgentRelay log output")]
 struct LogsCommand {
     #[command(subcommand)]
     command: LogsSubcommand,
@@ -380,7 +380,7 @@ async fn main() -> ExitCode {
 
 fn init_tracing() -> Result<(), String> {
     let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("relay=info,relay_core=info,warn"));
+        .unwrap_or_else(|_| EnvFilter::new("agrelay=info,relay_core=info,warn"));
     tracing_subscriber::fmt()
         .with_env_filter(filter)
         .with_writer(std::io::stderr)

@@ -28,9 +28,9 @@ pub(crate) fn render_doctor_report(report: &DoctorReport) -> String {
         (
             "Paths",
             vec![
-                ("Relay Home", report.relay_home.clone()),
-                ("Relay DB", report.relay_db_path.clone()),
-                ("Relay Log", report.relay_log_path.clone()),
+                ("AgentRelay Home", report.relay_home.clone()),
+                ("AgentRelay DB", report.relay_db_path.clone()),
+                ("AgentRelay Log", report.relay_log_path.clone()),
                 ("Live Agent Home", report.live_agent_home.clone()),
                 (
                     "Default Agent Home",
@@ -70,9 +70,9 @@ pub(crate) fn render_doctor_report(report: &DoctorReport) -> String {
 pub(crate) fn render_status_report(report: &SystemStatusReport) -> String {
     render_sections(vec![
         (
-            "Relay",
+            "AgentRelay",
             vec![
-                ("Relay Home", report.relay_home.clone()),
+                ("AgentRelay Home", report.relay_home.clone()),
                 ("Live Agent Home", report.live_agent_home.clone()),
                 ("Profile Count", report.profile_count.to_string()),
             ],

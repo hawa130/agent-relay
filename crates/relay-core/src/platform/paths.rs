@@ -17,10 +17,10 @@ pub struct RelayPaths {
 
 impl RelayPaths {
     pub fn from_env() -> Result<Self, RelayError> {
-        let relay_home = match std::env::var_os("RELAY_HOME") {
+        let relay_home = match std::env::var_os("AGRELAY_HOME") {
             Some(value) => PathBuf::from(value),
             None => dirs::home_dir()
-                .map(|path| path.join(".relay"))
+                .map(|path| path.join(".agrelay"))
                 .ok_or_else(|| RelayError::Internal("failed to resolve home directory".into()))?,
         };
 

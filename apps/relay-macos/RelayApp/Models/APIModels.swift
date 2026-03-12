@@ -797,7 +797,7 @@ enum UsageSourceMode: String, CaseIterable, Decodable, Encodable, Sendable {
     var helpText: String {
         switch self {
         case .auto:
-            return "Relay chooses the best available source for Codex usage."
+            return "AgentRelay chooses the best available source for Codex usage."
         case .local:
             return "Read usage from the local Codex environment only."
         case .webEnhanced:

@@ -152,7 +152,7 @@ private struct GeneralSettingsDetailView: View {
             Section("Engine") {
                 NativeDetailRow(title: "Connection", value: engineStateLabel)
 
-                Button("Restart Relay Engine") {
+                Button("Restart AgentRelay Engine") {
                     Task {
                         await model.restartEngine()
                     }

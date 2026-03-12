@@ -383,7 +383,7 @@ async fn run_http_json(
 fn official_http_client() -> Result<Client, RelayError> {
     ClientBuilder::new()
         .timeout(StdDuration::from_secs(OFFICIAL_HTTP_TIMEOUT_SECS))
-        .user_agent("relay")
+        .user_agent("agrelay")
         .build()
         .map_err(|error| RelayError::ExternalCommand(error.to_string()))
 }

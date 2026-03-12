@@ -1,4 +1,4 @@
-# Relay Engineering Architecture
+# AgentRelay Engineering Architecture
 
 ## Goals
 
@@ -41,11 +41,11 @@ The command surface is intentionally shallow:
 
 - top-level runtime commands: `doctor`, `status`, `list`, `show`, `edit`, `remove`, `enable`, `disable`, `switch`, `refresh`
 - grouped commands: `settings`, `autoswitch`, `activity`, `codex`
-- programmatic daemon transport: `relay daemon --stdio`
+- programmatic daemon transport: `agrelay daemon --stdio`
 
 ### Daemon Session
 
-- `relay daemon --stdio` exposes a single-client stdio JSON-RPC 2.0 session.
+- `agrelay daemon --stdio` exposes a single-client stdio JSON-RPC 2.0 session.
 - The daemon owns background refresh, auto-switch evaluation, switch execution, and state-change notifications.
 - The transport is newline-delimited UTF-8 JSON on `stdin` and `stdout`.
 - `stdout` is reserved for protocol messages only. Logs and diagnostics go to `stderr`.
@@ -65,19 +65,19 @@ The command surface is intentionally shallow:
 
 - SQLite stores durable relational state such as profiles, settings, switch history, failure events, and linked provider identities.
 - `relay-core::store` owns hand-written SeaORM entities and uses SeaORM 2.x schema sync during write bootstrap.
-- The entities are the schema source of truth; Relay no longer treats versioned migrations as the primary workflow.
+- The entities are the schema source of truth; AgentRelay no longer treats versioned migrations as the primary workflow.
 - File-backed caches store active state and usage snapshots for low-latency reads and reduced migration overhead.
 - Snapshot directories store rollback assets for switch transactions.
 
 ### Platform
 
-- Resolve `RELAY_HOME`, default runtime paths, and platform-specific filesystem locations.
+- Resolve `AGRELAY_HOME`, default runtime paths, and platform-specific filesystem locations.
 - Provide atomic-write and process-execution helpers.
 - Keep macOS/Linux-specific details isolated behind small modules.
 
 ### macOS Control Plane
 
-- The SwiftUI app is a long-lived menu bar host that starts and supervises `relay daemon --stdio`.
+- The SwiftUI app is a long-lived menu bar host that starts and supervises `agrelay daemon --stdio`.
 - It sends JSON-RPC requests, subscribes to daemon notifications, and decodes stable protocol models from `relay-core::models`.
 - It is a control plane only. It must not directly mutate Codex files or duplicate switch logic.
 
@@ -104,14 +104,14 @@ Use SQLite for durable truth and keep file-backed state limited to caches or ope
 ### Boot
 
 1. Resolve paths from environment or home directory.
-2. Ensure the Relay home layout exists.
+2. Ensure the AgentRelay home layout exists.
 3. Open stores, reject incompatible legacy schemas, and run SeaORM schema sync for write mode.
 4. Execute the requested use-case.
 
 ### Daemon Boot
 
-1. The host program starts `relay daemon --stdio`.
-2. Relay boots the same core stores and services as synchronous CLI commands.
+1. The host program starts `agrelay daemon --stdio`.
+2. AgentRelay boots the same core stores and services as synchronous CLI commands.
 3. The client sends `initialize` and optional subscription requests.
 4. The daemon returns initial state, performs startup refresh work, and begins interval-driven policy evaluation.
 
