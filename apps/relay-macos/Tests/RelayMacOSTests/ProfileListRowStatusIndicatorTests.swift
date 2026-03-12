@@ -2,8 +2,29 @@ import XCTest
 @testable import RelayMacOSUI
 
 final class ProfileListRowStatusIndicatorTests: XCTestCase {
+    private func profile(
+        accountState: ProfileAccountState = .healthy,
+        accountErrorHTTPStatus: Int? = nil
+    ) -> Profile {
+        Profile(
+            id: "p_1",
+            nickname: "work",
+            agent: .codex,
+            priority: 100,
+            enabled: true,
+            accountState: accountState,
+            accountErrorHTTPStatus: accountErrorHTTPStatus,
+            agentHome: nil,
+            configPath: nil,
+            authMode: .configFilesystem,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+
     func testLoadingIndicatorTakesPrecedenceOverWarning() {
         let indicator = ProfileListRowStatusIndicator.Kind(
+            profile: profile(),
             isFetchingUsage: true,
             usage: nil,
             usageRefreshError: "remote usage timed out",
@@ -15,6 +36,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
 
     func testWarningIndicatorTakesPrecedenceOverStale() {
         let indicator = ProfileListRowStatusIndicator.Kind(
+            profile: profile(),
             isFetchingUsage: false,
             usage: nil,
             usageRefreshError: "remote usage timed out",
@@ -26,6 +48,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
 
     func testWarningIndicatorUsesErrorMessage() {
         let indicator = ProfileListRowStatusIndicator.Kind(
+            profile: profile(),
             isFetchingUsage: false,
             usage: nil,
             usageRefreshError: "remote usage timed out",
@@ -37,6 +60,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
 
     func testStaleIndicatorShowsWhenUsageIsOld() {
         let indicator = ProfileListRowStatusIndicator.Kind(
+            profile: profile(),
             isFetchingUsage: false,
             usage: nil,
             usageRefreshError: nil,
@@ -48,6 +72,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
 
     func testIndicatorIsNilWithoutLoadingOrError() {
         let indicator = ProfileListRowStatusIndicator.Kind(
+            profile: profile(),
             isFetchingUsage: false,
             usage: nil,
             usageRefreshError: nil,
@@ -59,6 +84,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
 
     func testIndicatorIgnoresEmptyErrorMessage() {
         let indicator = ProfileListRowStatusIndicator.Kind(
+            profile: profile(),
             isFetchingUsage: false,
             usage: nil,
             usageRefreshError: "",
@@ -98,6 +124,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
         )
 
         let indicator = ProfileListRowStatusIndicator.Kind(
+            profile: profile(),
             isFetchingUsage: false,
             usage: usage,
             usageRefreshError: nil,
@@ -108,5 +135,17 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
             indicator,
             .warning(message: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required")
         )
+    }
+
+    func testAccountUnavailableIndicatorUsesProfileState() {
+        let indicator = ProfileListRowStatusIndicator.Kind(
+            profile: profile(accountState: .accountUnavailable, accountErrorHTTPStatus: 402),
+            isFetchingUsage: false,
+            usage: nil,
+            usageRefreshError: nil,
+            isStale: false
+        )
+
+        XCTAssertEqual(indicator, .warning(message: "Account unavailable for auto-switch (HTTP 402)"))
     }
 }

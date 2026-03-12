@@ -11,6 +11,7 @@ pub(crate) fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> Str
         "Agent",
         "Priority",
         "Status",
+        "Account State",
         "Session",
         "Weekly",
     ]);
@@ -31,17 +32,10 @@ pub(crate) fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> Str
             Cell::new(profile.id.as_str()),
             Cell::new(agent_kind_label(&profile.agent)),
             Cell::new(profile.priority),
+            styled_cell(profile_status_label(profile), profile_status_tone(profile)),
             styled_cell(
-                if profile.enabled {
-                    "enabled"
-                } else {
-                    "disabled"
-                },
-                if profile.enabled {
-                    CellTone::Good
-                } else {
-                    CellTone::Muted
-                },
+                profile_account_state_label(&profile.account_state),
+                profile_account_state_tone(&profile.account_state),
             ),
             styled_cell(
                 usage
@@ -73,14 +67,17 @@ pub(crate) fn render_profile_detail(profile: &Profile) -> String {
             ("Profile ID", profile.id.clone()),
             ("Agent", agent_kind_label(&profile.agent).into()),
             ("Priority", profile.priority.to_string()),
+            ("Status", profile_status_label(profile).into()),
             (
-                "Status",
-                if profile.enabled {
-                    "enabled"
-                } else {
-                    "disabled"
-                }
-                .into(),
+                "Account State",
+                profile_account_state_label(&profile.account_state).into(),
+            ),
+            (
+                "Account HTTP Status",
+                profile
+                    .account_error_http_status
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|| "-".into()),
             ),
             ("Auth Mode", auth_mode_label(&profile.auth_mode).into()),
             (
@@ -105,14 +102,18 @@ pub(crate) fn render_profile_summary(detail: &ProfileDetail) -> String {
             ("Profile ID", detail.profile.id.clone()),
             ("Agent", agent_kind_label(&detail.profile.agent).into()),
             ("Active", yes_no(detail.is_active).into()),
+            ("Status", profile_status_label(&detail.profile).into()),
             (
-                "Status",
-                if detail.profile.enabled {
-                    "enabled"
-                } else {
-                    "disabled"
-                }
-                .into(),
+                "Account State",
+                profile_account_state_label(&detail.profile.account_state).into(),
+            ),
+            (
+                "Account HTTP Status",
+                detail
+                    .profile
+                    .account_error_http_status
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|| "-".into()),
             ),
             ("Switch Eligible", yes_no(detail.switch_eligible).into()),
             (
@@ -151,14 +152,10 @@ pub(crate) fn render_agent_link_result(result: &AgentLinkResult) -> String {
                 ("Nickname", result.profile.nickname.clone()),
                 ("Profile ID", result.profile.id.clone()),
                 ("Agent", agent_kind_label(&result.profile.agent).into()),
+                ("Status", profile_status_label(&result.profile).into()),
                 (
-                    "Status",
-                    if result.profile.enabled {
-                        "enabled"
-                    } else {
-                        "disabled"
-                    }
-                    .into(),
+                    "Account State",
+                    profile_account_state_label(&result.profile.account_state).into(),
                 ),
             ],
         ),
@@ -227,4 +224,20 @@ fn skipped_profile_field(profile: &relay_core::SkippedRecoveredProfile) -> (&'st
         "Skipped",
         format!("{} ({})", profile.source_dir, profile.reason),
     )
+}
+
+fn profile_status_label(profile: &Profile) -> &'static str {
+    if profile.enabled {
+        "enabled"
+    } else {
+        "disabled"
+    }
+}
+
+fn profile_status_tone(profile: &Profile) -> CellTone {
+    if profile.enabled {
+        CellTone::Good
+    } else {
+        CellTone::Muted
+    }
 }

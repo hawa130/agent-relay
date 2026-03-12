@@ -723,6 +723,7 @@ fn parse_failure_reason(value: &str) -> Result<FailureReason, RelayError> {
     match value {
         "session-exhausted" | "SessionExhausted" => Ok(FailureReason::SessionExhausted),
         "weekly-exhausted" | "WeeklyExhausted" => Ok(FailureReason::WeeklyExhausted),
+        "account-unavailable" | "AccountUnavailable" => Ok(FailureReason::AccountUnavailable),
         "auth-invalid" | "AuthInvalid" => Ok(FailureReason::AuthInvalid),
         "quota-exhausted" | "QuotaExhausted" => Ok(FailureReason::QuotaExhausted),
         "rate-limited" | "RateLimited" => Ok(FailureReason::RateLimited),

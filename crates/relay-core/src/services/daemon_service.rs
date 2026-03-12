@@ -594,6 +594,9 @@ impl DaemonService {
                 .await
                 .map_err(|e| rpc_from_error(&e))?
         };
+        self.publish_profiles_updated()
+            .await
+            .map_err(|e| rpc_internal_error(e.to_string()))?;
         self.publish_active_state_updated()
             .await
             .map_err(|e| rpc_internal_error(e.to_string()))?;
@@ -757,6 +760,7 @@ impl DaemonService {
             .filter(|profile| profile.enabled)
             .collect();
         let snapshots = self.refresh_usage_profiles(profiles, trigger).await?;
+        self.publish_profiles_updated().await?;
         self.publish_active_state_updated().await?;
 
         let settings = self.app.settings().await?;
@@ -773,7 +777,13 @@ impl DaemonService {
         else {
             return Ok(());
         };
-        if !active_snapshot.can_auto_switch {
+        let active_profile = self.app.profile(&active_profile_id).await?;
+        let account_requires_switch =
+            active_profile.account_state == crate::models::ProfileAccountState::AccountUnavailable
+                || active_snapshot.remote_error.as_ref().is_some_and(|error| {
+                    error.kind == crate::models::UsageRemoteErrorKind::Account
+                });
+        if !active_snapshot.can_auto_switch && !account_requires_switch {
             return Ok(());
         }
 
@@ -1054,6 +1064,7 @@ impl DaemonService {
             Ok(snapshot) => {
                 self.publish_usage_updated(vec![snapshot.clone()], trigger)
                     .await?;
+                self.publish_profiles_updated().await?;
                 self.clear_query_state(&key).await?;
                 Ok(snapshot)
             }
@@ -1199,6 +1210,7 @@ fn parse_failure_reason(value: String) -> Result<FailureReason, crate::RpcErrorO
     match value.as_str() {
         "SessionExhausted" => Ok(FailureReason::SessionExhausted),
         "WeeklyExhausted" => Ok(FailureReason::WeeklyExhausted),
+        "AccountUnavailable" => Ok(FailureReason::AccountUnavailable),
         "AuthInvalid" => Ok(FailureReason::AuthInvalid),
         "QuotaExhausted" => Ok(FailureReason::QuotaExhausted),
         "RateLimited" => Ok(FailureReason::RateLimited),

@@ -133,11 +133,88 @@ struct Profile: Decodable, Identifiable, Sendable {
     let agent: AgentKind
     let priority: Int
     let enabled: Bool
+    let accountState: ProfileAccountState
+    let accountErrorHTTPStatus: Int?
+    let accountStateUpdatedAt: Date?
     let agentHome: String?
     let configPath: String?
     let authMode: AuthMode
     let createdAt: Date
     let updatedAt: Date
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case nickname
+        case agent
+        case priority
+        case enabled
+        case accountState
+        case accountErrorHTTPStatus = "accountErrorHttpStatus"
+        case accountStateUpdatedAt
+        case agentHome
+        case configPath
+        case authMode
+        case createdAt
+        case updatedAt
+    }
+
+    init(
+        id: String,
+        nickname: String,
+        agent: AgentKind,
+        priority: Int,
+        enabled: Bool,
+        accountState: ProfileAccountState = .healthy,
+        accountErrorHTTPStatus: Int? = nil,
+        accountStateUpdatedAt: Date? = nil,
+        agentHome: String?,
+        configPath: String?,
+        authMode: AuthMode,
+        createdAt: Date,
+        updatedAt: Date
+    ) {
+        self.id = id
+        self.nickname = nickname
+        self.agent = agent
+        self.priority = priority
+        self.enabled = enabled
+        self.accountState = accountState
+        self.accountErrorHTTPStatus = accountErrorHTTPStatus
+        self.accountStateUpdatedAt = accountStateUpdatedAt
+        self.agentHome = agentHome
+        self.configPath = configPath
+        self.authMode = authMode
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        nickname = try container.decode(String.self, forKey: .nickname)
+        agent = try container.decode(AgentKind.self, forKey: .agent)
+        priority = try container.decode(Int.self, forKey: .priority)
+        enabled = try container.decode(Bool.self, forKey: .enabled)
+        accountState = try container.decodeIfPresent(ProfileAccountState.self, forKey: .accountState) ?? .healthy
+        accountErrorHTTPStatus = try container.decodeIfPresent(Int.self, forKey: .accountErrorHTTPStatus)
+        accountStateUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .accountStateUpdatedAt)
+        agentHome = try container.decodeIfPresent(String.self, forKey: .agentHome)
+        configPath = try container.decodeIfPresent(String.self, forKey: .configPath)
+        authMode = try container.decode(AuthMode.self, forKey: .authMode)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+    }
+}
+
+enum ProfileAccountState: String, Decodable, Sendable {
+    case healthy = "Healthy"
+    case accountUnavailable = "AccountUnavailable"
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        self = Self(rawValue: rawValue) ?? .healthy
+    }
 }
 
 struct ProfileDetail: Decodable, Sendable {
@@ -177,8 +254,15 @@ struct UsageRemoteError: Decodable, Sendable, Equatable {
 }
 
 enum UsageRemoteErrorKind: String, Decodable, Sendable, Equatable {
+    case account = "Account"
     case network = "Network"
     case other = "Other"
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        self = Self(rawValue: rawValue) ?? .other
+    }
 }
 
 struct CodexSettingsDraft: Encodable, Sendable {
@@ -638,12 +722,42 @@ enum AuthMode: String, Codable, Sendable, CaseIterable {
 enum FailureReason: String, Decodable, Sendable {
     case sessionExhausted = "SessionExhausted"
     case weeklyExhausted = "WeeklyExhausted"
+    case accountUnavailable = "AccountUnavailable"
     case authInvalid = "AuthInvalid"
     case quotaExhausted = "QuotaExhausted"
     case rateLimited = "RateLimited"
     case commandFailed = "CommandFailed"
     case validationFailed = "ValidationFailed"
     case unknown = "Unknown"
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+        self = Self(rawValue: rawValue) ?? .unknown
+    }
+
+    var displayName: String {
+        switch self {
+        case .sessionExhausted:
+            return "Session Exhausted"
+        case .weeklyExhausted:
+            return "Weekly Exhausted"
+        case .accountUnavailable:
+            return "Account Unavailable"
+        case .authInvalid:
+            return "Authentication Invalid"
+        case .quotaExhausted:
+            return "Quota Exhausted"
+        case .rateLimited:
+            return "Rate Limited"
+        case .commandFailed:
+            return "Command Failed"
+        case .validationFailed:
+            return "Validation Failed"
+        case .unknown:
+            return "Unknown"
+        }
+    }
 }
 
 enum SwitchOutcome: String, Decodable, Sendable {

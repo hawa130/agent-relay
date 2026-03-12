@@ -59,6 +59,12 @@ impl SqliteStore {
             agent: Set(stringify_agent_kind(&record.agent).to_string()),
             priority: Set(record.priority),
             enabled: Set(true),
+            account_state: Set(Some(
+                stringify_profile_account_state(&crate::models::ProfileAccountState::Healthy)
+                    .to_string(),
+            )),
+            account_error_http_status: Set(None),
+            account_state_updated_at: Set(None),
             agent_home: Set(record.agent_home.as_ref().map(|path| path_to_string(path))),
             config_path: Set(record.config_path.as_ref().map(|path| path_to_string(path))),
             auth_mode: Set(stringify_auth_mode(&record.auth_mode).to_string()),
@@ -192,5 +198,30 @@ impl SqliteStore {
         active.updated_at = Set(Utc::now().to_rfc3339());
         active.update(connection).await?;
         self.get_profile(id).await
+    }
+
+    pub async fn set_account_state(
+        &self,
+        id: &str,
+        state: crate::models::ProfileAccountState,
+        http_status: Option<u16>,
+    ) -> Result<Profile, RelayError> {
+        let connection = self.require_connection()?;
+        let model = profile_entities::Entity::find_by_id(id.to_string())
+            .one(connection)
+            .await?
+            .ok_or_else(|| RelayError::NotFound(format!("profile not found: {id}")))?;
+        let mut active = model.into_active_model();
+        active.account_state = Set(Some(stringify_profile_account_state(&state).to_string()));
+        active.account_error_http_status = Set(http_status.map(i32::from));
+        active.account_state_updated_at = Set(Some(Utc::now().to_rfc3339()));
+        active.updated_at = Set(Utc::now().to_rfc3339());
+        active.update(connection).await?;
+        self.get_profile(id).await
+    }
+
+    pub async fn clear_account_state(&self, id: &str) -> Result<Profile, RelayError> {
+        self.set_account_state(id, crate::models::ProfileAccountState::Healthy, None)
+            .await
     }
 }

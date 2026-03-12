@@ -39,6 +39,8 @@ final class ModelDecodingTests: XCTestCase {
           "agent": "Codex",
           "priority": 100,
           "enabled": true,
+          "account_state": "AccountUnavailable",
+          "account_error_http_status": 402,
           "agent_home": "/Users/test/.relay/profiles/work",
           "config_path": "/Users/test/.relay/profiles/work/config.toml",
           "auth_mode": "ConfigFilesystem",
@@ -51,6 +53,8 @@ final class ModelDecodingTests: XCTestCase {
 
         XCTAssertEqual(profile.agentHome, "/Users/test/.relay/profiles/work")
         XCTAssertEqual(profile.authMode, .configFilesystem)
+        XCTAssertEqual(profile.accountState, .accountUnavailable)
+        XCTAssertEqual(profile.accountErrorHTTPStatus, 402)
     }
 
     func testSwitchReportDecodesSnakeCaseIDFields() throws {
@@ -288,6 +292,66 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(item.usageSummary?.profileId, "p_1")
     }
 
+    func testProfileListItemDecodesAccountUsageAndAccountStateFields() throws {
+        let json = """
+        {
+          "profile": {
+            "id": "p_2",
+            "nickname": "suspended",
+            "agent": "Codex",
+            "priority": 90,
+            "enabled": false,
+            "account_state": "AccountUnavailable",
+            "account_error_http_status": 401,
+            "account_state_updated_at": "2026-03-12T10:00:00Z",
+            "agent_home": "/Users/test/.relay/profiles/suspended",
+            "config_path": "/Users/test/.relay/profiles/suspended/config.toml",
+            "auth_mode": "ConfigFilesystem",
+            "created_at": "2026-03-08T12:27:12Z",
+            "updated_at": "2026-03-12T10:00:00Z"
+          },
+          "is_active": false,
+          "usage_summary": {
+            "profile_id": "p_2",
+            "profile_name": "suspended",
+            "source": "Fallback",
+            "confidence": "Low",
+            "stale": true,
+            "last_refreshed_at": "2026-03-12T10:00:00Z",
+            "next_reset_at": null,
+            "session": {
+              "used_percent": null,
+              "window_minutes": 300,
+              "reset_at": null,
+              "status": "Unknown",
+              "exact": false
+            },
+            "weekly": {
+              "used_percent": null,
+              "window_minutes": 10080,
+              "reset_at": null,
+              "status": "Unknown",
+              "exact": false
+            },
+            "auto_switch_reason": "AccountUnavailable",
+            "can_auto_switch": false,
+            "message": "account unavailable",
+            "remote_error": {
+              "kind": "Account",
+              "http_status": 401
+            }
+          }
+        }
+        """.data(using: .utf8)!
+
+        let item = try JSONDecoder.relayDecoder.decode(ProfileListItem.self, from: json)
+
+        XCTAssertEqual(item.profile.accountState, .accountUnavailable)
+        XCTAssertEqual(item.profile.accountErrorHTTPStatus, 401)
+        XCTAssertEqual(item.usageSummary?.remoteError?.kind, .account)
+        XCTAssertEqual(item.usageSummary?.autoSwitchReason, .accountUnavailable)
+    }
+
     func testUsageSnapshotUserFacingNoteRewritesInternalMessages() throws {
         let fallback = UsageSnapshot(
             profileId: "p_1",
@@ -377,5 +441,11 @@ final class ModelDecodingTests: XCTestCase {
             "Using local usage because enhanced usage is unavailable."
         )
         XCTAssertNil(official.userFacingNote)
+    }
+
+    func testFailureReasonDisplayNameFormatsUserFacingText() {
+        XCTAssertEqual(FailureReason.accountUnavailable.displayName, "Account Unavailable")
+        XCTAssertEqual(FailureReason.authInvalid.displayName, "Authentication Invalid")
+        XCTAssertEqual(FailureReason.rateLimited.displayName, "Rate Limited")
     }
 }

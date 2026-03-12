@@ -1,6 +1,6 @@
 use crate::models::{
-    AgentKind, FailureEvent, FailureReason, ProbeProvider, Profile, ProfileProbeIdentity,
-    RelayError, SwitchHistoryEntry, SwitchOutcome,
+    AgentKind, FailureEvent, FailureReason, ProbeProvider, Profile, ProfileAccountState,
+    ProfileProbeIdentity, RelayError, SwitchHistoryEntry, SwitchOutcome,
 };
 use crate::store::entities::{failure_events, profile_probe_identities, profiles, switch_history};
 use chrono::{DateTime, Utc};
@@ -14,6 +14,11 @@ pub(super) fn profile_from_model(model: profiles::Model) -> Result<Profile, Rela
         agent: parse_agent_kind(&model.agent)?,
         priority: model.priority,
         enabled: model.enabled,
+        account_state: parse_profile_account_state(model.account_state.as_deref()),
+        account_error_http_status: model
+            .account_error_http_status
+            .and_then(|value| u16::try_from(value).ok()),
+        account_state_updated_at: model.account_state_updated_at,
         agent_home: model.agent_home,
         config_path: model.config_path,
         auth_mode: parse_auth_mode(&model.auth_mode),
@@ -127,6 +132,7 @@ pub(super) fn stringify_reason(reason: &FailureReason) -> &'static str {
     match reason {
         FailureReason::SessionExhausted => "session-exhausted",
         FailureReason::WeeklyExhausted => "weekly-exhausted",
+        FailureReason::AccountUnavailable => "account-unavailable",
         FailureReason::AuthInvalid => "auth-invalid",
         FailureReason::QuotaExhausted => "quota-exhausted",
         FailureReason::RateLimited => "rate-limited",
@@ -140,12 +146,27 @@ fn parse_reason(value: &str) -> FailureReason {
     match value {
         "session-exhausted" => FailureReason::SessionExhausted,
         "weekly-exhausted" => FailureReason::WeeklyExhausted,
+        "account-unavailable" => FailureReason::AccountUnavailable,
         "auth-invalid" => FailureReason::AuthInvalid,
         "quota-exhausted" => FailureReason::QuotaExhausted,
         "rate-limited" => FailureReason::RateLimited,
         "command-failed" => FailureReason::CommandFailed,
         "validation-failed" => FailureReason::ValidationFailed,
         _ => FailureReason::Unknown,
+    }
+}
+
+pub(super) fn stringify_profile_account_state(state: &ProfileAccountState) -> &'static str {
+    match state {
+        ProfileAccountState::Healthy => "healthy",
+        ProfileAccountState::AccountUnavailable => "account-unavailable",
+    }
+}
+
+fn parse_profile_account_state(value: Option<&str>) -> ProfileAccountState {
+    match value {
+        Some("account-unavailable") => ProfileAccountState::AccountUnavailable,
+        _ => ProfileAccountState::Healthy,
     }
 }
 

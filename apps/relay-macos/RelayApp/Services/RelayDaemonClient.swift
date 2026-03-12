@@ -482,33 +482,97 @@ actor RelayDaemonClient {
             return nil
         }
 
-        let decoder = JSONDecoder.relayDecoder
         switch topic {
         case "usage.updated":
-            return try? .usageUpdated(decoder.decode(UsageUpdatedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: UsageUpdatedNotification.self
+            ).map(RelaySessionUpdate.usageUpdated)
         case "query_state.updated":
-            return try? .queryStateUpdated(decoder.decode(QueryStateUpdatedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: QueryStateUpdatedNotification.self
+            ).map(RelaySessionUpdate.queryStateUpdated)
         case "active_state.updated":
-            return try? .activeStateUpdated(decoder.decode(ActiveStateUpdatedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: ActiveStateUpdatedNotification.self
+            ).map(RelaySessionUpdate.activeStateUpdated)
         case "settings.updated":
-            return try? .settingsUpdated(decoder.decode(SettingsUpdatedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: SettingsUpdatedNotification.self
+            ).map(RelaySessionUpdate.settingsUpdated)
         case "profiles.updated":
-            return try? .profilesUpdated(decoder.decode(ProfilesUpdatedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: ProfilesUpdatedNotification.self
+            ).map(RelaySessionUpdate.profilesUpdated)
         case "activity.events.updated":
-            return try? .activityEventsUpdated(decoder.decode(ActivityEventsUpdatedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: ActivityEventsUpdatedNotification.self
+            ).map(RelaySessionUpdate.activityEventsUpdated)
         case "activity.logs.updated":
-            return try? .activityLogsUpdated(decoder.decode(ActivityLogsUpdatedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: ActivityLogsUpdatedNotification.self
+            ).map(RelaySessionUpdate.activityLogsUpdated)
         case "doctor.updated":
-            return try? .doctorUpdated(decoder.decode(DoctorUpdatedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: DoctorUpdatedNotification.self
+            ).map(RelaySessionUpdate.doctorUpdated)
         case "switch.completed":
-            return try? .switchCompleted(decoder.decode(SwitchCompletedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: SwitchCompletedNotification.self
+            ).map(RelaySessionUpdate.switchCompleted)
         case "switch.failed":
-            return try? .switchFailed(decoder.decode(SwitchFailedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: SwitchFailedNotification.self
+            ).map(RelaySessionUpdate.switchFailed)
         case "task.updated":
-            return try? .taskUpdated(decoder.decode(TaskUpdatedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: TaskUpdatedNotification.self
+            ).map(RelaySessionUpdate.taskUpdated)
         case "health.updated":
-            return try? .healthUpdated(decoder.decode(HealthUpdatedNotification.self, from: payloadData))
+            return decodeNotificationPayload(
+                topic: topic,
+                payloadData: payloadData,
+                as: HealthUpdatedNotification.self
+            ).map(RelaySessionUpdate.healthUpdated)
         default:
+            return nil
+        }
+    }
+
+    private func decodeNotificationPayload<Payload: Decodable>(
+        topic: String,
+        payloadData: Data,
+        as type: Payload.Type
+    ) -> Payload? {
+        do {
+            return try JSONDecoder.relayDecoder.decode(type, from: payloadData)
+        } catch {
+            let payload = String(data: payloadData, encoding: .utf8) ?? "<non-utf8 payload>"
+            fputs(
+                "RelayDaemonClient failed to decode \(topic) notification: \(error)\npayload: \(payload)\n",
+                stderr
+            )
             return nil
         }
     }

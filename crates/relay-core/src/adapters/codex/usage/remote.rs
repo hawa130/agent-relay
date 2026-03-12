@@ -2,8 +2,9 @@ use crate::internal::usage_policy::{
     apply_auto_switch_policy, build_usage_window, next_reset_at, unknown_usage_window,
 };
 use crate::models::{
-    AppSettings, Profile, ProfileProbeIdentity, RelayError, UsageConfidence, UsageRemoteError,
-    UsageRemoteErrorKind, UsageSnapshot, UsageSource, UsageWindow,
+    AppSettings, FailureReason, Profile, ProfileAccountState, ProfileProbeIdentity, RelayError,
+    UsageConfidence, UsageRemoteError, UsageRemoteErrorKind, UsageSnapshot, UsageSource,
+    UsageWindow,
 };
 use crate::store::SqliteStore;
 use base64::Engine;
@@ -50,6 +51,7 @@ async fn fetch_official_usage_snapshot(
         identity = match refresh_probe_identity(store, &identity).await {
             Ok(identity) => identity,
             Err(RefreshProbeIdentityError::Remote(failure)) => {
+                apply_account_state_from_remote_failure(store, profile, &failure).await?;
                 return Ok(remote_error_snapshot(profile, &failure));
             }
             Err(RefreshProbeIdentityError::Relay(error)) => return Err(error),
@@ -58,7 +60,10 @@ async fn fetch_official_usage_snapshot(
 
     let mut response = match official_usage_request(&identity).await {
         Ok(response) => response,
-        Err(failure) => return Ok(remote_error_snapshot(profile, &failure)),
+        Err(failure) => {
+            apply_account_state_from_remote_failure(store, profile, &failure).await?;
+            return Ok(remote_error_snapshot(profile, &failure));
+        }
     };
     if should_refresh_official_response(&response)
         && identity
@@ -68,21 +73,26 @@ async fn fetch_official_usage_snapshot(
         identity = match refresh_probe_identity(store, &identity).await {
             Ok(identity) => identity,
             Err(RefreshProbeIdentityError::Remote(failure)) => {
+                apply_account_state_from_remote_failure(store, profile, &failure).await?;
                 return Ok(remote_error_snapshot(profile, &failure));
             }
             Err(RefreshProbeIdentityError::Relay(error)) => return Err(error),
         };
         response = match official_usage_request(&identity).await {
             Ok(response) => response,
-            Err(failure) => return Ok(remote_error_snapshot(profile, &failure)),
+            Err(failure) => {
+                apply_account_state_from_remote_failure(store, profile, &failure).await?;
+                return Ok(remote_error_snapshot(profile, &failure));
+            }
         };
     }
     if response.http_code != 200 {
-        return Ok(remote_error_snapshot(
-            profile,
-            &http_failure("failed to fetch codex rate limits", &response),
-        ));
+        let failure = http_failure("failed to fetch codex rate limits", &response);
+        apply_account_state_from_remote_failure(store, profile, &failure).await?;
+        return Ok(remote_error_snapshot(profile, &failure));
     }
+
+    clear_account_state_after_remote_success(store, profile).await?;
 
     let payload: OfficialUsageResponse = match serde_json::from_str(&response.body) {
         Ok(payload) => payload,
@@ -114,8 +124,50 @@ async fn fetch_official_usage_snapshot(
     Ok(snapshot)
 }
 
+async fn apply_account_state_from_remote_failure(
+    store: &SqliteStore,
+    profile: &Profile,
+    failure: &RemoteUsageFailure,
+) -> Result<(), RelayError> {
+    if failure.remote_error.kind != UsageRemoteErrorKind::Account {
+        return Ok(());
+    }
+
+    if profile.account_state != ProfileAccountState::AccountUnavailable {
+        store
+            .record_failure_event(
+                Some(profile.id.as_str()),
+                FailureReason::AccountUnavailable,
+                failure.message.clone(),
+                None,
+            )
+            .await?;
+    }
+
+    store
+        .set_account_state(
+            &profile.id,
+            ProfileAccountState::AccountUnavailable,
+            failure.remote_error.http_status,
+        )
+        .await?;
+    Ok(())
+}
+
+async fn clear_account_state_after_remote_success(
+    store: &SqliteStore,
+    profile: &Profile,
+) -> Result<(), RelayError> {
+    if profile.account_state == ProfileAccountState::Healthy {
+        return Ok(());
+    }
+
+    store.clear_account_state(&profile.id).await?;
+    Ok(())
+}
+
 fn should_refresh_official_response(response: &HttpResponse) -> bool {
-    matches!(response.http_code, 401 | 403)
+    matches!(response.http_code, 401..=403)
 }
 
 async fn should_refresh_probe_identity(
@@ -374,7 +426,10 @@ fn http_failure(operation: &str, response: &HttpResponse) -> RemoteUsageFailure 
             body_preview(&response.body),
         ),
         remote_error: UsageRemoteError {
-            kind: UsageRemoteErrorKind::Other,
+            kind: match response.http_code {
+                401..=403 => UsageRemoteErrorKind::Account,
+                _ => UsageRemoteErrorKind::Other,
+            },
             http_status: Some(response.http_code),
         },
     }
@@ -604,7 +659,7 @@ mod tests {
         assert_eq!(
             error.remote_error,
             UsageRemoteError {
-                kind: UsageRemoteErrorKind::Other,
+                kind: UsageRemoteErrorKind::Account,
                 http_status: Some(402),
             }
         );

@@ -104,9 +104,10 @@ pub(super) fn status_tone(status: UsageStatus) -> CellTone {
 pub(super) fn failure_reason_tone(reason: &FailureReason) -> CellTone {
     match reason {
         FailureReason::SessionExhausted | FailureReason::WeeklyExhausted => CellTone::Bad,
-        FailureReason::QuotaExhausted | FailureReason::RateLimited | FailureReason::AuthInvalid => {
-            CellTone::Warn
-        }
+        FailureReason::AccountUnavailable
+        | FailureReason::QuotaExhausted
+        | FailureReason::RateLimited
+        | FailureReason::AuthInvalid => CellTone::Warn,
         FailureReason::CommandFailed | FailureReason::ValidationFailed | FailureReason::Unknown => {
             CellTone::Muted
         }
@@ -142,12 +143,27 @@ pub(super) fn failure_reason_label(reason: &FailureReason) -> &'static str {
     match reason {
         FailureReason::SessionExhausted => "SessionExhausted",
         FailureReason::WeeklyExhausted => "WeeklyExhausted",
+        FailureReason::AccountUnavailable => "AccountUnavailable",
         FailureReason::AuthInvalid => "AuthInvalid",
         FailureReason::QuotaExhausted => "QuotaExhausted",
         FailureReason::RateLimited => "RateLimited",
         FailureReason::CommandFailed => "CommandFailed",
         FailureReason::ValidationFailed => "ValidationFailed",
         FailureReason::Unknown => "Unknown",
+    }
+}
+
+pub(super) fn profile_account_state_label(state: &relay_core::ProfileAccountState) -> &'static str {
+    match state {
+        relay_core::ProfileAccountState::Healthy => "Healthy",
+        relay_core::ProfileAccountState::AccountUnavailable => "AccountUnavailable",
+    }
+}
+
+pub(super) fn profile_account_state_tone(state: &relay_core::ProfileAccountState) -> CellTone {
+    match state {
+        relay_core::ProfileAccountState::Healthy => CellTone::Good,
+        relay_core::ProfileAccountState::AccountUnavailable => CellTone::Bad,
     }
 }
 

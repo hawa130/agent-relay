@@ -1,5 +1,6 @@
 use crate::models::{
-    FailureEvent, FailureReason, Profile, RelayError, UsageConfidence, UsageSnapshot,
+    FailureEvent, FailureReason, Profile, ProfileAccountState, RelayError, UsageConfidence,
+    UsageSnapshot,
 };
 use chrono::Utc;
 
@@ -12,6 +13,7 @@ pub fn select_next_profile(
     let eligible = profiles
         .iter()
         .filter(|profile| profile.enabled)
+        .filter(|profile| profile.account_state == ProfileAccountState::Healthy)
         .filter(|profile| !is_in_cooldown(profile, failure_events))
         .collect::<Vec<_>>();
 
@@ -183,6 +185,25 @@ mod tests {
     }
 
     #[test]
+    fn select_next_profile_skips_account_unavailable_candidates() {
+        let mut unavailable = profile("p1", "alpha", 10);
+        unavailable.account_state = crate::models::ProfileAccountState::AccountUnavailable;
+        let healthy = profile("p2", "beta", 20);
+        let selected = select_next_profile(
+            &[unavailable, healthy.clone()],
+            &[
+                healthy_snapshot("p1", UsageConfidence::High),
+                healthy_snapshot("p2", UsageConfidence::High),
+            ],
+            Some("p1"),
+            &[],
+        )
+        .expect("next profile");
+
+        assert_eq!(selected.id, healthy.id);
+    }
+
+    #[test]
     fn select_next_profile_respects_cooldown_after_usage_filtering() {
         let profiles = vec![profile("p1", "alpha", 10), profile("p2", "beta", 20)];
         let events = vec![FailureEvent {
@@ -238,6 +259,9 @@ mod tests {
             agent: AgentKind::Codex,
             priority,
             enabled: true,
+            account_state: crate::models::ProfileAccountState::Healthy,
+            account_error_http_status: None,
+            account_state_updated_at: None,
             agent_home: Some(format!("/tmp/{id}")),
             config_path: Some(format!("/tmp/{id}/config.toml")),
             auth_mode: AuthMode::ConfigFilesystem,

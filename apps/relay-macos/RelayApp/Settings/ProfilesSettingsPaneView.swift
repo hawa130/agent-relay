@@ -335,7 +335,8 @@ public struct ProfilesSettingsPaneView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         ProfileAgentLabel(
                             title: profile.agent.rawValue,
-                            showsActiveBadge: model.activeProfileId == profile.id
+                            showsActiveBadge: model.activeProfileId == profile.id,
+                            accountState: profile.accountState
                         )
 
                         Text(profile.nickname)
@@ -362,7 +363,7 @@ public struct ProfilesSettingsPaneView: View {
 
                 }
                 if let failure = selectedFailureEvent {
-                    Label(failure.reason.rawValue.replacingOccurrences(of: "_", with: " "), systemImage: "exclamationmark.triangle.fill")
+                    Label(failure.reason.displayName, systemImage: "exclamationmark.triangle.fill")
                         .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
                         .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
                 }
@@ -552,7 +553,10 @@ private struct ProfileListRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ProfileListAgentLabel(agent: profile.agent)
+            ProfileListAgentLabel(
+                agent: profile.agent,
+                accountState: profile.accountState
+            )
 
             HStack(alignment: .top, spacing: 8) {
                 if let usage {
@@ -626,6 +630,7 @@ private struct ProfileListRow: View {
 
     var statusIndicator: ProfileListRowStatusIndicator.Kind? {
         ProfileListRowStatusIndicator.Kind(
+            profile: profile,
             isFetchingUsage: isFetchingUsage,
             usage: usage,
             usageRefreshError: usageRefreshError,
@@ -649,9 +654,18 @@ struct ProfileListRowStatusIndicator: View {
         case warning(message: String)
         case stale
 
-        init?(isFetchingUsage: Bool, usage: UsageSnapshot?, usageRefreshError: String?, isStale: Bool) {
+        init?(
+            profile: Profile,
+            isFetchingUsage: Bool,
+            usage: UsageSnapshot?,
+            usageRefreshError: String?,
+            isStale: Bool
+        ) {
             if isFetchingUsage {
                 self = .loading
+            } else if profile.accountState == .accountUnavailable {
+                let statusDetail = profile.accountErrorHTTPStatus.map { " (HTTP \($0))" } ?? ""
+                self = .warning(message: "Account unavailable for auto-switch\(statusDetail)")
             } else if let note = usage?.userFacingNote,
                       let severity = UsageCardNoteResolver.severity(for: usage) {
                 switch severity {
@@ -717,6 +731,7 @@ private struct ProfileListUsageLine: View {
 
 private struct ProfileListAgentLabel: View {
     let agent: AgentKind
+    let accountState: ProfileAccountState
 
     var body: some View {
         HStack(spacing: 5) {
@@ -733,6 +748,8 @@ private struct ProfileListAgentLabel: View {
             Text(agent.rawValue.uppercased())
                 .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
                 .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+
+            ProfileAccountStatusDot(accountState: accountState, diameter: 7)
         }
     }
 }
@@ -804,19 +821,54 @@ private struct ProfileStateBadge: View {
 private struct ProfileAgentLabel: View {
     let title: String
     let showsActiveBadge: Bool
+    let accountState: ProfileAccountState
 
     var body: some View {
-        Text(title)
-            .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
-            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-            .textCase(.uppercase)
-            .overlay(alignment: .topTrailing) {
-                if showsActiveBadge {
-                    ProfileStateBadge(title: "Active", kind: .info)
-                        .offset(x: 52, y: -1)
-                        .allowsHitTesting(false)
-                }
+        HStack(spacing: 6) {
+            Text(title)
+                .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
+                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                .textCase(.uppercase)
+
+            ProfileAccountStatusDot(accountState: accountState, diameter: 8)
+        }
+        .overlay(alignment: .topTrailing) {
+            if showsActiveBadge {
+                ProfileStateBadge(title: "Active", kind: .info)
+                    .offset(x: 52, y: -1)
+                    .allowsHitTesting(false)
             }
+        }
+    }
+}
+
+private struct ProfileAccountStatusDot: View {
+    let accountState: ProfileAccountState
+    let diameter: CGFloat
+
+    var body: some View {
+        Circle()
+            .fill(accountStatusColor)
+            .frame(width: diameter, height: diameter)
+            .help(accountStatusHelp)
+    }
+
+    private var accountStatusColor: Color {
+        switch accountState {
+        case .healthy:
+            NativePreferencesTheme.Colors.semanticAccent(.success)
+        case .accountUnavailable:
+            NativePreferencesTheme.Colors.semanticAccent(.danger)
+        }
+    }
+
+    private var accountStatusHelp: String {
+        switch accountState {
+        case .healthy:
+            "Account status healthy"
+        case .accountUnavailable:
+            "Account status unavailable for auto-switch"
+        }
     }
 }
 
