@@ -195,6 +195,9 @@ mod tests {
             agent: crate::models::AgentKind::Codex,
             priority: 10,
             enabled: true,
+            account_state: crate::models::ProfileAccountState::Healthy,
+            account_error_http_status: None,
+            account_state_updated_at: None,
             agent_home: Some(profile_home.to_string_lossy().into_owned()),
             config_path: Some(
                 profile_home

@@ -10,7 +10,8 @@ mod tests;
 use self::codec::{
     failure_event_from_model, path_to_string, probe_identity_from_model, profile_from_model,
     slugify, stringify_agent_kind, stringify_auth_mode, stringify_outcome,
-    stringify_probe_provider, stringify_reason, switch_history_from_model,
+    stringify_probe_provider, stringify_profile_account_state, stringify_reason,
+    switch_history_from_model,
 };
 use self::schema::{
     SchemaState, inspect_schema_state, schema_incompatible_error, sqlite_url, sync_schema,

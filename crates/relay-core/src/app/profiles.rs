@@ -14,6 +14,10 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 impl RelayApp {
+    pub async fn profile(&self, id: &str) -> Result<Profile, RelayError> {
+        self.store.get_profile(id).await
+    }
+
     pub async fn list_profiles(&self) -> Result<Vec<Profile>, RelayError> {
         self.store.list_profiles().await
     }

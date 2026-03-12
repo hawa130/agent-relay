@@ -1,6 +1,6 @@
 use crate::adapters::AgentAdapter;
-use crate::models::Profile;
 use crate::models::RelayError;
+use crate::models::{Profile, ProfileAccountState};
 use crate::store::{AddProfileRecord, ProfileUpdateRecord, SqliteStore};
 use chrono::Utc;
 
@@ -43,6 +43,9 @@ pub async fn edit_profile(
         agent: current.agent.clone(),
         priority: update.priority.unwrap_or(current.priority),
         enabled: current.enabled,
+        account_state: current.account_state.clone(),
+        account_error_http_status: current.account_error_http_status,
+        account_state_updated_at: current.account_state_updated_at.clone(),
         agent_home: update
             .agent_home
             .clone()
@@ -174,6 +177,9 @@ fn candidate_profile_from_add_record(record: &AddProfileRecord) -> Profile {
         agent: record.agent.clone(),
         priority: record.priority,
         enabled: true,
+        account_state: ProfileAccountState::Healthy,
+        account_error_http_status: None,
+        account_state_updated_at: None,
         agent_home: record
             .agent_home
             .as_ref()

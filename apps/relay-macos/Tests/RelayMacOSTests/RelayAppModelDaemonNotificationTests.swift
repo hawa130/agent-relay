@@ -82,6 +82,54 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
                 && !model.isFetchingUsage(profileId: "p_alt")
         }
     }
+
+    func testStartAppliesInitialProfilesWithAccountUnavailableUsage() async throws {
+        let fixture = try RelayAppModelNotificationFixture.make(mode: "initial_account_unavailable")
+        defer { fixture.cleanup() }
+
+        let scope = RelayFixtureEnvironment(
+            relayCLIPath: fixture.scriptPath,
+            fixtureMode: "initial_account_unavailable"
+        )
+        scope.install()
+        defer { scope.uninstall() }
+
+        let model = RelayAppModel()
+        model.start()
+
+        try await waitUntil {
+            model.profiles.contains(where: {
+                $0.id == "p_alt"
+                    && $0.accountState == .accountUnavailable
+                    && $0.accountErrorHTTPStatus == 403
+            })
+                && model.usageSnapshot(for: "p_alt")?.remoteError?.kind == .account
+        }
+    }
+
+    func testStartAppliesProfilesUpdatedNotificationWithAccountUnavailableUsage() async throws {
+        let fixture = try RelayAppModelNotificationFixture.make(mode: "profiles_updated_account_unavailable")
+        defer { fixture.cleanup() }
+
+        let scope = RelayFixtureEnvironment(
+            relayCLIPath: fixture.scriptPath,
+            fixtureMode: "profiles_updated_account_unavailable"
+        )
+        scope.install()
+        defer { scope.uninstall() }
+
+        let model = RelayAppModel()
+        model.start()
+
+        try await waitUntil {
+            model.profiles.contains(where: {
+                $0.id == "p_alt"
+                    && $0.accountState == .accountUnavailable
+                    && $0.accountErrorHTTPStatus == 401
+            })
+                && model.usageSnapshot(for: "p_alt")?.remoteError?.httpStatus == 401
+        }
+    }
 }
 
 private struct RelayFixtureEnvironment {
@@ -166,6 +214,8 @@ mode="${RELAY_FIXTURE_MODE:-default}"
 
 active_profile_item='{"profile":{"id":"p_active","nickname":"active","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/active-home","config_path":"/tmp/active-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":true,"usage_summary":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}'
 alt_profile_item='{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":false,"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}'
+alt_profile_item_account_initial='{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":90,"enabled":true,"account_state":"AccountUnavailable","account_error_http_status":403,"account_state_updated_at":"2026-03-12T10:00:00Z","agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-12T10:00:00Z"},"is_active":false,"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Fallback","confidence":"Low","stale":true,"last_refreshed_at":"2026-03-12T10:00:00Z","next_reset_at":null,"session":{"used_percent":null,"window_minutes":300,"reset_at":null,"status":"Unknown","exact":false},"weekly":{"used_percent":null,"window_minutes":10080,"reset_at":null,"status":"Unknown","exact":false},"auto_switch_reason":"AccountUnavailable","can_auto_switch":false,"message":"account unavailable","remote_error":{"kind":"Account","http_status":403}}}'
+alt_profile_item_account_update='{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":90,"enabled":true,"account_state":"AccountUnavailable","account_error_http_status":401,"account_state_updated_at":"2026-03-12T11:00:00Z","agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-12T11:00:00Z"},"is_active":false,"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Fallback","confidence":"Low","stale":true,"last_refreshed_at":"2026-03-12T11:00:00Z","next_reset_at":null,"session":{"used_percent":null,"window_minutes":300,"reset_at":null,"status":"Unknown","exact":false},"weekly":{"used_percent":null,"window_minutes":10080,"reset_at":null,"status":"Unknown","exact":false},"auto_switch_reason":"AccountUnavailable","can_auto_switch":false,"message":"account unavailable","remote_error":{"kind":"Account","http_status":401}}}'
 
 case "$*" in
   "daemon --stdio")
@@ -174,8 +224,14 @@ case "$*" in
       id="$(python3 -c 'import json,sys; print(json.loads(sys.argv[1]).get("id", ""))' "$line")"
       case "$method" in
         initialize)
+          profiles_json="[$active_profile_item,$alt_profile_item]"
+          case "$mode" in
+            initial_account_unavailable)
+              profiles_json="[$active_profile_item,$alt_profile_item_account_initial]"
+              ;;
+          esac
           cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","server_info":{"name":"relay","version":"0.1.0"},"capabilities":{"supports_subscriptions":true,"supports_health_updates":true},"initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[$active_profile_item,$alt_profile_item],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
+{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","server_info":{"name":"relay","version":"0.1.0"},"capabilities":{"supports_subscriptions":true,"supports_health_updates":true},"initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":$profiles_json,"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
 EOF
           ;;
         session/subscribe)
@@ -213,6 +269,12 @@ EOF
               sleep 0.05
               cat <<EOF
 {"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":2,"timestamp":"2026-03-08T12:27:13Z","payload":{"states":[{"key":{"kind":"UsageProfile","profile_id":"p_alt"},"status":"Error","trigger":"Manual","error_code":"RELAY_EXTERNAL_COMMAND","message":"remote usage timed out","updated_at":"2026-03-08T12:27:13Z"}]}}}
+EOF
+              ;;
+            profiles_updated_account_unavailable)
+              sleep 0.05
+              cat <<EOF
+{"jsonrpc":"2.0","method":"session/update","params":{"topic":"profiles.updated","seq":1,"timestamp":"2026-03-12T11:00:00Z","payload":{"profiles":[$active_profile_item,$alt_profile_item_account_update]}}}
 EOF
               ;;
           esac

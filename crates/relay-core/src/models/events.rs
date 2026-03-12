@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub enum FailureReason {
     SessionExhausted,
     WeeklyExhausted,
+    AccountUnavailable,
     AuthInvalid,
     QuotaExhausted,
     RateLimited,

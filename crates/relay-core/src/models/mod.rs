@@ -23,7 +23,7 @@ pub use overview::{
     SkippedRecoveredProfile, SystemStatusReport,
 };
 pub use probe_identity::{ProbeProvider, ProfileProbeIdentity};
-pub use profile::{AgentKind, AuthMode, Profile};
+pub use profile::{AgentKind, AuthMode, Profile, ProfileAccountState};
 pub use protocol::JsonResponse;
 pub use rpc::{
     ActiveStateUpdatedPayload, ActivityEventsParams, ActivityEventsResult,

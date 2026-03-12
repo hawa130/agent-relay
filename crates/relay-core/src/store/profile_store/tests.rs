@@ -30,6 +30,34 @@ async fn profile_settings_events_and_switch_history_round_trip() {
         .await
         .expect("profile");
     assert!(created.enabled);
+    assert_eq!(
+        created.account_state,
+        crate::models::ProfileAccountState::Healthy
+    );
+
+    let marked = store
+        .set_account_state(
+            &created.id,
+            crate::models::ProfileAccountState::AccountUnavailable,
+            Some(402),
+        )
+        .await
+        .expect("mark account state");
+    assert_eq!(
+        marked.account_state,
+        crate::models::ProfileAccountState::AccountUnavailable
+    );
+    assert_eq!(marked.account_error_http_status, Some(402));
+
+    let cleared = store
+        .clear_account_state(&created.id)
+        .await
+        .expect("clear account state");
+    assert_eq!(
+        cleared.account_state,
+        crate::models::ProfileAccountState::Healthy
+    );
+    assert_eq!(cleared.account_error_http_status, None);
 
     let updated = store
         .update_profile(

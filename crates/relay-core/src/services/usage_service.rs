@@ -233,6 +233,10 @@ async fn collect_fallback_snapshot(
     match event.reason {
         FailureReason::SessionExhausted => snapshot.session.status = UsageStatus::Exhausted,
         FailureReason::WeeklyExhausted => snapshot.weekly.status = UsageStatus::Exhausted,
+        FailureReason::AccountUnavailable => {
+            snapshot.session.status = UsageStatus::Warning;
+            snapshot.weekly.status = UsageStatus::Warning;
+        }
         FailureReason::QuotaExhausted => {
             snapshot.weekly.status = UsageStatus::Exhausted;
             snapshot.session.status = UsageStatus::Warning;
@@ -361,6 +365,9 @@ mod tests {
             agent: crate::models::AgentKind::Codex,
             priority: 100,
             enabled: true,
+            account_state: crate::models::ProfileAccountState::Healthy,
+            account_error_http_status: None,
+            account_state_updated_at: None,
             agent_home: Some(home.to_string_lossy().into_owned()),
             config_path: Some(home.join("config.toml").to_string_lossy().into_owned()),
             auth_mode: AuthMode::ConfigFilesystem,
@@ -883,6 +890,9 @@ mod tests {
             agent: crate::models::AgentKind::Codex,
             priority: 100,
             enabled: true,
+            account_state: crate::models::ProfileAccountState::Healthy,
+            account_error_http_status: None,
+            account_state_updated_at: None,
             agent_home: None,
             config_path: Some(
                 active_home
