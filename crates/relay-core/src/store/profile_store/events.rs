@@ -22,7 +22,7 @@ impl SqliteStore {
         let connection = self.require_connection()?;
         let transaction = connection.begin().await?;
         let entry = insert_switch_history(&transaction, record).await?;
-        let event = insert_failure_event(
+        let event = upsert_failure_event(
             &transaction,
             entry.profile_id.as_deref(),
             failure_reason,
@@ -62,7 +62,7 @@ impl SqliteStore {
         let connection = self.require_connection()?;
         let transaction = connection.begin().await?;
         let event =
-            insert_failure_event(&transaction, profile_id, reason, message, cooldown_until).await?;
+            upsert_failure_event(&transaction, profile_id, reason, message, cooldown_until).await?;
         transaction.commit().await?;
         Ok(event)
     }
@@ -80,6 +80,65 @@ impl SqliteStore {
             .into_iter()
             .map(failure_event_from_model)
             .collect()
+    }
+
+    pub async fn list_current_failure_events(
+        &self,
+        profile_id: Option<&str>,
+    ) -> Result<Vec<FailureEvent>, RelayError> {
+        let Some(connection) = self.connection() else {
+            return Ok(Vec::new());
+        };
+
+        let mut query = failure_events::Entity::find()
+            .filter(failure_events::Column::ResolvedAt.is_null())
+            .order_by_desc(failure_events::Column::CreatedAt);
+        if let Some(profile_id) = profile_id {
+            query = query.filter(failure_events::Column::ProfileId.eq(profile_id));
+        }
+
+        query
+            .all(connection)
+            .await?
+            .into_iter()
+            .map(failure_event_from_model)
+            .collect()
+    }
+
+    pub async fn resolve_failure_events(
+        &self,
+        profile_id: &str,
+        reasons: &[FailureReason],
+    ) -> Result<Vec<FailureEvent>, RelayError> {
+        if reasons.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let connection = self.require_connection()?;
+        let transaction = connection.begin().await?;
+        let now = Utc::now();
+        let mut resolved = Vec::new();
+
+        for reason in reasons {
+            let Some(model) = failure_events::Entity::find()
+                .filter(failure_events::Column::ProfileId.eq(profile_id))
+                .filter(failure_events::Column::Reason.eq(stringify_reason(reason)))
+                .filter(failure_events::Column::ResolvedAt.is_null())
+                .order_by_asc(failure_events::Column::CreatedAt)
+                .one(&transaction)
+                .await?
+            else {
+                continue;
+            };
+
+            let mut active = model.into_active_model();
+            active.resolved_at = Set(Some(now.to_rfc3339()));
+            let updated = active.update(&transaction).await?;
+            resolved.push(failure_event_from_model(updated)?);
+        }
+
+        transaction.commit().await?;
+        Ok(resolved)
     }
 
     #[cfg(test)]
@@ -130,7 +189,7 @@ where
     })
 }
 
-async fn insert_failure_event<C>(
+async fn upsert_failure_event<C>(
     connection: &C,
     profile_id: Option<&str>,
     reason: FailureReason,
@@ -140,12 +199,30 @@ async fn insert_failure_event<C>(
 where
     C: ConnectionTrait,
 {
+    if let Some(profile_id) = profile_id {
+        if let Some(model) = failure_events::Entity::find()
+            .filter(failure_events::Column::ProfileId.eq(profile_id))
+            .filter(failure_events::Column::Reason.eq(stringify_reason(&reason)))
+            .filter(failure_events::Column::ResolvedAt.is_null())
+            .order_by_asc(failure_events::Column::CreatedAt)
+            .one(connection)
+            .await?
+        {
+            let mut active = model.into_active_model();
+            active.message = Set(message.as_ref().to_string());
+            active.cooldown_until = Set(cooldown_until.map(|value| value.to_rfc3339()));
+            let updated = active.update(connection).await?;
+            return failure_event_from_model(updated);
+        }
+    }
+
     let event = FailureEvent {
         id: format!("ev_{}", Utc::now().timestamp_millis()),
         profile_id: profile_id.map(ToOwned::to_owned),
         reason: reason.clone(),
         message: message.as_ref().to_string(),
         cooldown_until,
+        resolved_at: None,
         created_at: Utc::now(),
     };
 
@@ -155,6 +232,7 @@ where
         reason: Set(stringify_reason(&event.reason).to_string()),
         message: Set(event.message.clone()),
         cooldown_until: Set(event.cooldown_until.map(|value| value.to_rfc3339())),
+        resolved_at: Set(None),
         created_at: Set(event.created_at.to_rfc3339()),
     }
     .insert(connection)

@@ -9,6 +9,7 @@ pub struct Model {
     pub reason: String,
     pub message: String,
     pub cooldown_until: Option<String>,
+    pub resolved_at: Option<String>,
     pub created_at: String,
 }
 

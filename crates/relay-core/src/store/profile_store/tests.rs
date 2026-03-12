@@ -84,6 +84,28 @@ async fn profile_settings_events_and_switch_history_round_trip() {
         .await
         .expect("event");
     assert_eq!(event.profile_id.as_deref(), Some(created.id.as_str()));
+    assert!(event.resolved_at.is_none());
+    assert_eq!(
+        store
+            .list_current_failure_events(Some(&created.id))
+            .await
+            .expect("current events")
+            .len(),
+        1
+    );
+    let resolved = store
+        .resolve_failure_events(&created.id, &[FailureReason::ValidationFailed])
+        .await
+        .expect("resolve events");
+    assert_eq!(resolved.len(), 1);
+    assert!(resolved[0].resolved_at.is_some());
+    assert!(
+        store
+            .list_current_failure_events(Some(&created.id))
+            .await
+            .expect("resolved current events")
+            .is_empty()
+    );
 
     let switch_entry = store
         .record_switch(SwitchHistoryRecord {
@@ -207,4 +229,49 @@ async fn read_only_bootstrap_treats_empty_existing_database_as_uninitialized() {
         .await
         .expect("read-only store");
     assert!(store.list_profiles().await.expect("profiles").is_empty());
+}
+
+#[tokio::test]
+async fn unresolved_failure_events_are_upserted_by_profile_and_reason() {
+    let temp = tempdir().expect("tempdir");
+    let db_path = temp.path().join("relay.db");
+    let store = SqliteStore::new(&db_path).await.expect("store");
+    let profile = store
+        .add_profile(AddProfileRecord {
+            agent: AgentKind::Codex,
+            nickname: "Work".into(),
+            priority: 10,
+            config_path: None,
+            agent_home: None,
+            auth_mode: crate::models::AuthMode::ConfigFilesystem,
+        })
+        .await
+        .expect("profile");
+
+    let first = store
+        .record_failure_event(
+            Some(&profile.id),
+            FailureReason::CommandFailed,
+            "first failure",
+            None,
+        )
+        .await
+        .expect("first");
+    let second = store
+        .record_failure_event(
+            Some(&profile.id),
+            FailureReason::CommandFailed,
+            "second failure",
+            None,
+        )
+        .await
+        .expect("second");
+
+    assert_eq!(first.id, second.id);
+    assert_eq!(first.created_at, second.created_at);
+    assert_eq!(second.message, "second failure");
+    assert_eq!(
+        store.list_failure_events(10).await.expect("events").len(),
+        1
+    );
 }

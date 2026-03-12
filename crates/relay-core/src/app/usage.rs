@@ -1,5 +1,5 @@
 use super::{BootstrapMode, RelayApp};
-use crate::models::{Profile, RelayError, UsageSnapshot};
+use crate::models::{FailureReason, Profile, RelayError, UsageSnapshot, UsageStatus};
 use crate::services::usage_service;
 use futures_util::stream::{self, StreamExt};
 
@@ -91,7 +91,7 @@ impl RelayApp {
         context: &UsageContext,
     ) -> Result<UsageSnapshot, RelayError> {
         let provider = self.adapters.usage_provider(&profile.agent);
-        usage_service::refresh_profile(
+        let snapshot = usage_service::refresh_profile(
             &self.store,
             &self.usage_store,
             provider,
@@ -100,7 +100,9 @@ impl RelayApp {
             self.usage_source_mode_for_agent(&profile.agent).await?,
             context.allow_cache_writes,
         )
-        .await
+        .await?;
+        self.sync_usage_failure_events(profile, &snapshot).await?;
+        Ok(snapshot)
     }
 
     async fn usage_context(&self) -> Result<UsageContext, RelayError> {
@@ -109,5 +111,51 @@ impl RelayApp {
             active_profile: self.active_profile_from_state(&active_state).await?,
             allow_cache_writes: self.bootstrap_mode == BootstrapMode::ReadWrite,
         })
+    }
+
+    async fn sync_usage_failure_events(
+        &self,
+        profile: &Profile,
+        snapshot: &UsageSnapshot,
+    ) -> Result<(), RelayError> {
+        let mut active_reasons = Vec::new();
+
+        if matches!(snapshot.session.status, UsageStatus::Exhausted) {
+            active_reasons.push(FailureReason::SessionExhausted);
+            self.store
+                .record_failure_event(
+                    Some(profile.id.as_str()),
+                    FailureReason::SessionExhausted,
+                    "Session usage exhausted.",
+                    None,
+                )
+                .await?;
+        }
+
+        if matches!(snapshot.weekly.status, UsageStatus::Exhausted) {
+            active_reasons.push(FailureReason::WeeklyExhausted);
+            self.store
+                .record_failure_event(
+                    Some(profile.id.as_str()),
+                    FailureReason::WeeklyExhausted,
+                    "Weekly usage exhausted.",
+                    None,
+                )
+                .await?;
+        }
+
+        let resolved_reasons = [
+            FailureReason::SessionExhausted,
+            FailureReason::WeeklyExhausted,
+        ]
+        .into_iter()
+        .filter(|reason| !active_reasons.contains(reason))
+        .collect::<Vec<_>>();
+
+        self.store
+            .resolve_failure_events(&profile.id, &resolved_reasons)
+            .await?;
+
+        Ok(())
     }
 }

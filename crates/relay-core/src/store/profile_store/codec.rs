@@ -72,6 +72,12 @@ pub(super) fn failure_event_from_model(
             .map(parse_timestamp)
             .map(Some)
             .unwrap_or(None),
+        resolved_at: model
+            .resolved_at
+            .as_deref()
+            .map(parse_timestamp)
+            .map(Some)
+            .unwrap_or(None),
         created_at: parse_timestamp(&model.created_at),
     })
 }

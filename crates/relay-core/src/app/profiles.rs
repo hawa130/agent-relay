@@ -26,11 +26,25 @@ impl RelayApp {
         let profiles = self.store.list_profiles().await?;
         let active_state = self.state_store.load()?;
         let snapshots = usage_service::list_profile_snapshots(&self.usage_store, &profiles)?;
+        let current_failure_events = self.store.list_current_failure_events(None).await?;
+        let mut current_events_by_profile =
+            std::collections::HashMap::<String, Vec<crate::FailureEvent>>::new();
+        for event in current_failure_events {
+            if let Some(profile_id) = event.profile_id.clone() {
+                current_events_by_profile
+                    .entry(profile_id)
+                    .or_default()
+                    .push(event);
+            }
+        }
         let items = profiles
             .into_iter()
             .zip(snapshots)
             .map(|(profile, usage_summary)| ProfileListItem {
                 is_active: active_state.active_profile_id.as_deref() == Some(profile.id.as_str()),
+                current_failure_events: current_events_by_profile
+                    .remove(&profile.id)
+                    .unwrap_or_default(),
                 profile,
                 usage_summary: Some(usage_summary),
             })
@@ -42,12 +56,7 @@ impl RelayApp {
         let profile = self.store.get_profile(id).await?;
         let active_state = self.state_store.load()?;
         let usage = self.usage_store.load_profile(id)?;
-        let last_failure_event = self
-            .store
-            .list_failure_events(200)
-            .await?
-            .into_iter()
-            .find(|event| event.profile_id.as_deref() == Some(id));
+        let current_failure_events = self.store.list_current_failure_events(Some(id)).await?;
         let (switch_eligible, switch_ineligibility_reason) =
             profile_switch_eligibility(&profile, usage.as_ref());
 
@@ -55,7 +64,7 @@ impl RelayApp {
             is_active: active_state.active_profile_id.as_deref() == Some(id),
             profile,
             usage,
-            last_failure_event,
+            current_failure_events,
             switch_eligible,
             switch_ineligibility_reason,
         })

@@ -130,14 +130,19 @@ pub(crate) fn render_profile_summary(detail: &ProfileDetail) -> String {
         sections.push(("Usage", usage_fields(usage)));
     }
 
-    if let Some(event) = &detail.last_failure_event {
+    if !detail.current_failure_events.is_empty() {
         sections.push((
-            "Recent Failure",
-            vec![
-                ("Reason", failure_reason_label(&event.reason).into()),
-                ("When", format_datetime(event.created_at)),
-                ("Message", event.message.clone()),
-            ],
+            "Current Status",
+            detail
+                .current_failure_events
+                .iter()
+                .map(|event| {
+                    (
+                        failure_reason_label(&event.reason),
+                        format!("{} ({})", event.message, format_datetime(event.created_at)),
+                    )
+                })
+                .collect(),
         ));
     }
 

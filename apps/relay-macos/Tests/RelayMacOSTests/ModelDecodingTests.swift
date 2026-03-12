@@ -153,6 +153,9 @@ final class ModelDecodingTests: XCTestCase {
             "agent": "Codex",
             "priority": 90,
             "enabled": true,
+            "account_state": "Healthy",
+            "account_error_http_status": null,
+            "account_state_updated_at": null,
             "agent_home": "/tmp/browser-home",
             "config_path": "/tmp/browser-home/config.toml",
             "auth_mode": "ConfigFilesystem",
@@ -193,6 +196,9 @@ final class ModelDecodingTests: XCTestCase {
             "agent": "Codex",
             "priority": 100,
             "enabled": true,
+            "account_state": "Healthy",
+            "account_error_http_status": null,
+            "account_state_updated_at": null,
             "agent_home": "/Users/test/.relay/profiles/work",
             "config_path": "/Users/test/.relay/profiles/work/config.toml",
             "auth_mode": "ConfigFilesystem",
@@ -200,6 +206,17 @@ final class ModelDecodingTests: XCTestCase {
             "updated_at": "2026-03-08T12:27:12Z"
           },
           "is_active": false,
+          "current_failure_events": [
+            {
+              "id": "ev_1",
+              "profile_id": "p_1",
+              "reason": "ValidationFailed",
+              "message": "still broken",
+              "cooldown_until": null,
+              "resolved_at": null,
+              "created_at": "2026-03-08T12:27:12Z"
+            }
+          ],
           "usage": {
             "profile_id": "p_1",
             "profile_name": "work",
@@ -225,8 +242,7 @@ final class ModelDecodingTests: XCTestCase {
             "auto_switch_reason": null,
             "can_auto_switch": false,
             "message": "local usage"
-          },
-          "last_failure_event": null,
+            },
           "switch_eligible": true,
           "switch_ineligibility_reason": null
         }
@@ -237,6 +253,8 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(detail.profile.id, "p_1")
         XCTAssertFalse(detail.isActive)
         XCTAssertEqual(detail.usage?.profileId, "p_1")
+        XCTAssertEqual(detail.currentFailureEvents.count, 1)
+        XCTAssertEqual(detail.currentFailureEvents[0].reason, .validationFailed)
         XCTAssertTrue(detail.switchEligible)
     }
 
@@ -249,6 +267,9 @@ final class ModelDecodingTests: XCTestCase {
             "agent": "Codex",
             "priority": 100,
             "enabled": true,
+            "account_state": "Healthy",
+            "account_error_http_status": null,
+            "account_state_updated_at": null,
             "agent_home": "/Users/test/.relay/profiles/work",
             "config_path": "/Users/test/.relay/profiles/work/config.toml",
             "auth_mode": "ConfigFilesystem",
@@ -256,6 +277,17 @@ final class ModelDecodingTests: XCTestCase {
             "updated_at": "2026-03-08T12:27:12Z"
           },
           "is_active": true,
+          "current_failure_events": [
+            {
+              "id": "ev_1",
+              "profile_id": "p_1",
+              "reason": "ValidationFailed",
+              "message": "still broken",
+              "cooldown_until": null,
+              "created_at": "2026-03-08T12:27:12Z",
+              "resolved_at": null
+            }
+          ],
           "usage_summary": {
             "profile_id": "p_1",
             "profile_name": "work",
@@ -290,6 +322,8 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(item.profile.id, "p_1")
         XCTAssertTrue(item.isActive)
         XCTAssertEqual(item.usageSummary?.profileId, "p_1")
+        XCTAssertEqual(item.currentFailureEvents.count, 1)
+        XCTAssertNil(item.currentFailureEvents[0].resolvedAt)
     }
 
     func testProfileListItemDecodesAccountUsageAndAccountStateFields() throws {
@@ -311,6 +345,17 @@ final class ModelDecodingTests: XCTestCase {
             "updated_at": "2026-03-12T10:00:00Z"
           },
           "is_active": false,
+          "current_failure_events": [
+            {
+              "id": "ev_2",
+              "profile_id": "p_2",
+              "reason": "AccountUnavailable",
+              "message": "account unavailable",
+              "cooldown_until": null,
+              "created_at": "2026-03-12T10:00:00Z",
+              "resolved_at": null
+            }
+          ],
           "usage_summary": {
             "profile_id": "p_2",
             "profile_name": "suspended",
@@ -350,6 +395,7 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(item.profile.accountErrorHTTPStatus, 401)
         XCTAssertEqual(item.usageSummary?.remoteError?.kind, .account)
         XCTAssertEqual(item.usageSummary?.autoSwitchReason, .accountUnavailable)
+        XCTAssertEqual(item.currentFailureEvents.first?.reason, .accountUnavailable)
     }
 
     func testUsageSnapshotUserFacingNoteRewritesInternalMessages() throws {

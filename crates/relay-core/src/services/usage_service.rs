@@ -214,8 +214,9 @@ async fn collect_fallback_snapshot(
     let Some(profile) = profile else {
         return Ok(None);
     };
-    let mut events = store.list_failure_events(100).await?;
-    events.retain(|event| event.profile_id.as_deref() == Some(profile.id.as_str()));
+    let events = store
+        .list_current_failure_events(Some(profile.id.as_str()))
+        .await?;
     let Some(event) = events.into_iter().max_by_key(|event| event.created_at) else {
         return Ok(None);
     };

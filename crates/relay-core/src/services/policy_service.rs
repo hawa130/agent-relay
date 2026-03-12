@@ -53,6 +53,7 @@ fn is_in_cooldown(profile: &Profile, events: &[FailureEvent]) -> bool {
     let now = Utc::now();
     events.iter().any(|event| {
         event.profile_id.as_deref() == Some(profile.id.as_str())
+            && event.resolved_at.is_none()
             && event.cooldown_until.is_some_and(|until| until > now)
     })
 }
@@ -212,6 +213,7 @@ mod tests {
             reason: FailureReason::CommandFailed,
             message: "cooldown".into(),
             cooldown_until: Some(Utc::now() + Duration::minutes(5)),
+            resolved_at: None,
             created_at: Utc::now(),
         }];
 

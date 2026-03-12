@@ -51,6 +51,7 @@ pub(super) const MANAGED_SCHEMA: &[(&str, &[&str])] = &[
             "reason",
             "message",
             "cooldown_until",
+            "resolved_at",
             "created_at",
         ],
     ),

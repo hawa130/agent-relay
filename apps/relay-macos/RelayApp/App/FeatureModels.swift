@@ -122,8 +122,8 @@ public final class ProfilesPaneModel: ObservableObject {
         session.profiles.filter { $0.agent == agent }.count
     }
 
-    func recentFailureEvent(for profileId: String) -> FailureEvent? {
-        session.events.first { $0.profileId == profileId }
+    func currentFailureEvents(for profileId: String) -> [FailureEvent] {
+        session.currentFailureEventsByProfile[profileId] ?? []
     }
 
     func selectFilter(_ filter: ProfilesSidebarFilter) {

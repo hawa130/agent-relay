@@ -21,5 +21,6 @@ pub struct FailureEvent {
     pub reason: FailureReason,
     pub message: String,
     pub cooldown_until: Option<DateTime<Utc>>,
+    pub resolved_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
 }

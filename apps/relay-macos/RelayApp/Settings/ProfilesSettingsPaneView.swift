@@ -362,10 +362,8 @@ public struct ProfilesSettingsPaneView: View {
                     }
 
                 }
-                if let failure = selectedFailureEvent {
-                    Label(failure.reason.displayName, systemImage: "exclamationmark.triangle.fill")
-                        .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
-                        .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
+                if !selectedCurrentFailureEvents.isEmpty {
+                    ProfileCurrentStatusSection(events: selectedCurrentFailureEvents)
                 }
             }
         }
@@ -497,11 +495,11 @@ public struct ProfilesSettingsPaneView: View {
         )
     }
 
-    private var selectedFailureEvent: FailureEvent? {
+    private var selectedCurrentFailureEvents: [FailureEvent] {
         guard let profileId = selectedProfile?.id else {
-            return nil
+            return []
         }
-        return model.recentFailureEvent(for: profileId)
+        return model.currentFailureEvents(for: profileId)
     }
 
     private func profileCount(for item: ProfilesSidebarFilter) -> Int {
@@ -869,6 +867,41 @@ private struct ProfileAccountStatusDot: View {
         case .accountUnavailable:
             "Account status unavailable for auto-switch"
         }
+    }
+}
+
+private struct ProfileCurrentStatusSection: View {
+    let events: [FailureEvent]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Current Status")
+                .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
+                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+
+            ForEach(events) { event in
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
+                        .padding(.top, 2)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(event.reason.displayName)
+                            .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
+
+                        Text(event.message)
+                            .font(NativePreferencesTheme.Typography.detail)
+                            .foregroundStyle(.secondary)
+
+                        Text(event.createdAt.formatted(date: .abbreviated, time: .standard))
+                            .font(.system(size: 10))
+                            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
