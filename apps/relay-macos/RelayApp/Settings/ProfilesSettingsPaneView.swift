@@ -327,7 +327,7 @@ public struct ProfilesSettingsPaneView: View {
     }
 
     private func profileHero(_ profile: Profile) -> some View {
-        SettingsSurfaceCard(nil) {
+        SectionSurfaceCard(nil) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top, spacing: 12) {
                     ProfileHeroAgentIcon(agent: profile.agent)
@@ -376,7 +376,7 @@ public struct ProfilesSettingsPaneView: View {
             usage: model.usageSnapshot(for: profile.id),
             usageRefreshError: usageRefreshError
         )
-        return SettingsSurfaceCard(
+        return SectionSurfaceCard(
             "Usage",
             headerAccessory: AnyView(
                 Button {
@@ -874,11 +874,7 @@ private struct ProfileCurrentStatusSection: View {
     let events: [FailureEvent]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Current Status")
-                .font(NativePreferencesTheme.Typography.detail.weight(.semibold))
-                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-
+        SectionSurfaceCard("Status") {
             ForEach(events) { event in
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
@@ -901,7 +897,6 @@ private struct ProfileCurrentStatusSection: View {
                 }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
