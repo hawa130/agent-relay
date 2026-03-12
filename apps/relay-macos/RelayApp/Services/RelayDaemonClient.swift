@@ -99,7 +99,7 @@ actor RelayDaemonClient {
         do {
             try process.run()
         } catch {
-            throw RelayCLIClientError.launchFailed(error.localizedDescription)
+            throw RelayClientError.launchFailed(error.localizedDescription)
         }
 
         self.process = process
@@ -190,7 +190,7 @@ actor RelayDaemonClient {
             as: RPCUsageRefreshResult.self
         )
         guard let snapshot = result.snapshots.first else {
-            throw RelayCLIClientError.invalidResponse("missing snapshot in refresh result")
+            throw RelayClientError.invalidResponse("missing snapshot in refresh result")
         }
         return snapshot
     }
@@ -398,7 +398,7 @@ actor RelayDaemonClient {
         as type: Response.Type
     ) async throws -> Response {
         guard let stdinPipe else {
-            throw RelayCLIClientError.relayNotFound([])
+            throw RelayClientError.relayNotFound([])
         }
 
         let requestID = nextID()
@@ -416,7 +416,7 @@ actor RelayDaemonClient {
 
         let decoder = JSONDecoder.relayDecoder
         if let errorEnvelope = try? decoder.decode(RPCErrorEnvelope.self, from: responseData) {
-            throw RelayCLIClientError.commandFailed(
+            throw RelayClientError.commandFailed(
                 code: errorEnvelope.error.data?.relayErrorCode,
                 message: errorEnvelope.error.message
             )
@@ -596,7 +596,7 @@ actor RelayDaemonClient {
             return
         }
         pendingTimeouts.removeValue(forKey: id)?.cancel()
-        continuation.resume(throwing: RelayCLIClientError.commandFailed(
+        continuation.resume(throwing: RelayClientError.commandFailed(
             code: "RELAY_DAEMON_TIMEOUT",
             message: "daemon request timed out after \(Self.formatTimeout(timeoutSeconds)) seconds"
         ))
@@ -615,7 +615,7 @@ actor RelayDaemonClient {
             cleanupProcessState()
             return
         }
-        let error = RelayCLIClientError.commandFailed(
+        let error = RelayClientError.commandFailed(
             code: "RELAY_DAEMON_EXITED",
             message: "daemon exited with status \(process.terminationStatus)"
         )
@@ -675,7 +675,7 @@ actor RelayDaemonClient {
             return pathBinary
         }
 
-        throw RelayCLIClientError.relayNotFound(bundledRelayCandidates())
+        throw RelayClientError.relayNotFound(bundledRelayCandidates())
     }
 
     private func findRelayOnPATH() -> String? {

@@ -217,7 +217,7 @@ final class RelayDaemonClientTests: XCTestCase {
                 priority: 90
             )
             XCTFail("expected login start to fail")
-        } catch let RelayCLIClientError.commandFailed(code, message) {
+        } catch let RelayClientError.commandFailed(code, message) {
             XCTAssertEqual(code, "RELAY_INVALID_INPUT")
             XCTAssertTrue(message.contains("missing field"))
         } catch {
@@ -258,7 +258,7 @@ final class RelayDaemonClientTests: XCTestCase {
         do {
             _ = try await client.fetchStatus()
             XCTFail("expected fetchStatus to time out")
-        } catch let RelayCLIClientError.commandFailed(code, message) {
+        } catch let RelayClientError.commandFailed(code, message) {
             XCTAssertEqual(code, "RELAY_DAEMON_TIMEOUT")
             XCTAssertTrue(message.contains("timed out"))
         } catch {
