@@ -37,6 +37,7 @@ public final class RelayAppModel: ObservableObject {
     @Published private(set) var usageSnapshots: [UsageSnapshot] = []
     @Published private(set) var doctor: DoctorReport?
     @Published private(set) var profiles: [Profile] = []
+    @Published private(set) var currentFailureEventsByProfile: [String: [FailureEvent]] = [:]
     @Published private(set) var events: [FailureEvent] = []
     @Published private(set) var logTail: LogTail?
     @Published private(set) var diagnosticsExport: DiagnosticsExport?
@@ -907,6 +908,11 @@ public final class RelayAppModel: ObservableObject {
     private func applyProfileItems(_ items: [ProfileListItem]) {
         profiles = items.map(\.profile)
         usageSnapshots = items.compactMap(\.usageSummary)
+        currentFailureEventsByProfile = Dictionary(
+            uniqueKeysWithValues: items.map { item in
+                (item.profile.id, item.currentFailureEvents)
+            }
+        )
         normalizeSelection()
         synchronizeActiveUsage()
         if let status {

@@ -195,7 +195,7 @@ struct Profile: Decodable, Identifiable, Sendable {
         agent = try container.decode(AgentKind.self, forKey: .agent)
         priority = try container.decode(Int.self, forKey: .priority)
         enabled = try container.decode(Bool.self, forKey: .enabled)
-        accountState = try container.decodeIfPresent(ProfileAccountState.self, forKey: .accountState) ?? .healthy
+        accountState = try container.decode(ProfileAccountState.self, forKey: .accountState)
         accountErrorHTTPStatus = try container.decodeIfPresent(Int.self, forKey: .accountErrorHTTPStatus)
         accountStateUpdatedAt = try container.decodeIfPresent(Date.self, forKey: .accountStateUpdatedAt)
         agentHome = try container.decodeIfPresent(String.self, forKey: .agentHome)
@@ -209,19 +209,13 @@ struct Profile: Decodable, Identifiable, Sendable {
 enum ProfileAccountState: String, Decodable, Sendable {
     case healthy = "Healthy"
     case accountUnavailable = "AccountUnavailable"
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-        self = Self(rawValue: rawValue) ?? .healthy
-    }
 }
 
 struct ProfileDetail: Decodable, Sendable {
     let profile: Profile
     let isActive: Bool
     let usage: UsageSnapshot?
-    let lastFailureEvent: FailureEvent?
+    let currentFailureEvents: [FailureEvent]
     let switchEligible: Bool
     let switchIneligibilityReason: String?
 }
@@ -230,6 +224,7 @@ struct ProfileListItem: Decodable, Sendable {
     let profile: Profile
     let isActive: Bool
     let usageSummary: UsageSnapshot?
+    let currentFailureEvents: [FailureEvent]
 }
 
 struct UsageSnapshot: Decodable, Sendable {
@@ -257,12 +252,6 @@ enum UsageRemoteErrorKind: String, Decodable, Sendable, Equatable {
     case account = "Account"
     case network = "Network"
     case other = "Other"
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-        self = Self(rawValue: rawValue) ?? .other
-    }
 }
 
 struct CodexSettingsDraft: Encodable, Sendable {
@@ -283,6 +272,7 @@ struct FailureEvent: Decodable, Identifiable, Sendable {
     let reason: FailureReason
     let message: String
     let cooldownUntil: Date?
+    let resolvedAt: Date?
     let createdAt: Date
 }
 
@@ -729,12 +719,6 @@ enum FailureReason: String, Decodable, Sendable {
     case commandFailed = "CommandFailed"
     case validationFailed = "ValidationFailed"
     case unknown = "Unknown"
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let rawValue = try container.decode(String.self)
-        self = Self(rawValue: rawValue) ?? .unknown
-    }
 
     var displayName: String {
         switch self {

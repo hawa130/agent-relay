@@ -614,8 +614,14 @@ fn profile_show_and_activity_event_filters_work() {
     assert_eq!(detail["data"]["usage"]["profile_id"], imported_id);
     assert_eq!(detail["data"]["switch_eligible"], true);
     assert_eq!(
-        detail["data"]["last_failure_event"]["reason"],
+        detail["data"]["current_failure_events"][0]["reason"],
         "ValidationFailed"
+    );
+    assert_eq!(
+        detail["data"]["current_failure_events"]
+            .as_array()
+            .map(Vec::len),
+        Some(1)
     );
 
     let filtered = run_json(

@@ -597,6 +597,13 @@ impl DaemonService {
         self.publish_profiles_updated()
             .await
             .map_err(|e| rpc_internal_error(e.to_string()))?;
+        let events = self
+            .load_recent_activity_events()
+            .await
+            .map_err(|e| rpc_internal_error(e.to_string()))?;
+        self.publish_activity_events_updated(events)
+            .await
+            .map_err(|e| rpc_internal_error(e.to_string()))?;
         self.publish_active_state_updated()
             .await
             .map_err(|e| rpc_internal_error(e.to_string()))?;
@@ -607,12 +614,7 @@ impl DaemonService {
         &self,
     ) -> Result<ActivityRefreshResult, crate::RpcErrorObject> {
         let events = self
-            .app
-            .list_activity_events(ActivityEventsQuery {
-                limit: Self::DEFAULT_ACTIVITY_EVENTS_LIMIT,
-                profile_id: None,
-                reason: None,
-            })
+            .load_recent_activity_events()
             .await
             .map_err(|e| rpc_from_error(&e))?;
         let logs = self
@@ -731,6 +733,13 @@ impl DaemonService {
                 self.publish_switch_completed(report.clone(), trigger)
                     .await
                     .map_err(|e| rpc_internal_error(e.to_string()))?;
+                let events = self
+                    .load_recent_activity_events()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                self.publish_activity_events_updated(events)
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
                 self.publish_profiles_updated()
                     .await
                     .map_err(|e| rpc_internal_error(e.to_string()))?;
@@ -741,6 +750,13 @@ impl DaemonService {
             }
             Err(error) => {
                 self.publish_switch_failed(&error, profile_id, trigger)
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                let events = self
+                    .load_recent_activity_events()
+                    .await
+                    .map_err(|e| rpc_internal_error(e.to_string()))?;
+                self.publish_activity_events_updated(events)
                     .await
                     .map_err(|e| rpc_internal_error(e.to_string()))?;
                 Err(rpc_from_error(&error))
@@ -761,6 +777,8 @@ impl DaemonService {
             .collect();
         let snapshots = self.refresh_usage_profiles(profiles, trigger).await?;
         self.publish_profiles_updated().await?;
+        let events = self.load_recent_activity_events().await?;
+        self.publish_activity_events_updated(events).await?;
         self.publish_active_state_updated().await?;
 
         let settings = self.app.settings().await?;
@@ -792,6 +810,8 @@ impl DaemonService {
             Ok(report) => {
                 self.publish_switch_completed(report, SwitchTrigger::Auto)
                     .await?;
+                let events = self.load_recent_activity_events().await?;
+                self.publish_activity_events_updated(events).await?;
                 self.publish_profiles_updated().await?;
                 let profiles: Vec<Profile> = self
                     .app
@@ -808,6 +828,8 @@ impl DaemonService {
             Err(error) => {
                 self.publish_switch_failed(&error, Some(active_profile_id), SwitchTrigger::Auto)
                     .await?;
+                let events = self.load_recent_activity_events().await?;
+                self.publish_activity_events_updated(events).await?;
             }
         }
 
@@ -969,14 +991,7 @@ impl DaemonService {
                     self.publish_profiles_updated().await?;
                 }
                 RelayRpcTopic::ActivityEventsUpdated => {
-                    let events = self
-                        .app
-                        .list_activity_events(ActivityEventsQuery {
-                            limit: Self::DEFAULT_ACTIVITY_EVENTS_LIMIT,
-                            profile_id: None,
-                            reason: None,
-                        })
-                        .await?;
+                    let events = self.load_recent_activity_events().await?;
                     self.publish_activity_events_updated(events).await?;
                 }
                 RelayRpcTopic::ActivityLogsUpdated => {
@@ -997,6 +1012,16 @@ impl DaemonService {
             }
         }
         Ok(())
+    }
+
+    async fn load_recent_activity_events(&self) -> Result<Vec<crate::FailureEvent>, RelayError> {
+        self.app
+            .list_activity_events(ActivityEventsQuery {
+                limit: Self::DEFAULT_ACTIVITY_EVENTS_LIMIT,
+                profile_id: None,
+                reason: None,
+            })
+            .await
     }
 
     async fn refresh_usage_profiles(
@@ -1065,6 +1090,8 @@ impl DaemonService {
                 self.publish_usage_updated(vec![snapshot.clone()], trigger)
                     .await?;
                 self.publish_profiles_updated().await?;
+                let events = self.load_recent_activity_events().await?;
+                self.publish_activity_events_updated(events).await?;
                 self.clear_query_state(&key).await?;
                 Ok(snapshot)
             }

@@ -133,16 +133,14 @@ async fn apply_account_state_from_remote_failure(
         return Ok(());
     }
 
-    if profile.account_state != ProfileAccountState::AccountUnavailable {
-        store
-            .record_failure_event(
-                Some(profile.id.as_str()),
-                FailureReason::AccountUnavailable,
-                failure.message.clone(),
-                None,
-            )
-            .await?;
-    }
+    store
+        .record_failure_event(
+            Some(profile.id.as_str()),
+            FailureReason::AccountUnavailable,
+            failure.message.clone(),
+            None,
+        )
+        .await?;
 
     store
         .set_account_state(
@@ -162,6 +160,9 @@ async fn clear_account_state_after_remote_success(
         return Ok(());
     }
 
+    store
+        .resolve_failure_events(&profile.id, &[FailureReason::AccountUnavailable])
+        .await?;
     store.clear_account_state(&profile.id).await?;
     Ok(())
 }

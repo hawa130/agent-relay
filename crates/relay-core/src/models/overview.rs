@@ -15,7 +15,7 @@ pub struct ProfileDetail {
     pub profile: Profile,
     pub is_active: bool,
     pub usage: Option<UsageSnapshot>,
-    pub last_failure_event: Option<FailureEvent>,
+    pub current_failure_events: Vec<FailureEvent>,
     pub switch_eligible: bool,
     pub switch_ineligibility_reason: Option<String>,
 }
@@ -25,6 +25,7 @@ pub struct ProfileListItem {
     pub profile: Profile,
     pub is_active: bool,
     pub usage_summary: Option<UsageSnapshot>,
+    pub current_failure_events: Vec<FailureEvent>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

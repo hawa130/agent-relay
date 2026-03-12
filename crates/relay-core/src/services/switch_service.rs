@@ -6,6 +6,15 @@ use crate::platform::RelayPaths;
 use crate::store::{FileLogStore, FileStateStore, SqliteStore, SwitchHistoryRecord};
 use chrono::{Duration, Utc};
 
+const SWITCH_FAILURE_REASONS: &[FailureReason] = &[
+    FailureReason::AuthInvalid,
+    FailureReason::QuotaExhausted,
+    FailureReason::RateLimited,
+    FailureReason::CommandFailed,
+    FailureReason::ValidationFailed,
+    FailureReason::Unknown,
+];
+
 pub async fn switch_to_profile(
     store: &SqliteStore,
     state_store: &FileStateStore,
@@ -65,6 +74,16 @@ pub async fn switch_to_profile(
                 return Err(error);
             }
             log_store.append("info", "switch.success", format!("active={}", profile.id))?;
+            if let Err(error) = store
+                .resolve_failure_events(&profile.id, SWITCH_FAILURE_REASONS)
+                .await
+            {
+                log_store.append(
+                    "warn",
+                    "switch.resolve_failure_events_failed",
+                    error.to_string(),
+                )?;
+            }
 
             Ok(SwitchReport {
                 profile_id: profile.id.clone(),
