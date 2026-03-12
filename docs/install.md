@@ -11,10 +11,10 @@ cargo install --path apps/relay-cli
 Expected executable:
 
 ```bash
-relay --help
+agrelay --help
 ```
 
-If the shell cannot find `relay`, add Cargo's bin directory:
+If the shell cannot find `agrelay`, add Cargo's bin directory:
 
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -22,14 +22,14 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 ## Isolated Testing
 
-Use a temporary Relay home while testing:
+Use a temporary AgentRelay home while testing:
 
 ```bash
-export RELAY_HOME=/tmp/relay-demo
-relay status --json
+export AGRELAY_HOME=/tmp/agrelay-demo
+agrelay status --json
 ```
 
-Relay stores its own data under `RELAY_HOME` or `~/.relay`:
+AgentRelay stores its own data under `AGRELAY_HOME` or `~/.agrelay`:
 
 - `relay.db`
 - `state.json`
@@ -43,88 +43,88 @@ Relay stores its own data under `RELAY_HOME` or `~/.relay`:
 Environment and discovery:
 
 ```bash
-relay doctor --json
-relay status --json
+agrelay doctor --json
+agrelay status --json
 ```
 
 Settings:
 
 ```bash
-relay settings show --json
-relay settings set --json --input-json app-settings.json
-relay codex settings show --json
-relay codex settings set --json --input-json settings.json
+agrelay settings show --json
+agrelay settings set --json --input-json app-settings.json
+agrelay codex settings show --json
+agrelay codex settings set --json --input-json settings.json
 ```
 
 Profile management:
 
 ```bash
-relay list --json
-relay show --json
-relay show <id> --json
-relay edit <id> --json --input-json profile.json
-relay enable <id> --json
-relay disable <id> --json
-relay remove <id> --json
+agrelay list --json
+agrelay show --json
+agrelay show <id> --json
+agrelay edit <id> --json --input-json profile.json
+agrelay enable <id> --json
+agrelay disable <id> --json
+agrelay remove <id> --json
 
-relay codex add --json --input-json codex-profile.json
-relay codex import --nickname imported-live --json
-relay codex login --nickname work --json
-relay codex recover --json
-relay codex relink <id> --json
+agrelay codex add --json --input-json codex-profile.json
+agrelay codex import --nickname imported-live --json
+agrelay codex login --nickname work --json
+agrelay codex recover --json
+agrelay codex relink <id> --json
 ```
 
 Switching and usage:
 
 ```bash
-relay switch --json
-relay switch <id> --json
-relay refresh --json
-relay refresh <id> --json
-relay refresh --all --json
+agrelay switch --json
+agrelay switch <id> --json
+agrelay refresh --json
+agrelay refresh <id> --json
+agrelay refresh --all --json
 
-relay autoswitch show --json
-relay autoswitch enable --json
-relay autoswitch disable --json
-relay autoswitch set --json --input-json autoswitch.json
+agrelay autoswitch show --json
+agrelay autoswitch enable --json
+agrelay autoswitch disable --json
+agrelay autoswitch set --json --input-json autoswitch.json
 ```
 
 Programmatic daemon transport:
 
 ```bash
-relay daemon --stdio
+agrelay daemon --stdio
 ```
 
-`relay daemon --stdio` exposes a single-client stdio JSON-RPC session intended for host programs such as the macOS menu bar app. The macOS app keeps this process alive, consumes push updates, and supervises restarts when needed.
+`agrelay daemon --stdio` exposes a single-client stdio JSON-RPC session intended for host programs such as the macOS menu bar app. The macOS app keeps this process alive, consumes push updates, and supervises restarts when needed.
 
 Observability:
 
 ```bash
-relay activity events list --limit 20 --json
-relay activity logs tail --lines 50 --json
-relay activity diagnostics export --json
+agrelay activity events list --limit 20 --json
+agrelay activity logs tail --lines 50 --json
+agrelay activity diagnostics export --json
 ```
 
 ## Troubleshooting
 
-If `relay doctor --json` reports no live Codex home:
+If `agrelay doctor --json` reports no live Codex home:
 
 - ensure `~/.codex` exists, or
-- set `CODEX_HOME` explicitly before running Relay
+- set `CODEX_HOME` explicitly before running AgentRelay
 
 If switching fails:
 
-- inspect `relay activity logs tail --json`
-- inspect `relay activity events list --json`
-- export a bundle with `relay activity diagnostics export --json`
+- inspect `agrelay activity logs tail --json`
+- inspect `agrelay activity events list --json`
+- export a bundle with `agrelay activity diagnostics export --json`
 
 If you want deterministic test runs:
 
-- set both `RELAY_HOME` and `CODEX_HOME` to temp directories
+- set both `AGRELAY_HOME` and `CODEX_HOME` to temp directories
 
 If `relay.db` is lost but `profiles/` still contains saved Codex homes:
 
-- run `relay codex recover --json` to rebuild database profile records from those snapshots
+- run `agrelay codex recover --json` to rebuild database profile records from those snapshots
 
 ## Additional References
 

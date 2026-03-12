@@ -48,14 +48,14 @@ cross-linker are already installed locally.
 Run the CLI directly from source:
 
 ```bash
-cargo run -p relay-cli --bin relay -- --help
+cargo run -p agrelay-cli --bin agrelay -- --help
 ```
 
 Run with isolated state:
 
 ```bash
-RELAY_HOME=/tmp/relay-dev CODEX_HOME=/tmp/codex-dev \
-  cargo run -p relay-cli --bin relay -- doctor --json
+AGRELAY_HOME=/tmp/agrelay-dev CODEX_HOME=/tmp/codex-dev \
+  cargo run -p agrelay-cli --bin agrelay -- doctor --json
 ```
 
 `relay-cli` now runs on a Tokio entrypoint because `relay-core` uses SeaORM's async database API and reuses a single store connection per app bootstrap.
@@ -95,8 +95,8 @@ Before cutting a release:
 2. run `cargo clippy --workspace --all-targets -- -D warnings`
 3. run `cargo test`
 4. verify `cargo install --path apps/relay-cli`
-5. smoke test `relay doctor --json`
-6. smoke test `relay switch` against temp Codex homes
+5. smoke test `agrelay doctor --json`
+6. smoke test `agrelay switch` against temp Codex homes
 
 ## Supporting Docs
 

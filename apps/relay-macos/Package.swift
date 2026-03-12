@@ -12,8 +12,8 @@ let package = Package(
             targets: ["RelayMacOSUI"]
         ),
         .executable(
-            name: "RelayMacOS",
-            targets: ["RelayMacOS"]
+            name: "AgentRelay",
+            targets: ["AgentRelay"]
         ),
     ],
     dependencies: [
@@ -34,7 +34,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "RelayMacOS",
+            name: "AgentRelay",
             dependencies: [
                 "RelayMacOSUI",
                 "Defaults",

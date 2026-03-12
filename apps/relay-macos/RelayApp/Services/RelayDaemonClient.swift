@@ -598,7 +598,7 @@ actor RelayDaemonClient {
         pendingTimeouts.removeValue(forKey: id)?.cancel()
         continuation.resume(throwing: RelayCLIClientError.commandFailed(
             code: "RELAY_DAEMON_TIMEOUT",
-            message: "relay daemon request timed out after \(Self.formatTimeout(timeoutSeconds)) seconds"
+            message: "daemon request timed out after \(Self.formatTimeout(timeoutSeconds)) seconds"
         ))
     }
 
@@ -617,7 +617,7 @@ actor RelayDaemonClient {
         }
         let error = RelayCLIClientError.commandFailed(
             code: "RELAY_DAEMON_EXITED",
-            message: "relay daemon exited with status \(process.terminationStatus)"
+            message: "daemon exited with status \(process.terminationStatus)"
         )
         for continuation in pending.values {
             continuation.resume(throwing: error)
@@ -626,7 +626,7 @@ actor RelayDaemonClient {
         continuation.yield(.healthUpdated(
             HealthUpdatedNotification(
                 state: .degraded,
-                detail: "Relay engine exited."
+                detail: "AgentRelay engine exited."
             )
         ))
         cleanupProcessState()
@@ -663,7 +663,7 @@ actor RelayDaemonClient {
     }
 
     private func resolvedRelayCLIPath() throws -> String {
-        if let override = relayCLIPathOverride ?? environment["RELAY_CLI_PATH"], !override.isEmpty {
+        if let override = relayCLIPathOverride ?? environment["AGRELAY_CLI_PATH"], !override.isEmpty {
             return override
         }
 
@@ -684,7 +684,7 @@ actor RelayDaemonClient {
         }
 
         for directory in path.split(separator: ":") {
-            let candidate = String(directory) + "/relay"
+            let candidate = String(directory) + "/agrelay"
             if FileManager.default.isExecutableFile(atPath: candidate) {
                 return candidate
             }
@@ -696,7 +696,7 @@ actor RelayDaemonClient {
     private func bundledRelayCandidates() -> [String] {
         var candidates: [String] = []
 
-        if let resourcePath = Bundle.main.path(forResource: "relay", ofType: nil, inDirectory: "bin") {
+        if let resourcePath = Bundle.main.path(forResource: "agrelay", ofType: nil, inDirectory: "bin") {
             candidates.append(resourcePath)
         }
 
@@ -704,7 +704,7 @@ actor RelayDaemonClient {
             candidates.append(
                 resourceURL
                     .appending(path: "bin", directoryHint: .isDirectory)
-                    .appending(path: "relay")
+                    .appending(path: "agrelay")
                     .path(percentEncoded: false)
             )
         }
@@ -716,7 +716,7 @@ actor RelayDaemonClient {
                 contentsDir
                     .appending(path: "Resources", directoryHint: .isDirectory)
                     .appending(path: "bin", directoryHint: .isDirectory)
-                    .appending(path: "relay")
+                    .appending(path: "agrelay")
                     .path(percentEncoded: false)
             )
         }
@@ -727,7 +727,7 @@ actor RelayDaemonClient {
                     .appending(path: "Contents", directoryHint: .isDirectory)
                     .appending(path: "Resources", directoryHint: .isDirectory)
                     .appending(path: "bin", directoryHint: .isDirectory)
-                    .appending(path: "relay")
+                    .appending(path: "agrelay")
                     .path(percentEncoded: false)
             )
         }

@@ -1,6 +1,6 @@
-# Relay
+# AgentRelay
 
-Relay is a CLI-first local profile orchestrator for coding agents.
+AgentRelay is a CLI-first local profile orchestrator for coding agents.
 
 V1 currently targets `Codex` and provides:
 
@@ -12,9 +12,9 @@ V1 currently targets `Codex` and provides:
 - event history
 - log tailing
 - diagnostics export
-- a native macOS menu bar control plane that supervises a persistent Relay daemon over JSON-RPC
+- a native macOS menu bar control plane that supervises a persistent AgentRelay daemon over JSON-RPC
 
-The CLI remains the only execution layer. The macOS menu bar app is a native control plane that supervises `relay daemon --stdio` and communicates over stdio JSON-RPC.
+The CLI remains the only execution layer. The macOS menu bar app is a native control plane that supervises `agrelay daemon --stdio` and communicates over stdio JSON-RPC.
 
 ## Status
 
@@ -23,38 +23,38 @@ The V1 CLI is implemented and tested.
 Implemented command groups:
 
 ```bash
-relay doctor
-relay status
-relay settings show
-relay settings set
-relay daemon --stdio
+agrelay doctor
+agrelay status
+agrelay settings show
+agrelay settings set
+agrelay daemon --stdio
 
-relay list
-relay show
-relay show <id>
-relay edit <id>
-relay remove <id>
-relay enable <id>
-relay disable <id>
-relay switch
-relay switch <id>
-relay refresh
-relay refresh <id>
-relay refresh --all
-relay autoswitch show
-relay autoswitch enable
-relay autoswitch disable
-relay autoswitch set
+agrelay list
+agrelay show
+agrelay show <id>
+agrelay edit <id>
+agrelay remove <id>
+agrelay enable <id>
+agrelay disable <id>
+agrelay switch
+agrelay switch <id>
+agrelay refresh
+agrelay refresh <id>
+agrelay refresh --all
+agrelay autoswitch show
+agrelay autoswitch enable
+agrelay autoswitch disable
+agrelay autoswitch set
 
-relay activity events list
-relay activity logs tail
-relay activity diagnostics export
+agrelay activity events list
+agrelay activity logs tail
+agrelay activity diagnostics export
 
-relay codex add
-relay codex import
-relay codex login
-relay codex recover
-relay codex relink <id>
+agrelay codex add
+agrelay codex import
+agrelay codex login
+agrelay codex recover
+agrelay codex relink <id>
 ```
 
 ## Install
@@ -70,7 +70,7 @@ Install from this repository:
 cargo install --path apps/relay-cli
 ```
 
-If `relay` is not found afterwards, add Cargo's bin directory to your shell path:
+If `agrelay` is not found afterwards, add Cargo's bin directory to your shell path:
 
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -81,66 +81,66 @@ export PATH="$HOME/.cargo/bin:$PATH"
 Inspect the environment:
 
 ```bash
-relay doctor --json
+agrelay doctor --json
 ```
 
-Use an isolated Relay home while testing:
+Use an isolated AgentRelay home while testing:
 
 ```bash
-export RELAY_HOME=/tmp/relay-demo
-relay status --json
+export AGRELAY_HOME=/tmp/agrelay-demo
+agrelay status --json
 ```
 
 Add a profile from an existing Codex home:
 
 ```bash
-relay codex add \
+agrelay codex add \
   --nickname work \
   --agent-home /path/to/codex-home \
   --json
 ```
 
-Import the currently live Codex profile into Relay-managed storage:
+Import the currently live Codex profile into AgentRelay-managed storage:
 
 ```bash
-relay codex import --nickname imported-live --json
+agrelay codex import --nickname imported-live --json
 ```
 
-Rebuild database profile records from saved Relay snapshots after `relay.db` loss:
+Rebuild database profile records from saved AgentRelay snapshots after `relay.db` loss:
 
 ```bash
-relay codex recover --json
+agrelay codex recover --json
 ```
 
 Activate profiles:
 
 ```bash
-relay list --json
-relay switch <profile-id> --json
-relay switch --json
+agrelay list --json
+agrelay switch <profile-id> --json
+agrelay switch --json
 ```
 
 Inspect runtime state:
 
 ```bash
-relay show --json
-relay refresh --json
-relay activity events list --limit 20 --json
-relay activity logs tail --lines 50 --json
-relay activity diagnostics export --json
+agrelay show --json
+agrelay refresh --json
+agrelay activity events list --limit 20 --json
+agrelay activity logs tail --lines 50 --json
+agrelay activity diagnostics export --json
 ```
 
 Programmatic clients can also start a persistent daemon session:
 
 ```bash
-relay daemon --stdio
+agrelay daemon --stdio
 ```
 
 The daemon speaks newline-delimited JSON-RPC 2.0 on `stdin` and `stdout`. It is intended for the macOS app and other host programs, not for interactive human terminal use.
 
 ## How It Works
 
-Relay does not replace the whole `~/.codex` directory.
+AgentRelay does not replace the whole `~/.codex` directory.
 
 For V1 it manages a narrow file set:
 
@@ -165,8 +165,8 @@ Common commands:
 ```bash
 just fmt
 cargo test
-cargo run -p relay-cli --bin relay -- --help
-cargo run -p relay-cli --bin relay -- daemon --stdio
+cargo run -p agrelay-cli --bin agrelay -- --help
+cargo run -p agrelay-cli --bin agrelay -- daemon --stdio
 ```
 
 SeaORM workflow:
@@ -177,9 +177,9 @@ SeaORM workflow:
 cargo test
 ```
 
-Relay now uses SeaORM 2.x entity-first schema sync. The entities in
+AgentRelay now uses SeaORM 2.x entity-first schema sync. The entities in
 `relay-core` are the schema source of truth. If a local dev database predates
-the current entity-first layout, remove `relay.db` and let Relay recreate it on
+the current entity-first layout, remove `relay.db` and let AgentRelay recreate it on
 next bootstrap.
 
 Additional docs:

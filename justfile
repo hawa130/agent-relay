@@ -27,17 +27,17 @@ release:
     mkdir -p "{{dist_dir}}"
     just fmt-check
     just test-rust
-    cargo build --release -p relay-cli --bin relay
-    cp "target/release/relay" "{{dist_dir}}/relay"
-    chmod +x "{{dist_dir}}/relay"
-    @echo "built cli: {{dist_dir}}/relay"
+    cargo build --release -p agrelay-cli --bin agrelay
+    cp "target/release/agrelay" "{{dist_dir}}/agrelay"
+    chmod +x "{{dist_dir}}/agrelay"
+    @echo "built cli: {{dist_dir}}/agrelay"
 
 cli target:
     mkdir -p "{{dist_dir}}/cli/{{target}}"
-    cargo build --release -p relay-cli --bin relay --target "{{target}}"
-    cp "target/{{target}}/release/relay" "{{dist_dir}}/cli/{{target}}/relay"
-    chmod +x "{{dist_dir}}/cli/{{target}}/relay"
-    @echo "built cli: {{dist_dir}}/cli/{{target}}/relay"
+    cargo build --release -p agrelay-cli --bin agrelay --target "{{target}}"
+    cp "target/{{target}}/release/agrelay" "{{dist_dir}}/cli/{{target}}/agrelay"
+    chmod +x "{{dist_dir}}/cli/{{target}}/agrelay"
+    @echo "built cli: {{dist_dir}}/cli/{{target}}/agrelay"
 
 macos:
     just cli "{{macos_target}}"

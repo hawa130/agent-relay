@@ -137,11 +137,11 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
 private struct RelayFixtureEnvironment {
     let relayCLIPath: String
     let fixtureMode: String?
-    let originalRelayCLIPath = getenv("RELAY_CLI_PATH").map { String(cString: $0) }
+    let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
     let originalFixtureMode = getenv("RELAY_FIXTURE_MODE").map { String(cString: $0) }
 
     func install() {
-        setenv("RELAY_CLI_PATH", relayCLIPath, 1)
+        setenv("AGRELAY_CLI_PATH", relayCLIPath, 1)
         if let fixtureMode {
             setenv("RELAY_FIXTURE_MODE", fixtureMode, 1)
         } else {
@@ -151,9 +151,9 @@ private struct RelayFixtureEnvironment {
 
     func uninstall() {
         if let originalRelayCLIPath {
-            setenv("RELAY_CLI_PATH", originalRelayCLIPath, 1)
+            setenv("AGRELAY_CLI_PATH", originalRelayCLIPath, 1)
         } else {
-            unsetenv("RELAY_CLI_PATH")
+            unsetenv("AGRELAY_CLI_PATH")
         }
         if let originalFixtureMode {
             setenv("RELAY_FIXTURE_MODE", originalFixtureMode, 1)

@@ -42,7 +42,7 @@ Do not reintroduce tiny crates for `types`, `store`, `platform`, or `adapters` u
 ## Architecture Rules
 
 - CLI is the only execution layer for profile management, switching, validation, and diagnostics.
-- UI code must call `relay` CLI commands and parse JSON output; it must not mutate live agent files directly.
+- UI code must call `agrelay` CLI commands and parse JSON output; it must not mutate live agent files directly.
 - All user-visible commands must support `--json`.
 - Parameterized UI-to-CLI calls should prefer JSON input instead of rebuilding flag combinations ad hoc.
 - Errors exposed to callers must use stable project error codes.
@@ -55,7 +55,7 @@ Do not reintroduce tiny crates for `types`, `store`, `platform`, or `adapters` u
 
 ## Product Boundaries
 
-Relay is intentionally limited:
+AgentRelay is intentionally limited:
 
 - Support `Codex` first.
 - Focus on local profile management, safe switching, rollback, usage visibility, and diagnostics.

@@ -85,7 +85,7 @@ public final class RelayAppModel: ObservableObject {
     }
 
     public var menuBarTitle: String {
-        activeProfile?.nickname ?? "Relay"
+        activeProfile?.nickname ?? "AgentRelay"
     }
 
     var activeProfileId: String? {
@@ -176,7 +176,7 @@ public final class RelayAppModel: ObservableObject {
         } catch {
             if notifyOnFailure {
                 await notificationService.post(
-                    title: "Relay refresh failed",
+                    title: "Refresh failed",
                     body: error.localizedDescription
                 )
             }
@@ -198,12 +198,12 @@ public final class RelayAppModel: ObservableObject {
             let report = try await daemonClient.switchToProfile(profileId)
             selectProfile(profileId)
             await notificationService.post(
-                title: "Relay switched profile",
+                title: "Profile switched",
                 body: report.message
             )
         } catch {
             await notificationService.post(
-                title: "Relay switch failed",
+                title: "Switch failed",
                 body: error.localizedDescription
             )
         }
@@ -224,7 +224,7 @@ public final class RelayAppModel: ObservableObject {
                 previousCodexSettings: previousCodexSettings
             )
             await notificationService.post(
-                title: "Relay settings update failed",
+                title: "Settings update failed",
                 body: error.localizedDescription
             )
         }
@@ -245,7 +245,7 @@ public final class RelayAppModel: ObservableObject {
                 previousCodexSettings: previousCodexSettings
             )
             await notificationService.post(
-                title: "Relay settings update failed",
+                title: "Settings update failed",
                 body: error.localizedDescription
             )
         }
@@ -266,7 +266,7 @@ public final class RelayAppModel: ObservableObject {
                 previousCodexSettings: previousCodexSettings
             )
             await notificationService.post(
-                title: "Relay settings update failed",
+                title: "Settings update failed",
                 body: error.localizedDescription
             )
         }
@@ -285,7 +285,7 @@ public final class RelayAppModel: ObservableObject {
         }
         do {
             try await ensureSessionStateLoaded()
-            triggerBackgroundQuery([.usageProfile(profileId)], failureTitle: "Relay usage refresh failed") { [daemonClient] in
+            triggerBackgroundQuery([.usageProfile(profileId)], failureTitle: "Usage refresh failed") { [daemonClient] in
                 _ = try await daemonClient.refreshUsage(profileId: profileId)
             }
         } catch {
@@ -433,7 +433,7 @@ public final class RelayAppModel: ObservableObject {
             diagnosticsExport = try await daemonClient.exportDiagnostics()
         } catch {
             await notificationService.post(
-                title: "Relay diagnostics export failed",
+                title: "Diagnostics export failed",
                 body: error.localizedDescription
             )
         }
@@ -456,7 +456,7 @@ public final class RelayAppModel: ObservableObject {
         } catch {
             engineConnectionState = .degraded
             await notificationService.post(
-                title: "Relay engine restart failed",
+                title: "Engine restart failed",
                 body: error.localizedDescription
             )
         }
@@ -479,7 +479,7 @@ public final class RelayAppModel: ObservableObject {
             try await operation()
         } catch {
             await notificationService.post(
-                title: "Relay profile update failed",
+                title: "Profile update failed",
                 body: error.localizedDescription
             )
         }
@@ -502,7 +502,7 @@ public final class RelayAppModel: ObservableObject {
                 previousCodexSettings: previousCodexSettings
             )
             await notificationService.post(
-                title: "Relay Codex settings update failed",
+                title: "Codex settings update failed",
                 body: error.localizedDescription
             )
         }
@@ -589,7 +589,7 @@ public final class RelayAppModel: ObservableObject {
             if payload.trigger == .auto {
                 Task {
                     await notificationService.post(
-                        title: "Relay auto-switched profile",
+                        title: "Profile auto-switched",
                         body: payload.report.message
                     )
                 }
@@ -599,7 +599,7 @@ public final class RelayAppModel: ObservableObject {
             if payload.trigger == .auto {
                 Task {
                     await notificationService.post(
-                        title: "Relay auto-switch failed",
+                        title: "Auto-switch failed",
                         body: payload.message
                     )
                 }
@@ -618,14 +618,14 @@ public final class RelayAppModel: ObservableObject {
 
     private func triggerRefreshEnabledUsage(notifyOnFailure: Bool) {
         bulkUsageRefreshRequested = true
-        triggerBackgroundQuery([.usageAll], failureTitle: notifyOnFailure ? "Relay refresh failed" : nil) { [daemonClient] in
+        triggerBackgroundQuery([.usageAll], failureTitle: notifyOnFailure ? "Refresh failed" : nil) { [daemonClient] in
             _ = try await daemonClient.refreshEnabledUsage()
         }
     }
 
     private func triggerRefreshAllUsage(notifyOnFailure: Bool) {
         bulkUsageRefreshRequested = true
-        triggerBackgroundQuery([.usageAll], failureTitle: notifyOnFailure ? "Relay refresh failed" : nil) { [daemonClient] in
+        triggerBackgroundQuery([.usageAll], failureTitle: notifyOnFailure ? "Refresh failed" : nil) { [daemonClient] in
             _ = try await daemonClient.refreshAllUsage()
         }
     }
@@ -704,7 +704,7 @@ public final class RelayAppModel: ObservableObject {
     private func triggerRefreshActivity(notifyOnFailure: Bool) {
         triggerBackgroundQuery(
             [.activityEvents, .activityLogs],
-            failureTitle: notifyOnFailure ? "Relay activity refresh failed" : nil
+            failureTitle: notifyOnFailure ? "Activity refresh failed" : nil
         ) { [daemonClient] in
             _ = try await daemonClient.refreshActivity()
         }
@@ -713,7 +713,7 @@ public final class RelayAppModel: ObservableObject {
     private func triggerRefreshDoctor(notifyOnFailure: Bool) {
         triggerBackgroundQuery(
             [.doctor],
-            failureTitle: notifyOnFailure ? "Relay diagnostics refresh failed" : nil
+            failureTitle: notifyOnFailure ? "Diagnostics refresh failed" : nil
         ) { [daemonClient] in
             _ = try await daemonClient.refreshDoctor()
         }
@@ -823,7 +823,7 @@ public final class RelayAppModel: ObservableObject {
             return
         case let .failed(detail):
             await notificationService.post(
-                title: "Relay profile update failed",
+                title: "Profile update failed",
                 body: detail
             )
         }

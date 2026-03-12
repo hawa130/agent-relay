@@ -3,6 +3,20 @@ import XCTest
 @testable import RelayMacOSUI
 
 final class RelayCLIClientTests: XCTestCase {
+    func testEmptyPayloadErrorUsesAgrelayName() async throws {
+        let fixture = try RelayCLIFixture.make(mode: .emptyPayload)
+        defer { fixture.cleanup() }
+
+        let client = RelayCLIClient(relayCLIPathOverride: fixture.scriptPath, environment: [:])
+
+        await XCTAssertThrowsErrorAsync(try await client.fetchStatus()) { error in
+            guard case let RelayCLIClientError.emptyOutput(message) = error else {
+                return XCTFail("unexpected error: \(error)")
+            }
+            XCTAssertEqual(message, "agrelay returned no data payload.")
+        }
+    }
+
     func testFetchCurrentUsageAndProfileListUseNewCommands() async throws {
         let fixture = try RelayCLIFixture.make()
         defer { fixture.cleanup() }
@@ -119,19 +133,28 @@ final class RelayCLIClientTests: XCTestCase {
 }
 
 private struct RelayCLIFixture {
+    enum Mode {
+        case normal
+        case emptyPayload
+    }
+
     let root: URL
     let scriptPath: String
     let payloadPath: String
     let cancelledPath: String
 
-    static func make() throws -> Self {
+    static func make(mode: Mode = .normal) throws -> Self {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
             "relay-cli-client-tests-\(UUID().uuidString)",
             isDirectory: true
         )
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let scriptURL = root.appendingPathComponent("relay-fixture.sh")
-        try fixtureScript.data(using: .utf8)!.write(to: scriptURL)
+        let script = switch mode {
+        case .normal: fixtureScript
+        case .emptyPayload: emptyPayloadFixtureScript
+        }
+        try script.data(using: .utf8)!.write(to: scriptURL)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
         return Self(
             root: root,
@@ -157,6 +180,21 @@ private struct RelayCLIFixture {
         }
 
         return false
+    }
+}
+
+@MainActor
+private func XCTAssertThrowsErrorAsync<T>(
+    _ expression: @autoclosure () async throws -> T,
+    _ verify: (Error) -> Void,
+    file: StaticString = #filePath,
+    line: UInt = #line
+) async {
+    do {
+        _ = try await expression()
+        XCTFail("expected error", file: file, line: line)
+    } catch {
+        verify(error)
     }
 }
 
@@ -234,6 +272,24 @@ EOF
   *)
     cat <<EOF
 {"success":false,"error_code":"BAD_COMMAND","message":"unexpected command: $cmd","data":null}
+EOF
+    ;;
+esac
+"""
+
+private let emptyPayloadFixtureScript = """
+#!/bin/sh
+set -eu
+
+case "$*" in
+  "--json status")
+    cat <<'EOF'
+{"success":true,"error_code":null,"message":"status loaded","data":null}
+EOF
+    ;;
+  *)
+    cat <<'EOF'
+{"success":true,"error_code":null,"message":"ok","data":{}}
 EOF
     ;;
 esac

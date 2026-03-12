@@ -214,7 +214,7 @@ struct RelayCLIClient {
     }
 
     private func resolvedRelayCLIPath() throws -> String {
-        if let override = relayCLIPathOverride ?? environment["RELAY_CLI_PATH"], !override.isEmpty {
+        if let override = relayCLIPathOverride ?? environment["AGRELAY_CLI_PATH"], !override.isEmpty {
             return override
         }
 
@@ -237,7 +237,7 @@ struct RelayCLIClient {
         }
 
         for directory in path.split(separator: ":") {
-            let candidate = String(directory) + "/relay"
+            let candidate = String(directory) + "/agrelay"
             if FileManager.default.isExecutableFile(atPath: candidate) {
                 return candidate
             }
@@ -249,7 +249,7 @@ struct RelayCLIClient {
     private func bundledRelayCandidates() -> [String] {
         var candidates: [String] = []
 
-        if let resourcePath = Bundle.main.path(forResource: "relay", ofType: nil, inDirectory: "bin") {
+        if let resourcePath = Bundle.main.path(forResource: "agrelay", ofType: nil, inDirectory: "bin") {
             candidates.append(resourcePath)
         }
 
@@ -257,7 +257,7 @@ struct RelayCLIClient {
             candidates.append(
                 resourceURL
                     .appending(path: "bin", directoryHint: .isDirectory)
-                    .appending(path: "relay")
+                    .appending(path: "agrelay")
                     .path(percentEncoded: false)
             )
         }
@@ -269,7 +269,7 @@ struct RelayCLIClient {
                 contentsDir
                     .appending(path: "Resources", directoryHint: .isDirectory)
                     .appending(path: "bin", directoryHint: .isDirectory)
-                    .appending(path: "relay")
+                    .appending(path: "agrelay")
                     .path(percentEncoded: false)
             )
         }
@@ -280,7 +280,7 @@ struct RelayCLIClient {
                     .appending(path: "Contents", directoryHint: .isDirectory)
                     .appending(path: "Resources", directoryHint: .isDirectory)
                     .appending(path: "bin", directoryHint: .isDirectory)
-                    .appending(path: "relay")
+                    .appending(path: "agrelay")
                     .path(percentEncoded: false)
             )
         }
@@ -383,7 +383,7 @@ private func runRelayProcess<Response: Decodable & Sendable>(
     }
 
     guard let data = envelope.data else {
-        throw RelayCLIClientError.emptyOutput("Relay returned no data payload.")
+        throw RelayCLIClientError.emptyOutput("agrelay returned no data payload.")
     }
 
     return data
@@ -480,17 +480,17 @@ enum RelayCLIClientError: LocalizedError {
         switch self {
         case let .relayNotFound(candidates):
             if candidates.isEmpty {
-                return "Relay CLI not found. Rebuild the app bundle or set RELAY_CLI_PATH to a relay executable."
+                return "AgentRelay CLI not found. Rebuild the app bundle or set AGRELAY_CLI_PATH to an agrelay executable."
             }
-            return "Relay CLI not found. Checked: \(candidates.joined(separator: ", "))"
+            return "AgentRelay CLI not found. Checked: \(candidates.joined(separator: ", "))"
         case let .launchFailed(message):
-            return "Failed to launch relay CLI: \(message)"
+            return "Failed to launch AgentRelay CLI: \(message)"
         case let .emptyOutput(message):
-            return message.isEmpty ? "Relay CLI returned no output." : message
+            return message.isEmpty ? "AgentRelay CLI returned no output." : message
         case let .decodeFailed(message):
-            return "Failed to decode relay JSON: \(message)"
+            return "Failed to decode AgentRelay JSON: \(message)"
         case let .invalidResponse(message):
-            return "Relay CLI returned an unexpected payload: \(message)"
+            return "AgentRelay CLI returned an unexpected payload: \(message)"
         case let .commandFailed(code, message):
             if let code {
                 return "\(code): \(message)"

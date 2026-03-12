@@ -4,7 +4,7 @@ Use this checklist before releases that change switching, storage, diagnostics, 
 
 ## Secrets
 
-- Confirm Relay does not log raw auth tokens, cookies, or credential blobs.
+- Confirm AgentRelay does not log raw auth tokens, cookies, or credential blobs.
 - Confirm diagnostics export redacts secrets and sensitive user paths where intended.
 - Confirm SQLite records do not persist plaintext credentials beyond documented metadata.
 - Confirm example commands and docs avoid encouraging unsafe secret handling.
@@ -19,9 +19,9 @@ Use this checklist before releases that change switching, storage, diagnostics, 
 
 ## Filesystem Boundaries
 
-- Confirm Relay writes only under `RELAY_HOME` and the user-level live Codex home.
-- Confirm profile removal only deletes Relay-managed profile directories.
-- Confirm diagnostics export stays within Relay-managed export paths.
+- Confirm AgentRelay writes only under `AGRELAY_HOME` and the user-level live Codex home.
+- Confirm profile removal only deletes AgentRelay-managed profile directories.
+- Confirm diagnostics export stays within AgentRelay-managed export paths.
 
 ## CLI / JSON Contract
 
@@ -34,5 +34,5 @@ Use this checklist before releases that change switching, storage, diagnostics, 
 - Run `cargo fmt --all --check`
 - Run `cargo clippy --workspace --all-targets -- -D warnings`
 - Run `cargo test`
-- Smoke test `relay doctor --json`
+- Smoke test `agrelay doctor --json`
 - Smoke test one successful switch and one rollback path with temp homes

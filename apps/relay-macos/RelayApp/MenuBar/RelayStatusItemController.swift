@@ -184,7 +184,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         ))
 
         let quit = makeActionItem(
-            title: "Quit Relay",
+            title: "Quit",
             systemImage: "power",
             action: #selector(quitApp)
         )

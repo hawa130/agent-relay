@@ -509,7 +509,7 @@ impl DaemonService {
         serialize(InitializeResult {
             protocol_version: "1".into(),
             server_info: RpcServerInfo {
-                name: "relay".into(),
+                name: "agrelay".into(),
                 version: env!("CARGO_PKG_VERSION").into(),
             },
             capabilities: RpcServerCapabilities {

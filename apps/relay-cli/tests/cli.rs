@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use tempfile::tempdir;
 
 fn relay_bin() -> &'static str {
-    env!("CARGO_BIN_EXE_relay")
+    env!("CARGO_BIN_EXE_agrelay")
 }
 
 fn make_codex_home(path: &Path, label: &str) {
@@ -118,7 +118,7 @@ fn run_json_with_env(
 ) -> Value {
     let output = Command::new(relay_bin())
         .args(args)
-        .env("RELAY_HOME", relay_home)
+        .env("AGRELAY_HOME", relay_home)
         .env("CODEX_HOME", codex_home)
         .envs(envs.iter().copied())
         .output()
@@ -144,7 +144,7 @@ fn run_text_with_env(
 ) -> String {
     let output = Command::new(relay_bin())
         .args(args)
-        .env("RELAY_HOME", relay_home)
+        .env("AGRELAY_HOME", relay_home)
         .env("CODEX_HOME", codex_home)
         .envs(envs.iter().copied())
         .output()
@@ -161,7 +161,7 @@ fn run_text_with_env(
 fn run_failure(relay_home: &Path, codex_home: &Path, args: &[&str]) -> Value {
     let output = Command::new(relay_bin())
         .args(args)
-        .env("RELAY_HOME", relay_home)
+        .env("AGRELAY_HOME", relay_home)
         .env("CODEX_HOME", codex_home)
         .output()
         .expect("command output");
@@ -172,7 +172,7 @@ fn run_failure(relay_home: &Path, codex_home: &Path, args: &[&str]) -> Value {
 fn run_failure_raw(relay_home: &Path, codex_home: &Path, args: &[&str]) -> std::process::Output {
     Command::new(relay_bin())
         .args(args)
-        .env("RELAY_HOME", relay_home)
+        .env("AGRELAY_HOME", relay_home)
         .env("CODEX_HOME", codex_home)
         .output()
         .expect("command output")
@@ -218,7 +218,7 @@ fn run_json_with_stdin_env(
 ) -> Value {
     let mut child = Command::new(relay_bin())
         .args(args)
-        .env("RELAY_HOME", relay_home)
+        .env("AGRELAY_HOME", relay_home)
         .env("CODEX_HOME", codex_home)
         .envs(envs.iter().copied())
         .stdin(Stdio::piped())
@@ -251,7 +251,7 @@ fn run_failure_with_stdin(
 ) -> Value {
     let mut child = Command::new(relay_bin())
         .args(args)
-        .env("RELAY_HOME", relay_home)
+        .env("AGRELAY_HOME", relay_home)
         .env("CODEX_HOME", codex_home)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -388,13 +388,13 @@ fn profile_crud_and_auto_switch_commands_work() {
 fn top_level_help_lists_common_commands_first_with_descriptions() {
     let help = run_help(&["--help"]);
 
-    assert!(help.contains("status      Show current relay state and active profile"));
+    assert!(help.contains("status      Show current AgentRelay state and active profile"));
     assert!(help.contains("list        List managed profiles with usage summaries"));
     assert!(help.contains("show        Inspect one profile, or the current profile when omitted"));
     assert!(help.contains("switch      Activate a profile, or switch to the next eligible one"));
     assert!(help.contains("refresh     Refresh usage data for one or more profiles"));
     assert!(help.contains("codex       Manage Codex profiles, login flows, and settings"));
-    assert!(help.contains("doctor      Inspect relay environment, paths, and binary health"));
+    assert!(help.contains("doctor      Inspect AgentRelay environment, paths, and binary health"));
     assert!(help.contains("--json     Emit machine-readable JSON output"));
 
     assert_order(&help, "status", "codex");
@@ -424,7 +424,7 @@ fn nested_help_lists_subcommands_with_descriptions() {
 
     let activity_help = run_help(&["activity", "--help"]);
     assert!(activity_help.contains("events       Inspect recorded switch failures and cooldowns"));
-    assert!(activity_help.contains("logs         Read relay log output"));
+    assert!(activity_help.contains("logs         Read AgentRelay log output"));
     assert!(activity_help.contains("diagnostics  Export a diagnostic bundle for debugging"));
     assert_order(&activity_help, "events", "logs");
     assert_order(&activity_help, "logs", "diagnostics");
@@ -1160,7 +1160,7 @@ fn codex_login_device_auth_streams_instructions_to_stderr() {
             "--nickname",
             "browser",
         ])
-        .env("RELAY_HOME", &relay_home)
+        .env("AGRELAY_HOME", &relay_home)
         .env("CODEX_HOME", &live_codex_home)
         .env("PATH", path_env)
         .output()
@@ -1615,7 +1615,7 @@ impl DaemonHarness {
     fn spawn_with_env(relay_home: &Path, codex_home: &Path, envs: &[(&str, &str)]) -> Self {
         let mut child = Command::new(relay_bin())
             .args(["daemon", "--stdio"])
-            .env("RELAY_HOME", relay_home)
+            .env("AGRELAY_HOME", relay_home)
             .env("CODEX_HOME", codex_home)
             .envs(envs.iter().copied())
             .stdin(Stdio::piped())

@@ -1,12 +1,12 @@
 [package]
-name = "relay-cli"
+name = "agrelay-cli"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "relay"
+name = "agrelay"
 path = "src/main.rs"
 
 [dependencies]
@@ -18,7 +18,7 @@ serde_json.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-relay-core = { path = "../../crates/relay-core" }
+relay-core = { package = "agrelay-core", path = "../../crates/relay-core" }
 
 [dev-dependencies]
 sea-orm.workspace = true

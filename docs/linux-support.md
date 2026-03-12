@@ -1,12 +1,12 @@
 # Linux Support Matrix
 
-Relay V1 keeps the CLI portable across macOS and Linux. The macOS menu bar app remains macOS-only.
+AgentRelay V1 keeps the CLI portable across macOS and Linux. The macOS menu bar app remains macOS-only.
 
 ## Support Matrix
 
 | Area | macOS | Linux |
 | --- | --- | --- |
-| `relay` CLI build | Supported | Supported |
+| `agrelay` CLI build | Supported | Supported |
 | SQLite-backed profile store | Supported | Supported |
 | File-backed active state/cache | Supported | Supported |
 | Codex home discovery via `CODEX_HOME` | Supported | Supported |
@@ -18,7 +18,7 @@ Relay V1 keeps the CLI portable across macOS and Linux. The macOS menu bar app r
 
 ## Assumptions
 
-- Linux users should prefer explicit `RELAY_HOME` and `CODEX_HOME` during initial setup and tests.
+- Linux users should prefer explicit `AGRELAY_HOME` and `CODEX_HOME` during initial setup and tests.
 - Secret handling on Linux remains file-reference and environment-reference focused in V1.
 - No Linux desktop shell integration is in scope for V1.
 
@@ -29,8 +29,8 @@ Minimum release gate:
 1. `cargo fmt --all --check`
 2. `cargo clippy --workspace --all-targets -- -D warnings`
 3. `cargo test`
-4. `RELAY_HOME=/tmp/relay-smoke cargo run -p relay-cli --bin relay -- doctor --json`
-5. `RELAY_HOME=/tmp/relay-smoke cargo run -p relay-cli --bin relay -- status --json`
+4. `AGRELAY_HOME=/tmp/agrelay-smoke cargo run -p agrelay-cli --bin agrelay -- doctor --json`
+5. `AGRELAY_HOME=/tmp/agrelay-smoke cargo run -p agrelay-cli --bin agrelay -- status --json`
 
 Linux smoke scenarios:
 
