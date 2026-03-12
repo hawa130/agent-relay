@@ -115,7 +115,7 @@ struct MenuBarProfilePickerItem: View {
             usage: usage,
             isActive: isActive
         ) {
-            return MenuBarHighlightStyle.severity(isHighlighted, severity: severity)
+            return MenuBarHighlightStyle.severityIcon(isHighlighted, severity: severity)
         }
 
         return MenuBarHighlightStyle.primary(isHighlighted)
@@ -131,7 +131,7 @@ struct MenuBarProfilePickerItem: View {
             usage: usage,
             isActive: isActive
         ) {
-            return MenuBarHighlightStyle.severity(isHighlighted, severity: severity)
+            return MenuBarHighlightStyle.severityText(isHighlighted, severity: severity)
         }
 
         return MenuBarHighlightStyle.secondary(isHighlighted)

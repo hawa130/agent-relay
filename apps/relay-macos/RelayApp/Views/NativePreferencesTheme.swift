@@ -2,6 +2,14 @@ import AppKit
 import SwiftUI
 
 public enum NativePreferencesTheme {
+    public enum StatusKind {
+        case success
+        case warning
+        case danger
+        case info
+        case neutral
+    }
+
     public enum Metrics {
         public static let windowWidth: CGFloat = 840
         public static let windowHeight: CGFloat = 600
@@ -51,23 +59,77 @@ public enum NativePreferencesTheme {
             }
         }
 
-        static func semanticAccent(_ kind: Badge.Kind) -> Color {
+        static func statusIcon(_ kind: NativePreferencesTheme.StatusKind) -> Color {
             switch kind {
             case .success:
-                return .green
+                return Color(nsColor: .systemGreen)
             case .warning:
-                return .orange
+                return Color(nsColor: .systemOrange)
             case .danger:
-                return .red
+                return Color(nsColor: .systemRed)
             case .info:
-                return .blue
+                return Color(nsColor: .systemBlue)
             case .neutral:
                 return .secondary
             }
         }
 
-        static func semanticFill(_ kind: Badge.Kind) -> Color {
-            NativePreferencesTheme.Badge.fill(kind)
+        static func statusText(_ kind: NativePreferencesTheme.StatusKind) -> Color {
+            switch kind {
+            case .success:
+                return Color(nsColor: .systemGreen)
+            case .warning:
+                return Color(nsColor: .systemOrange)
+            case .danger:
+                return Color(nsColor: .systemRed)
+            case .info:
+                return Color(nsColor: .systemBlue)
+            case .neutral:
+                return .secondary
+            }
+        }
+
+        static func statusFill(_ kind: NativePreferencesTheme.StatusKind) -> Color {
+            switch kind {
+            case .success:
+                return dynamicColor(
+                    light: NSColor(red: 0.82, green: 0.92, blue: 0.82, alpha: 1),
+                    dark: NSColor(red: 0.16, green: 0.29, blue: 0.18, alpha: 1)
+                )
+            case .warning:
+                return dynamicColor(
+                    light: NSColor(red: 0.98, green: 0.89, blue: 0.74, alpha: 1),
+                    dark: NSColor(red: 0.34, green: 0.24, blue: 0.08, alpha: 1)
+                )
+            case .danger:
+                return dynamicColor(
+                    light: NSColor(red: 0.97, green: 0.82, blue: 0.82, alpha: 1),
+                    dark: NSColor(red: 0.37, green: 0.13, blue: 0.14, alpha: 1)
+                )
+            case .info:
+                return dynamicColor(
+                    light: NSColor(red: 0.81, green: 0.88, blue: 0.98, alpha: 1),
+                    dark: NSColor(red: 0.15, green: 0.24, blue: 0.40, alpha: 1)
+                )
+            case .neutral:
+                return dynamicColor(
+                    light: NSColor(red: 0.88, green: 0.88, blue: 0.89, alpha: 1),
+                    dark: NSColor(red: 0.25, green: 0.25, blue: 0.26, alpha: 1)
+                )
+            }
+        }
+
+        private static func dynamicColor(light: NSColor, dark: NSColor) -> Color {
+            Color(
+                nsColor: NSColor(name: nil) { appearance in
+                    switch appearance.bestMatch(from: [.darkAqua, .aqua]) {
+                    case .darkAqua:
+                        return dark
+                    default:
+                        return light
+                    }
+                }
+            )
         }
     }
 

@@ -48,7 +48,7 @@ enum UsageCardNoteResolver {
 
         switch severity {
         case .warning:
-            return NativePreferencesTheme.Colors.semanticAccent(.warning)
+            return NativePreferencesTheme.Colors.statusText(.warning)
         }
     }
 }
@@ -345,7 +345,7 @@ public struct ProfilesSettingsPaneView: View {
                         HStack(spacing: 6) {
                             ProfileStatusBadge(
                                 title: profile.enabled ? "Enabled" : "Disabled",
-                                dotColor: profile.enabled ? NativePreferencesTheme.Colors.semanticAccent(.success) : NativePreferencesTheme.Colors.disabledIndicator
+                                dotColor: profile.enabled ? NativePreferencesTheme.Colors.statusIcon(.success) : NativePreferencesTheme.Colors.disabledIndicator
                             )
                             ProfileInfoBadge(title: "Priority", value: "\(profile.priority)")
                         }
@@ -691,7 +691,7 @@ struct ProfileListRowStatusIndicator: View {
             case let .warning(message):
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
+                    .foregroundStyle(NativePreferencesTheme.Colors.statusIcon(.warning))
                     .help(message)
             case .stale:
                 Image(systemName: "exclamationmark.triangle")
@@ -854,9 +854,9 @@ private struct ProfileAccountStatusDot: View {
     private var accountStatusColor: Color {
         switch accountState {
         case .healthy:
-            NativePreferencesTheme.Colors.semanticAccent(.success)
+            NativePreferencesTheme.Colors.statusIcon(.success)
         case .accountUnavailable:
-            NativePreferencesTheme.Colors.semanticAccent(.danger)
+            NativePreferencesTheme.Colors.statusIcon(.danger)
         }
     }
 
@@ -883,7 +883,7 @@ private struct ProfileCurrentStatusSection: View {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(NativePreferencesTheme.Colors.semanticAccent(.warning))
+                        .foregroundStyle(NativePreferencesTheme.Colors.statusIcon(.warning))
                         .padding(.top, 2)
 
                     VStack(alignment: .leading, spacing: 3) {
@@ -1359,9 +1359,9 @@ private struct AddProfileSheet: View {
             case .requesting:
                 return .secondary
             case .notSignedIn:
-                return NativePreferencesTheme.Colors.semanticAccent(.warning)
+                return NativePreferencesTheme.Colors.statusIcon(.warning)
             case .failed:
-                return NativePreferencesTheme.Colors.semanticAccent(.danger)
+                return NativePreferencesTheme.Colors.statusIcon(.danger)
             }
         }
 
@@ -1370,9 +1370,9 @@ private struct AddProfileSheet: View {
             case .requesting:
                 return NativePreferencesTheme.Colors.pendingFill
             case .notSignedIn:
-                return NativePreferencesTheme.Colors.semanticFill(.warning)
+                return NativePreferencesTheme.Colors.statusFill(.warning)
             case .failed:
-                return NativePreferencesTheme.Colors.semanticFill(.danger)
+                return NativePreferencesTheme.Colors.statusFill(.danger)
             }
         }
     }
