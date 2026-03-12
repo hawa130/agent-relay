@@ -249,7 +249,7 @@ private struct AgentSettingsDetailView: View {
     }
 }
 
-struct SettingsSurfaceCard<Content: View>: View {
+struct SectionSurfaceCard<Content: View>: View {
     let title: String?
     let headerAccessory: AnyView?
     let content: Content
@@ -269,7 +269,6 @@ struct SettingsSurfaceCard<Content: View>: View {
                             Text(title)
                                 .font(NativePreferencesTheme.Typography.sectionLabel)
                                 .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
-                                .textCase(.uppercase)
                         }
 
                         Spacer(minLength: 0)

@@ -132,7 +132,7 @@ pub(crate) fn render_profile_summary(detail: &ProfileDetail) -> String {
 
     if !detail.current_failure_events.is_empty() {
         sections.push((
-            "Current Status",
+            "Status",
             detail
                 .current_failure_events
                 .iter()
