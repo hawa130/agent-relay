@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{self, IsTerminal, Read};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use tracing_subscriber::EnvFilter;
 
@@ -786,7 +786,7 @@ fn log_lines_from_args(args: TailArgs) -> Result<usize, RelayError> {
     Ok(args.lines.unwrap_or(50))
 }
 
-fn ensure_json_input_is_exclusive(path: &PathBuf, conflicts: &[bool]) -> Result<(), RelayError> {
+fn ensure_json_input_is_exclusive(path: &Path, conflicts: &[bool]) -> Result<(), RelayError> {
     if conflicts.iter().any(|value| *value) {
         return Err(RelayError::InvalidInput(format!(
             "--input-json {} cannot be combined with inline command arguments",
@@ -796,7 +796,7 @@ fn ensure_json_input_is_exclusive(path: &PathBuf, conflicts: &[bool]) -> Result<
     Ok(())
 }
 
-fn read_json_input<T>(path: &PathBuf) -> Result<T, RelayError>
+fn read_json_input<T>(path: &Path) -> Result<T, RelayError>
 where
     T: for<'de> Deserialize<'de>,
 {

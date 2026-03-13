@@ -4,6 +4,7 @@ use relay_core::{
     RpcErrorResponse, RpcNotification, RpcRequest, RpcSuccessResponse,
 };
 use std::io::{self, BufRead, BufWriter, Write};
+use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
@@ -59,7 +60,7 @@ pub(crate) async fn run(command: &DaemonCommand) -> Result<(), RelayError> {
 
 async fn run_local() -> Result<(), RelayError> {
     let write_app = RelayApp::bootstrap_with_mode(BootstrapMode::ReadWrite).await?;
-    let read_app = Arc::new(RelayApp::bootstrap_with_mode(BootstrapMode::ReadOnly).await?);
+    let read_app = Rc::new(RelayApp::bootstrap_with_mode(BootstrapMode::ReadOnly).await?);
 
     let (request_tx, mut request_rx) = mpsc::unbounded_channel::<String>();
     let (notification_tx, notification_rx) = mpsc::unbounded_channel::<RpcNotification>();
@@ -102,7 +103,7 @@ async fn run_local() -> Result<(), RelayError> {
                 match serde_json::from_str::<RpcRequest>(&line) {
                     Ok(request) => {
                         if DaemonService::is_read_method(&request.method) {
-                            let read_app = Arc::clone(&read_app);
+                            let read_app = Rc::clone(&read_app);
                             let outbound_tx = outbound_tx.clone();
                             request_tasks.spawn_local(async move {
                                 let payload = render_read_response(read_app, request).await;
@@ -146,10 +147,8 @@ async fn run_local() -> Result<(), RelayError> {
                 write_line(&mut writer, &payload)?;
             }
             joined = request_tasks.join_next(), if !request_tasks.is_empty() => {
-                if let Some(result) = joined {
-                    if let Err(error) = result {
-                        return Err(RelayError::Internal(format!("daemon request worker failed: {error}")));
-                    }
+                if let Some(Err(error)) = joined {
+                    return Err(RelayError::Internal(format!("daemon request worker failed: {error}")));
                 }
             }
             result = &mut scheduler_task, if !scheduler_task_done => {
@@ -228,7 +227,7 @@ async fn run_notification_forwarder(
     }
 }
 
-async fn render_read_response(read_app: Arc<RelayApp>, request: RpcRequest) -> String {
+async fn render_read_response(read_app: Rc<RelayApp>, request: RpcRequest) -> String {
     let request_id = request.id.clone();
     match DaemonService::handle_read_request(read_app.as_ref(), request).await {
         Ok(response) => serialize_response(&response)

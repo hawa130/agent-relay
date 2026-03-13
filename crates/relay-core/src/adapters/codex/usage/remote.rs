@@ -2,9 +2,9 @@ use crate::internal::usage_policy::{
     apply_auto_switch_policy, build_usage_window, next_reset_at, unknown_usage_window,
 };
 use crate::models::{
-    AppSettings, FailureReason, Profile, ProfileAccountState, ProfileProbeIdentity, RelayError,
-    UsageConfidence, UsageRemoteError, UsageRemoteErrorKind, UsageSnapshot, UsageSource,
-    UsageWindow,
+    AppSettings, CodexOfficialProbeIdentity, FailureReason, Profile, ProfileAccountState,
+    ProfileProbeIdentity, RelayError, UsageConfidence, UsageRemoteError, UsageRemoteErrorKind,
+    UsageSnapshot, UsageSource, UsageWindow,
 };
 use crate::store::SqliteStore;
 use base64::Engine;
@@ -254,9 +254,9 @@ async fn refresh_probe_identity(
                 error,
             ))
         })?;
-    let updated = ProfileProbeIdentity::codex_official(
-        identity.profile_id.clone(),
-        identity
+    let updated = ProfileProbeIdentity::codex_official(CodexOfficialProbeIdentity {
+        profile_id: identity.profile_id.clone(),
+        account_id: identity
             .account_id()
             .map(ToOwned::to_owned)
             .ok_or_else(|| {
@@ -264,18 +264,18 @@ async fn refresh_probe_identity(
                     "probe identity is missing account_id".into(),
                 ))
             })?,
-        refreshed.access_token,
-        refreshed
+        access_token: refreshed.access_token,
+        refresh_token: refreshed
             .refresh_token
             .or_else(|| identity.refresh_token().map(ToOwned::to_owned)),
-        refreshed
+        id_token: refreshed
             .id_token
             .or_else(|| identity.id_token().map(ToOwned::to_owned)),
-        identity.email().map(ToOwned::to_owned),
-        identity.plan_hint().map(ToOwned::to_owned),
-        identity.created_at.clone(),
-        Utc::now().to_rfc3339(),
-    );
+        email: identity.email().map(ToOwned::to_owned),
+        plan_hint: identity.plan_hint().map(ToOwned::to_owned),
+        created_at: identity.created_at.clone(),
+        updated_at: Utc::now().to_rfc3339(),
+    });
 
     store
         .upsert_probe_identity(&updated)
@@ -553,7 +553,8 @@ mod tests {
         token_refresh_threshold, transport_failure,
     };
     use crate::models::{
-        AppSettings, ProfileProbeIdentity, UsageRemoteError, UsageRemoteErrorKind,
+        AppSettings, CodexOfficialProbeIdentity, ProfileProbeIdentity, UsageRemoteError,
+        UsageRemoteErrorKind,
     };
     use crate::store::SqliteStore;
     use base64::Engine;
@@ -707,17 +708,17 @@ mod tests {
 
     fn probe_identity(access_token: &str, refresh_token: Option<&str>) -> ProfileProbeIdentity {
         let now = Utc::now().to_rfc3339();
-        ProfileProbeIdentity::codex_official(
-            "p_test".into(),
-            "acct".into(),
-            access_token.into(),
-            refresh_token.map(str::to_string),
-            None,
-            Some("test@example.com".into()),
-            Some("plus".into()),
-            now.clone(),
-            now,
-        )
+        ProfileProbeIdentity::codex_official(CodexOfficialProbeIdentity {
+            profile_id: "p_test".into(),
+            account_id: "acct".into(),
+            access_token: access_token.into(),
+            refresh_token: refresh_token.map(str::to_string),
+            id_token: None,
+            email: Some("test@example.com".into()),
+            plan_hint: Some("plus".into()),
+            created_at: now.clone(),
+            updated_at: now,
+        })
     }
 
     fn jwt_with_expiry(expiry: chrono::DateTime<Utc>) -> String {
