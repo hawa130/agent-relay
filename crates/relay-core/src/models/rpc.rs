@@ -1,12 +1,9 @@
 use crate::CodexSettings;
 use crate::models::{
-    ActiveState, AppSettings, ErrorCode, FailureEvent, LogTail, ProfileDetail, ProfileListItem,
-    SwitchReport, SwitchTrigger, SystemStatusReport, UsageSnapshot,
+    ActiveState, AppSettings, ErrorCode, FailureEvent, LogTail, ProfileListItem, SwitchReport,
+    SwitchTrigger, SystemStatusReport, UsageSnapshot,
 };
-use crate::{
-    AddProfileRequest, AgentLoginRequest, CodexSettingsUpdateRequest, EditProfileRequest,
-    ImportProfileRequest, SystemSettingsUpdateRequest,
-};
+use crate::{AddProfileRequest, AgentLoginRequest, EditProfileRequest, ImportProfileRequest};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -231,16 +228,6 @@ pub struct TaskCancelResult {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SystemSettingsParams {
-    pub request: SystemSettingsUpdateRequest,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CodexSettingsParams {
-    pub request: CodexSettingsUpdateRequest,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ActivityEventsParams {
     pub limit: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -446,11 +433,6 @@ pub struct HealthUpdatedPayload {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UsageResult {
     pub snapshot: UsageSnapshot,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProfileResult {
-    pub profile: ProfileDetail,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

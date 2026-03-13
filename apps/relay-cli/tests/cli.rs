@@ -440,6 +440,14 @@ fn nested_help_lists_subcommands_with_descriptions() {
 }
 
 #[test]
+fn daemon_help_works_without_dispatch_error() {
+    let help = run_help(&["daemon", "--help"]);
+
+    assert!(help.contains("Run the AgentRelay daemon over stdio JSON-RPC"));
+    assert!(!help.contains("daemon command is handled before CLI dispatch"));
+}
+
+#[test]
 fn import_switch_events_logs_and_diagnostics_work() {
     let temp = tempdir().expect("tempdir");
     let relay_home = temp.path().join("relay");
@@ -561,6 +569,74 @@ fn import_switch_events_logs_and_diagnostics_work() {
         .as_str()
         .expect("archive path");
     assert!(Path::new(archive_path).exists());
+}
+
+#[test]
+fn daemon_activity_events_accepts_kebab_case_reason() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    let alternate_home = temp.path().join("alternate");
+    make_codex_home(&live_codex_home, "live");
+    make_codex_home(&alternate_home, "alternate");
+
+    let imported = run_json(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "codex", "import", "--nickname", "imported-live"],
+    );
+    let imported_id = imported["data"]["id"].as_str().expect("imported id");
+    let imported_home = Path::new(
+        imported["data"]["agent_home"]
+            .as_str()
+            .expect("imported agent home"),
+    );
+
+    run_json(
+        &relay_home,
+        &live_codex_home,
+        &[
+            "--json",
+            "codex",
+            "add",
+            "--nickname",
+            "alternate",
+            "--agent-home",
+            alternate_home.to_string_lossy().as_ref(),
+        ],
+    );
+
+    fs::remove_file(imported_home.join("config.toml")).expect("remove imported config");
+    let failure = run_failure(
+        &relay_home,
+        &live_codex_home,
+        &["--json", "switch", imported_id],
+    );
+    assert_eq!(failure["success"], false);
+
+    let mut daemon = DaemonHarness::spawn(&relay_home, &live_codex_home);
+    daemon.send_request(
+        "events-kebab",
+        "relay/activity/events/list",
+        serde_json::json!({ "limit": 10, "reason": "validation-failed" }),
+    );
+    let response = loop {
+        let message = daemon.read_message();
+        if message["id"] == "events-kebab" {
+            break message;
+        }
+    };
+    assert_eq!(
+        response["error"],
+        serde_json::Value::Null,
+        "unexpected rpc error: {response}"
+    );
+    let events = response["result"]["events"]
+        .as_array()
+        .expect("events array");
+    assert!(!events.is_empty());
+    assert_eq!(events[0]["reason"], "ValidationFailed");
+    daemon.shutdown();
 }
 
 #[test]

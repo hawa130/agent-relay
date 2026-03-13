@@ -54,9 +54,7 @@ fn bootstrap_mode_for_command(command: &Commands) -> BootstrapMode {
 
 async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
     match cli.command {
-        Commands::Daemon(_) => Err(RelayError::InvalidInput(
-            "daemon command is handled before CLI dispatch".into(),
-        )),
+        Commands::Daemon(_) => unreachable!("daemon command is handled before CLI dispatch entry"),
         Commands::Doctor => {
             let report = app.doctor_report()?;
             Ok(Output::success_rendered(

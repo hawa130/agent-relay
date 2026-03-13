@@ -291,6 +291,10 @@ impl DaemonService {
         &self,
         request: RpcRequest,
     ) -> Result<RpcSuccessResponse, crate::RpcErrorObject> {
+        if Self::is_read_method(&request.method) {
+            return Self::handle_read_request(&self.app, request).await;
+        }
+
         if request.jsonrpc != "2.0" {
             return Err(rpc_invalid_request("jsonrpc must equal 2.0"));
         }
@@ -299,30 +303,6 @@ impl DaemonService {
             "initialize" => self.handle_initialize(request.params).await?,
             "session/subscribe" => self.handle_subscribe(request.params).await?,
             "session/unsubscribe" => self.handle_unsubscribe(request.params).await?,
-            "relay/doctor/get" => {
-                serialize(self.app.doctor_report().map_err(|e| rpc_from_error(&e))?)?
-            }
-            "relay/status/get" => serialize(
-                self.app
-                    .system_status()
-                    .await
-                    .map_err(|e| rpc_from_error(&e))?,
-            )?,
-            "relay/profiles/list" => serialize(
-                self.app
-                    .list_profiles_with_usage()
-                    .await
-                    .map_err(|e| rpc_from_error(&e))?,
-            )?,
-            "relay/profiles/get" => {
-                let params: ProfileIdParams = parse_params(request.params)?;
-                serialize(
-                    self.app
-                        .profile_detail(&params.profile_id)
-                        .await
-                        .map_err(|e| rpc_from_error(&e))?,
-                )?
-            }
             "relay/profiles/add" => {
                 let _guard = self.profile_write_lock.lock().await;
                 let params: AddProfileParams = parse_params(request.params)?;
@@ -406,21 +386,6 @@ impl DaemonService {
                     .map_err(|e| rpc_internal_error(e.to_string()))?;
                 serialize(profile)?
             }
-            "relay/usage/get" => {
-                let params: UsageGetParams = parse_params(request.params)?;
-                let snapshot = if let Some(profile_id) = params.profile_id {
-                    self.app
-                        .profile_usage_report(&profile_id)
-                        .await
-                        .map_err(|e| rpc_from_error(&e))?
-                } else {
-                    self.app
-                        .usage_report()
-                        .await
-                        .map_err(|e| rpc_from_error(&e))?
-                };
-                serialize(UsageResult { snapshot })?
-            }
             "relay/usage/refresh" => serialize(self.handle_refresh(request.params).await?)?,
             "relay/activity/refresh" => serialize(self.handle_activity_refresh().await?)?,
             "relay/doctor/refresh" => serialize(self.handle_doctor_refresh().await?)?,
@@ -447,41 +412,10 @@ impl DaemonService {
                     .await?,
                 )?
             }
-            "relay/settings/get" => serialize(SettingsResult {
-                app: self.app.settings().await.map_err(|e| rpc_from_error(&e))?,
-                codex: self
-                    .app
-                    .codex_settings()
-                    .await
-                    .map_err(|e| rpc_from_error(&e))?,
-            })?,
             "relay/settings/update" => {
                 serialize(self.handle_settings_update(request.params).await?)?
             }
             "relay/tasks/cancel" => serialize(self.handle_task_cancel(request.params).await?)?,
-            "relay/activity/events/list" => {
-                let params: ActivityEventsParams = parse_params(request.params)?;
-                serialize(ActivityEventsResult {
-                    events: self
-                        .app
-                        .list_activity_events(ActivityEventsQuery {
-                            limit: params.limit,
-                            profile_id: params.profile_id,
-                            reason: params.reason.map(parse_failure_reason).transpose()?,
-                        })
-                        .await
-                        .map_err(|e| rpc_from_error(&e))?,
-                })?
-            }
-            "relay/activity/logs/tail" => {
-                let params: LogsTailParams = parse_params(request.params)?;
-                serialize(LogsTailResult {
-                    logs: self
-                        .app
-                        .logs_tail(params.lines)
-                        .map_err(|e| rpc_from_error(&e))?,
-                })?
-            }
             "relay/activity/diagnostics/export" => serialize(
                 self.app
                     .diagnostics_export()
@@ -1234,18 +1168,5 @@ fn serialize<T: serde::Serialize>(value: T) -> Result<Value, crate::RpcErrorObje
 }
 
 fn parse_failure_reason(value: String) -> Result<FailureReason, crate::RpcErrorObject> {
-    match value.as_str() {
-        "SessionExhausted" => Ok(FailureReason::SessionExhausted),
-        "WeeklyExhausted" => Ok(FailureReason::WeeklyExhausted),
-        "AccountUnavailable" => Ok(FailureReason::AccountUnavailable),
-        "AuthInvalid" => Ok(FailureReason::AuthInvalid),
-        "QuotaExhausted" => Ok(FailureReason::QuotaExhausted),
-        "RateLimited" => Ok(FailureReason::RateLimited),
-        "CommandFailed" => Ok(FailureReason::CommandFailed),
-        "ValidationFailed" => Ok(FailureReason::ValidationFailed),
-        "Unknown" => Ok(FailureReason::Unknown),
-        other => Err(rpc_invalid_params(format!(
-            "unsupported failure reason: {other}"
-        ))),
-    }
+    value.parse::<FailureReason>().map_err(rpc_invalid_params)
 }

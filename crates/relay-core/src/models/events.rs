@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FailureReason {
@@ -12,6 +13,25 @@ pub enum FailureReason {
     CommandFailed,
     ValidationFailed,
     Unknown,
+}
+
+impl FromStr for FailureReason {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        match value {
+            "session-exhausted" | "SessionExhausted" => Ok(Self::SessionExhausted),
+            "weekly-exhausted" | "WeeklyExhausted" => Ok(Self::WeeklyExhausted),
+            "account-unavailable" | "AccountUnavailable" => Ok(Self::AccountUnavailable),
+            "auth-invalid" | "AuthInvalid" => Ok(Self::AuthInvalid),
+            "quota-exhausted" | "QuotaExhausted" => Ok(Self::QuotaExhausted),
+            "rate-limited" | "RateLimited" => Ok(Self::RateLimited),
+            "command-failed" | "CommandFailed" => Ok(Self::CommandFailed),
+            "validation-failed" | "ValidationFailed" => Ok(Self::ValidationFailed),
+            "unknown" | "Unknown" => Ok(Self::Unknown),
+            other => Err(format!("unsupported failure reason: {other}")),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

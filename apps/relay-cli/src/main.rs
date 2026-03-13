@@ -720,20 +720,9 @@ fn parse_usage_source_mode(value: &str) -> Result<UsageSourceMode, RelayError> {
 }
 
 fn parse_failure_reason(value: &str) -> Result<FailureReason, RelayError> {
-    match value {
-        "session-exhausted" | "SessionExhausted" => Ok(FailureReason::SessionExhausted),
-        "weekly-exhausted" | "WeeklyExhausted" => Ok(FailureReason::WeeklyExhausted),
-        "account-unavailable" | "AccountUnavailable" => Ok(FailureReason::AccountUnavailable),
-        "auth-invalid" | "AuthInvalid" => Ok(FailureReason::AuthInvalid),
-        "quota-exhausted" | "QuotaExhausted" => Ok(FailureReason::QuotaExhausted),
-        "rate-limited" | "RateLimited" => Ok(FailureReason::RateLimited),
-        "command-failed" | "CommandFailed" => Ok(FailureReason::CommandFailed),
-        "validation-failed" | "ValidationFailed" => Ok(FailureReason::ValidationFailed),
-        "unknown" | "Unknown" => Ok(FailureReason::Unknown),
-        other => Err(RelayError::InvalidInput(format!(
-            "unsupported failure reason: {other}"
-        ))),
-    }
+    value
+        .parse::<FailureReason>()
+        .map_err(RelayError::InvalidInput)
 }
 
 fn codex_settings_request_from_args(

@@ -87,14 +87,6 @@ pub struct ActivityEventsQuery {
 }
 
 impl RelayApp {
-    pub async fn bootstrap() -> Result<Self, RelayError> {
-        Self::bootstrap_with_mode(BootstrapMode::ReadWrite).await
-    }
-
-    pub async fn bootstrap_read_only() -> Result<Self, RelayError> {
-        Self::bootstrap_with_mode(BootstrapMode::ReadOnly).await
-    }
-
     pub async fn bootstrap_with_mode(bootstrap_mode: BootstrapMode) -> Result<Self, RelayError> {
         let paths = RelayPaths::from_env()?;
         if bootstrap_mode == BootstrapMode::ReadWrite {
