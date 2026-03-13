@@ -33,6 +33,12 @@ pub struct TaskManager {
     next_id: Arc<AtomicU64>,
 }
 
+impl Default for TaskManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskManager {
     pub fn new() -> Self {
         Self {

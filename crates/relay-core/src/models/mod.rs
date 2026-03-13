@@ -22,7 +22,7 @@ pub use overview::{
     ProfileDetail, ProfileListItem, ProfileRecoveryReport, RecoveredProfile,
     SkippedRecoveredProfile, SystemStatusReport,
 };
-pub use probe_identity::{ProbeProvider, ProfileProbeIdentity};
+pub use probe_identity::{CodexOfficialProbeIdentity, ProbeProvider, ProfileProbeIdentity};
 pub use profile::{AgentKind, AuthMode, Profile, ProfileAccountState};
 pub use protocol::JsonResponse;
 pub use rpc::{

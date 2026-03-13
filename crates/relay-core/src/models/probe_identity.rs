@@ -18,35 +18,38 @@ pub struct ProfileProbeIdentity {
     pub updated_at: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct CodexOfficialProbeIdentity {
+    pub profile_id: String,
+    pub account_id: String,
+    pub access_token: String,
+    pub refresh_token: Option<String>,
+    pub id_token: Option<String>,
+    pub email: Option<String>,
+    pub plan_hint: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 impl ProfileProbeIdentity {
-    pub fn codex_official(
-        profile_id: String,
-        account_id: String,
-        access_token: String,
-        refresh_token: Option<String>,
-        id_token: Option<String>,
-        email: Option<String>,
-        plan_hint: Option<String>,
-        created_at: String,
-        updated_at: String,
-    ) -> Self {
+    pub fn codex_official(input: CodexOfficialProbeIdentity) -> Self {
         Self {
-            profile_id,
+            profile_id: input.profile_id,
             provider: ProbeProvider::CodexOfficial,
-            principal_id: Some(account_id.clone()),
-            display_name: email.clone(),
+            principal_id: Some(input.account_id.clone()),
+            display_name: input.email.clone(),
             credentials: json!({
-                "account_id": account_id,
-                "access_token": access_token,
-                "refresh_token": refresh_token,
-                "id_token": id_token,
+                "account_id": input.account_id,
+                "access_token": input.access_token,
+                "refresh_token": input.refresh_token,
+                "id_token": input.id_token,
             }),
             metadata: json!({
-                "email": email,
-                "plan_hint": plan_hint,
+                "email": input.email,
+                "plan_hint": input.plan_hint,
             }),
-            created_at,
-            updated_at,
+            created_at: input.created_at,
+            updated_at: input.updated_at,
         }
     }
 

@@ -11,9 +11,12 @@ use tokio::task::yield_now;
 
 const MAX_NETWORK_QUERY_CONCURRENCY: usize = 32;
 
+type SharedQueryFuture<V, E> = Shared<LocalBoxFuture<'static, Result<V, E>>>;
+type InflightQueries<K, V, E> = Rc<RefCell<HashMap<K, SharedQueryFuture<V, E>>>>;
+
 #[derive(Clone)]
 pub struct QueryCoordinator<K, V, E> {
-    inflight: Rc<RefCell<HashMap<K, Shared<LocalBoxFuture<'static, Result<V, E>>>>>>,
+    inflight: InflightQueries<K, V, E>,
     semaphore: Arc<Semaphore>,
     limit: Arc<AtomicUsize>,
 }
@@ -41,7 +44,11 @@ where
         F: FnOnce() -> Fut + 'static,
         Fut: Future<Output = Result<V, E>> + 'static,
     {
-        if let Some(existing) = self.inflight.borrow().get(&key).cloned() {
+        let existing = {
+            let inflight = self.inflight.borrow();
+            inflight.get(&key).cloned()
+        };
+        if let Some(existing) = existing {
             return existing.await;
         }
 

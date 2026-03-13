@@ -6,16 +6,11 @@ pub enum AgentKind {
     Codex,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum ProfileAccountState {
+    #[default]
     Healthy,
     AccountUnavailable,
-}
-
-impl Default for ProfileAccountState {
-    fn default() -> Self {
-        Self::Healthy
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

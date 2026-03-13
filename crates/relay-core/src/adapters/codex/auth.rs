@@ -1,4 +1,4 @@
-use crate::models::{ProfileProbeIdentity, RelayError};
+use crate::models::{CodexOfficialProbeIdentity, ProfileProbeIdentity, RelayError};
 use base64::Engine;
 use chrono::Utc;
 use std::fs;
@@ -40,15 +40,17 @@ pub(crate) fn load_probe_identity_from_home(
 
     let now = Utc::now().to_rfc3339();
     Ok(ProfileProbeIdentity::codex_official(
-        profile_id.into(),
-        account_id,
-        access_token,
-        tokens.refresh_token,
-        id_token.clone(),
-        extract_email(id_token.as_deref()),
-        None,
-        now.clone(),
-        now,
+        CodexOfficialProbeIdentity {
+            profile_id: profile_id.into(),
+            account_id,
+            access_token,
+            refresh_token: tokens.refresh_token,
+            id_token: id_token.clone(),
+            email: extract_email(id_token.as_deref()),
+            plan_hint: None,
+            created_at: now.clone(),
+            updated_at: now,
+        },
     ))
 }
 

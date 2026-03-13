@@ -1155,10 +1155,9 @@ fn codex_login_and_remote_usage_probe_work() {
         r#"{"access_token":"new-access-token","refresh_token":"new-refresh-token","id_token":"new-id-token"}"#,
     )
     .expect("refresh fixture");
-    let path_env = std::env::join_paths(
-        [fake_bin.as_path(), Path::new("/usr/bin"), Path::new("/bin")].into_iter(),
-    )
-    .expect("path env");
+    let path_env =
+        std::env::join_paths([fake_bin.as_path(), Path::new("/usr/bin"), Path::new("/bin")])
+            .expect("path env");
     let path_env_owned = path_env.to_string_lossy().into_owned();
     let usage_url = format!("file://{}", usage_fixture.display());
     let refresh_url = format!("file://{}", refresh_fixture.display());
@@ -1222,10 +1221,9 @@ fn codex_login_device_auth_streams_instructions_to_stderr() {
     let fake_bin = make_fake_bin(temp.path());
     make_codex_home(&live_codex_home, "live");
 
-    let path_env = std::env::join_paths(
-        [fake_bin.as_path(), Path::new("/usr/bin"), Path::new("/bin")].into_iter(),
-    )
-    .expect("path env");
+    let path_env =
+        std::env::join_paths([fake_bin.as_path(), Path::new("/usr/bin"), Path::new("/bin")])
+            .expect("path env");
 
     let output = Command::new(relay_bin())
         .args([
@@ -2763,16 +2761,16 @@ fn daemon_stdio_long_profile_login_does_not_block_settings_update() {
             }
             continue;
         }
-        if message["params"]["topic"] == "task.updated" {
-            if message["params"]["payload"]["task"]["status"] == "Pending" {
-                let update_task_id = message["params"]["payload"]["task"]["task_id"]
-                    .as_str()
-                    .expect("pending task id")
-                    .to_string();
-                pending_task_id = Some(update_task_id.clone());
-                if task_id.as_deref() == Some(update_task_id.as_str()) {
-                    saw_pending = true;
-                }
+        if message["params"]["topic"] == "task.updated"
+            && message["params"]["payload"]["task"]["status"] == "Pending"
+        {
+            let update_task_id = message["params"]["payload"]["task"]["task_id"]
+                .as_str()
+                .expect("pending task id")
+                .to_string();
+            pending_task_id = Some(update_task_id.clone());
+            if task_id.as_deref() == Some(update_task_id.as_str()) {
+                saw_pending = true;
             }
         }
     }
