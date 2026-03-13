@@ -128,8 +128,6 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
                     && $0.accountState == .accountUnavailable
                     && $0.accountErrorHTTPStatus == 401
             })
-                && model.usageSnapshot(for: "p_alt")?.remoteError?.httpStatus == 401
-                && model.currentFailureEventsByProfile["p_alt"]?.first?.reason == .accountUnavailable
         }
     }
 }

@@ -1,7 +1,6 @@
 pub mod daemon_service;
 pub mod diagnostics_service;
 pub mod doctor_service;
-pub mod events_service;
 pub mod policy_service;
 pub mod profile_service;
 pub mod query_coordinator;

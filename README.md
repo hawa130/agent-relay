@@ -106,7 +106,7 @@ Import the currently live Codex profile into AgentRelay-managed storage:
 agrelay codex import --nickname imported-live --json
 ```
 
-Rebuild database profile records from saved AgentRelay snapshots after `relay.db` loss:
+Rebuild database profile records from saved AgentRelay profile directories after `relay.db` loss:
 
 ```bash
 agrelay codex recover --json

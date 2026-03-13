@@ -1,6 +1,24 @@
 use super::{ActivityEventsQuery, RelayApp, SystemSettingsUpdateRequest};
 use crate::models::{AppSettings, FailureEvent, RelayError, SwitchReport, SwitchTrigger};
-use crate::services::{events_service, policy_service, switch_service};
+use crate::services::{policy_service, switch_service};
+
+fn validate_refresh_interval_seconds(value: i64) -> Result<(), RelayError> {
+    if value != 0 && !(15..=900).contains(&value) {
+        return Err(RelayError::InvalidInput(
+            "refresh interval must be 0 or between 15 and 900 seconds".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_network_query_concurrency(value: i64) -> Result<(), RelayError> {
+    if !(1..=32).contains(&value) {
+        return Err(RelayError::InvalidInput(
+            "network query concurrency must be between 1 and 32".into(),
+        ));
+    }
+    Ok(())
+}
 
 impl RelayApp {
     pub async fn switch_to_profile(&self, id: &str) -> Result<SwitchReport, RelayError> {
@@ -63,11 +81,7 @@ impl RelayApp {
         &self,
         value: i64,
     ) -> Result<AppSettings, RelayError> {
-        if value != 0 && !(15..=900).contains(&value) {
-            return Err(RelayError::InvalidInput(
-                "refresh interval must be 0 or between 15 and 900 seconds".into(),
-            ));
-        }
+        validate_refresh_interval_seconds(value)?;
         let settings = self.store.set_refresh_interval_seconds(value).await?;
         self.log_store.append(
             "info",
@@ -81,11 +95,7 @@ impl RelayApp {
         &self,
         value: i64,
     ) -> Result<AppSettings, RelayError> {
-        if !(1..=32).contains(&value) {
-            return Err(RelayError::InvalidInput(
-                "network query concurrency must be between 1 and 32".into(),
-            ));
-        }
+        validate_network_query_concurrency(value)?;
         let settings = self.store.set_network_query_concurrency(value).await?;
         self.log_store.append(
             "info",
@@ -100,18 +110,10 @@ impl RelayApp {
         request: SystemSettingsUpdateRequest,
     ) -> Result<AppSettings, RelayError> {
         if let Some(value) = request.refresh_interval_seconds {
-            if value != 0 && !(15..=900).contains(&value) {
-                return Err(RelayError::InvalidInput(
-                    "refresh interval must be 0 or between 15 and 900 seconds".into(),
-                ));
-            }
+            validate_refresh_interval_seconds(value)?;
         }
         if let Some(value) = request.network_query_concurrency {
-            if !(1..=32).contains(&value) {
-                return Err(RelayError::InvalidInput(
-                    "network query concurrency must be between 1 and 32".into(),
-                ));
-            }
+            validate_network_query_concurrency(value)?;
         }
 
         if let Some(enabled) = request.auto_switch_enabled {
@@ -127,10 +129,6 @@ impl RelayApp {
             self.set_network_query_concurrency(value).await?;
         }
         self.store.get_settings().await
-    }
-
-    pub async fn list_failure_events(&self, limit: usize) -> Result<Vec<FailureEvent>, RelayError> {
-        events_service::list_failure_events(&self.store, limit).await
     }
 
     pub async fn list_activity_events(

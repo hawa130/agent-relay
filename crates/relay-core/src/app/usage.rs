@@ -38,11 +38,6 @@ impl RelayApp {
         usage_service::load_profile_snapshot(&self.usage_store, &profile)
     }
 
-    pub async fn list_usage_reports(&self) -> Result<Vec<UsageSnapshot>, RelayError> {
-        let profiles = self.store.list_profiles().await?;
-        usage_service::list_profile_snapshots(&self.usage_store, &profiles)
-    }
-
     pub async fn refresh_usage_profile(&self, id: &str) -> Result<UsageSnapshot, RelayError> {
         let context = self.usage_context().await?;
         let profile = self.store.get_profile(id).await?;

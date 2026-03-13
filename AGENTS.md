@@ -42,9 +42,9 @@ Do not reintroduce tiny crates for `types`, `store`, `platform`, or `adapters` u
 ## Architecture Rules
 
 - CLI is the only execution layer for profile management, switching, validation, and diagnostics.
-- UI code must call `agrelay` CLI commands and parse JSON output; it must not mutate live agent files directly.
+- UI code must launch `agrelay daemon --stdio` and speak stdio JSON-RPC; it must not mutate live agent files directly.
 - All user-visible commands must support `--json`.
-- Parameterized UI-to-CLI calls should prefer JSON input instead of rebuilding flag combinations ad hoc.
+- Programmatic integrations should prefer structured RPC params or JSON input instead of rebuilding flag combinations ad hoc.
 - Errors exposed to callers must use stable project error codes.
 - Live config mutations must be transactional and recoverable.
 - Read-only commands should avoid unnecessary filesystem or database writes when possible.
@@ -59,7 +59,7 @@ AgentRelay is intentionally limited:
 
 - Support `Codex` first.
 - Focus on local profile management, safe switching, rollback, usage visibility, and diagnostics.
-- Keep the macOS app as a control plane over the CLI, not a parallel execution path.
+- Keep the macOS app as a control plane over the CLI-hosted daemon session, not a parallel execution path.
 - Do not build browser-cookie scraping, private API reverse engineering, or quota-bypass logic.
 
 ## Working Rules
@@ -67,12 +67,12 @@ AgentRelay is intentionally limited:
 - Prefer extending `relay-core` modules over adding new packages.
 - Run the repository formatter after code changes. Use `just fmt` to write formatting updates and `just fmt-check` for verification-oriented checks such as release/CI flows.
 - Put business logic in `services`, not in the CLI entrypoint or Swift UI layer.
-- Keep `models` stable because CLI JSON and the macOS app depend on them.
+- Keep `models` stable because CLI JSON and the daemon RPC contract depend on them.
 - Put persistence details behind `store`.
 - Keep agent-specific validation, activation, login, and usage behavior in `adapters`.
 - When adding provider-specific capabilities, first decide whether the code belongs in a reusable transport/provider utility or in the provider adapter. Default to the narrower boundary.
 - Add tests for new store logic and service behavior.
-- For UI/CLI protocol changes, add Swift-side decoding or client tests as needed.
+- For UI/daemon protocol changes, add Swift-side decoding or client tests as needed.
 - Use temp directories for tests that touch filesystem state.
 
 ## Commit Conventions

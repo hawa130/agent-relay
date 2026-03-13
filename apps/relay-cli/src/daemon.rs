@@ -176,25 +176,22 @@ async fn run_local() -> Result<(), RelayError> {
 }
 
 async fn run_refresh_scheduler(service: DaemonService, runtime_signals: Arc<RuntimeSignals>) {
-    loop {
+    if service.shutdown_requested() {
+        return;
+    }
+
+    while !runtime_signals.startup_refresh_armed.load(Ordering::SeqCst) {
+        tokio::select! {
+            _ = runtime_signals.startup_refresh_notify.notified() => {}
+            _ = runtime_signals.shutdown_notify.notified() => return,
+        }
         if service.shutdown_requested() {
-            break;
+            return;
         }
+    }
 
-        while !runtime_signals.startup_refresh_armed.load(Ordering::SeqCst) {
-            tokio::select! {
-                _ = runtime_signals.startup_refresh_notify.notified() => {}
-                _ = runtime_signals.shutdown_notify.notified() => return,
-            }
-            if service.shutdown_requested() {
-                return;
-            }
-        }
-
-        if automatic_refresh_enabled(&service).await {
-            run_refresh(RefreshKind::Startup, service.clone()).await;
-        }
-        break;
+    if automatic_refresh_enabled(&service).await {
+        run_refresh(RefreshKind::Startup, service.clone()).await;
     }
 
     loop {
