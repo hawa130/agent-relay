@@ -35,13 +35,13 @@ struct UsageBadge: View {
     private var kind: NativePreferencesTheme.Badge.Kind {
         switch window.status {
         case .healthy:
-            return .success
+            .success
         case .warning:
-            return .warning
+            .warning
         case .exhausted:
-            return .danger
+            .danger
         case .unknown:
-            return .neutral
+            .neutral
         }
     }
 }
@@ -57,8 +57,7 @@ extension UsageSnapshot {
                 tone: session.status.ringTone,
                 isDimmed: stale,
                 valueText: session.ringValueText,
-                detailText: session.resetBadgeText
-            ),
+                detailText: session.resetBadgeText),
             RingProgressItem(
                 id: "weekly",
                 label: "Weekly",
@@ -67,8 +66,7 @@ extension UsageSnapshot {
                 tone: weekly.status.ringTone,
                 isDimmed: stale,
                 valueText: weekly.ringValueText,
-                detailText: weekly.resetBadgeText
-            ),
+                detailText: weekly.resetBadgeText)
         ]
     }
 }
@@ -105,26 +103,26 @@ extension UsageStatus {
     var shortLabel: String {
         switch self {
         case .healthy:
-            return "OK"
+            "OK"
         case .warning:
-            return "Warn"
+            "Warn"
         case .exhausted:
-            return "Full"
+            "Full"
         case .unknown:
-            return "?"
+            "?"
         }
     }
 
     var ringTone: RingProgressTone {
         switch self {
         case .healthy:
-            return .positive
+            .positive
         case .warning:
-            return .warning
+            .warning
         case .exhausted:
-            return .critical
+            .critical
         case .unknown:
-            return .neutral
+            .neutral
         }
     }
 }

@@ -1,6 +1,6 @@
 import Foundation
-import XCTest
 @testable import RelayMacOSUI
+import XCTest
 
 final class ModelDecodingTests: XCTestCase {
     func testStatusReportDecodesCurrentFields() throws {
@@ -327,7 +327,7 @@ final class ModelDecodingTests: XCTestCase {
         XCTAssertEqual(item.currentFailureEvents.first?.reason, .accountUnavailable)
     }
 
-    func testUsageSnapshotUserFacingNoteRewritesInternalMessages() throws {
+    func testUsageSnapshotUserFacingNoteRewritesInternalMessages() {
         let fallback = UsageSnapshot(
             profileId: "p_1",
             profileName: "work",
@@ -341,20 +341,17 @@ final class ModelDecodingTests: XCTestCase {
                 windowMinutes: 300,
                 resetAt: nil,
                 status: .unknown,
-                exact: false
-            ),
+                exact: false),
             weekly: UsageWindow(
                 usedPercent: nil,
                 windowMinutes: 10080,
                 resetAt: nil,
                 status: .unknown,
-                exact: false
-            ),
+                exact: false),
             autoSwitchReason: nil,
             canAutoSwitch: false,
             message: "Usage is currently unavailable.",
-            remoteError: nil
-        )
+            remoteError: nil)
         let localFallback = UsageSnapshot(
             profileId: "p_2",
             profileName: "local",
@@ -368,20 +365,17 @@ final class ModelDecodingTests: XCTestCase {
                 windowMinutes: 300,
                 resetAt: nil,
                 status: .healthy,
-                exact: true
-            ),
+                exact: true),
             weekly: UsageWindow(
                 usedPercent: 30,
                 windowMinutes: 10080,
                 resetAt: nil,
                 status: .healthy,
-                exact: true
-            ),
+                exact: true),
             autoSwitchReason: nil,
             canAutoSwitch: false,
             message: "Using local usage because enhanced usage is unavailable.",
-            remoteError: nil
-        )
+            remoteError: nil)
         let official = UsageSnapshot(
             profileId: "p_3",
             profileName: "remote",
@@ -395,26 +389,22 @@ final class ModelDecodingTests: XCTestCase {
                 windowMinutes: 300,
                 resetAt: nil,
                 status: .healthy,
-                exact: true
-            ),
+                exact: true),
             weekly: UsageWindow(
                 usedPercent: 15,
                 windowMinutes: 10080,
                 resetAt: nil,
                 status: .healthy,
-                exact: true
-            ),
+                exact: true),
             autoSwitchReason: nil,
             canAutoSwitch: false,
             message: nil,
-            remoteError: nil
-        )
+            remoteError: nil)
 
         XCTAssertEqual(fallback.userFacingNote, "Usage is currently unavailable.")
         XCTAssertEqual(
             localFallback.userFacingNote,
-            "Using local usage because enhanced usage is unavailable."
-        )
+            "Using local usage because enhanced usage is unavailable.")
         XCTAssertNil(official.userFacingNote)
     }
 

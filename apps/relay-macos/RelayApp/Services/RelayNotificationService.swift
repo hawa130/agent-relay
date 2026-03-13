@@ -15,8 +15,7 @@ actor RelayNotificationService {
 
         requestedAuthorization = true
         _ = try? await UNUserNotificationCenter.current().requestAuthorization(
-            options: [.alert, .sound]
-        )
+            options: [.alert, .sound])
     }
 
     func post(title: String, body: String) async {
@@ -33,8 +32,7 @@ actor RelayNotificationService {
         let request = UNNotificationRequest(
             identifier: UUID().uuidString,
             content: content,
-            trigger: nil
-        )
+            trigger: nil)
 
         try? await UNUserNotificationCenter.current().add(request)
     }

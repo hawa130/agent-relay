@@ -1,55 +1,47 @@
 # AgentRelay
 
-AgentRelay is a CLI-first local profile orchestrator for coding agents.
+AgentRelay is a CLI-first local profile orchestrator for coding agents. The external product name is `AgentRelay`, the CLI binary is `agrelay`, and the current provider scope is `Codex`.
 
-V1 currently targets `Codex` and provides:
+The CLI is the execution engine for profile management, switching, validation, usage refresh, and diagnostics. The macOS app is a native control plane that supervises `agrelay daemon --stdio` over stdio JSON-RPC.
 
-- profile CRUD
-- import from the current live Codex home
-- transactional profile switching with rollback
-- local-first usage reporting with session, weekly, reset, freshness, and source labels
-- auto-switch policy toggle
-- event history
-- log tailing
-- diagnostics export
-- a native macOS menu bar control plane that supervises a persistent AgentRelay daemon over JSON-RPC
+## What It Does
 
-The CLI remains the only execution layer. The macOS menu bar app is a native control plane that supervises `agrelay daemon --stdio` and communicates over stdio JSON-RPC.
+- manage local Codex profiles with add, import, edit, enable, disable, show, list, and remove workflows
+- switch live Codex state transactionally with validation, rollback, and checkpointing
+- refresh and inspect usage snapshots with source, freshness, and exhaustion context
+- record activity events, expose logs, and export diagnostics bundles
+- host a long-lived daemon session for the macOS control plane and other programmatic clients
 
-## Status
+## Command Surface
 
-The V1 CLI is implemented and tested.
-
-Implemented command groups:
+Core commands:
 
 ```bash
 agrelay doctor
 agrelay status
-agrelay settings show
-agrelay settings set
-agrelay daemon --stdio
-
 agrelay list
 agrelay show
-agrelay show <id>
 agrelay edit <id>
 agrelay remove <id>
 agrelay enable <id>
 agrelay disable <id>
 agrelay switch
-agrelay switch <id>
 agrelay refresh
-agrelay refresh <id>
-agrelay refresh --all
+agrelay daemon --stdio
+```
+
+Grouped commands:
+
+```bash
+agrelay settings show
+agrelay settings set
 agrelay autoswitch show
 agrelay autoswitch enable
 agrelay autoswitch disable
 agrelay autoswitch set
-
 agrelay activity events list
 agrelay activity logs tail
 agrelay activity diagnostics export
-
 agrelay codex add
 agrelay codex import
 agrelay codex login
@@ -57,12 +49,14 @@ agrelay codex recover
 agrelay codex relink <id>
 ```
 
+All user-visible commands support `--json`.
+
 ## Install
 
 Prerequisites:
 
 - Rust toolchain with `cargo`
-- a local `codex` CLI installation for real profile switching
+- a local `codex` CLI installation for real profile switching and live-home discovery
 
 Install from this repository:
 
@@ -70,7 +64,7 @@ Install from this repository:
 cargo install --path apps/relay-cli
 ```
 
-If `agrelay` is not found afterwards, add Cargo's bin directory to your shell path:
+If `agrelay` is not on your shell path afterwards:
 
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -78,7 +72,7 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 ## Quick Start
 
-Inspect the environment:
+Inspect the local environment:
 
 ```bash
 agrelay doctor --json
@@ -91,100 +85,78 @@ export AGRELAY_HOME=/tmp/agrelay-demo
 agrelay status --json
 ```
 
-Add a profile from an existing Codex home:
+Add or import a Codex profile:
 
 ```bash
-agrelay codex add \
-  --nickname work \
-  --agent-home /path/to/codex-home \
-  --json
-```
-
-Import the currently live Codex profile into AgentRelay-managed storage:
-
-```bash
+agrelay codex add --nickname work --agent-home /path/to/codex-home --json
 agrelay codex import --nickname imported-live --json
 ```
 
-Rebuild database profile records from saved AgentRelay profile directories after `relay.db` loss:
+Switch and inspect state:
+
+```bash
+agrelay list --json
+agrelay switch <profile-id> --json
+agrelay refresh --json
+agrelay activity events list --limit 20 --json
+```
+
+Recover database profile records from saved AgentRelay profile directories after `relay.db` loss:
 
 ```bash
 agrelay codex recover --json
 ```
 
-Activate profiles:
+## Daemon Integration
 
-```bash
-agrelay list --json
-agrelay switch <profile-id> --json
-agrelay switch --json
-```
-
-Inspect runtime state:
-
-```bash
-agrelay show --json
-agrelay refresh --json
-agrelay activity events list --limit 20 --json
-agrelay activity logs tail --lines 50 --json
-agrelay activity diagnostics export --json
-```
-
-Programmatic clients can also start a persistent daemon session:
+Programmatic clients can start a persistent daemon session with:
 
 ```bash
 agrelay daemon --stdio
 ```
 
-The daemon speaks newline-delimited JSON-RPC 2.0 on `stdin` and `stdout`. It is intended for the macOS app and other host programs, not for interactive human terminal use.
+The daemon speaks newline-delimited JSON-RPC 2.0 on `stdin` and `stdout`. It is intended for host programs such as the macOS app rather than interactive terminal use. The daemon owns background refresh, policy evaluation, and state-change notifications for that host session.
 
-## How It Works
+## Switching Model
 
-AgentRelay does not replace the whole `~/.codex` directory.
-
-For V1 it manages a narrow file set:
+AgentRelay does not replace the entire `~/.codex` directory. It manages a narrow live file set:
 
 - `config.toml`
 - `auth.json`
 - `version.json`
 
-Switching flow:
+Switching follows a transactional flow:
 
-1. validate the target profile
-2. snapshot the live managed files
-3. atomically copy the target managed files into the live Codex home
-4. validate the new live state
-5. rollback on failure
+1. validate the target profile and prerequisites
+2. snapshot the current managed live files
+3. write candidate files through temporary paths
+4. atomically replace the managed live files
+5. validate the new live state and roll back on failure
 
-This keeps the runtime safer than copying logs, sessions, and unrelated state.
+This keeps live-state mutation recoverable and avoids copying unrelated Codex history, logs, or session artifacts.
 
 ## Development
 
-Common commands:
+Common contributor commands:
 
 ```bash
 just fmt
-cargo test
+just fmt-check
+just lint
+just check
+just test
 cargo run -p agrelay-cli --bin agrelay -- --help
 cargo run -p agrelay-cli --bin agrelay -- daemon --stdio
 ```
 
-SeaORM workflow:
+For contributor workflow, schema maintenance, platform checks, and release verification, see the docs below.
 
-```bash
-# 1. edit the hand-written SeaORM entities in relay-core
-# 2. delete relay.db if you made a breaking schema change
-cargo test
-```
-
-AgentRelay now uses SeaORM 2.x entity-first schema sync. The entities in
-`relay-core` are the schema source of truth. If a local dev database predates
-the current entity-first layout, remove `relay.db` and let AgentRelay recreate it on
-next bootstrap.
-
-Additional docs:
+## Documentation Map
 
 - [Architecture](./docs/architecture.md)
 - [Install and Usage](./docs/install.md)
 - [Development](./docs/development.md)
 - [SQLite Schema](./docs/sqlite-schema.md)
+- [Linux Support](./docs/linux-support.md)
+- [Security Checklist](./docs/security-checklist.md)
+- [macOS App Guide](./apps/relay-macos/README.md)

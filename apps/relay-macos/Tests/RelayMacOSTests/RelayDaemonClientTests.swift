@@ -1,6 +1,6 @@
 import Foundation
-import XCTest
 @testable import RelayMacOSUI
+import XCTest
 
 final class RelayDaemonClientTests: XCTestCase {
     func testStartInitializesSessionAndReturnsInitialState() async throws {
@@ -9,8 +9,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            environment: [:]
-        )
+            environment: [:])
         let initial = try await client.start()
 
         XCTAssertEqual(initial.status.activeState.activeProfileId, "p_active_1")
@@ -32,8 +31,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            environment: ["RELAY_DAEMON_FIXTURE_MODE": "out_of_order_responses"]
-        )
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "out_of_order_responses"])
 
         async let status = client.fetchStatus()
         let resolvedStatus = try await status
@@ -49,8 +47,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            environment: ["RELAY_DAEMON_FIXTURE_MODE": "notification_then_refresh_response"]
-        )
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "notification_then_refresh_response"])
 
         async let refreshed = client.refreshEnabledUsage()
         let notification = try await nextNotification(from: client.notifications)
@@ -73,8 +70,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            environment: ["RELAY_DAEMON_FIXTURE_MODE": "notification_then_refresh_response"]
-        )
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "notification_then_refresh_response"])
 
         _ = try await client.start()
         let updateTask = Task {
@@ -98,8 +94,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            environment: ["RELAY_DAEMON_FIXTURE_MODE": "query_state_then_refresh_response"]
-        )
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "query_state_then_refresh_response"])
 
         async let refreshed = client.refreshEnabledUsage()
         let notification = try await nextNotification(from: client.notifications)
@@ -124,8 +119,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            environment: [:]
-        )
+            environment: [:])
 
         _ = try await client.refreshAllUsage()
         await client.stop()
@@ -140,8 +134,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            environment: [:]
-        )
+            environment: [:])
 
         _ = try await client.refreshEnabledUsage()
         await client.stop()
@@ -156,8 +149,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            environment: ["RELAY_DAEMON_FIXTURE_MODE": "login_task_updates"]
-        )
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "login_task_updates"])
 
         _ = try await client.start()
         let pendingTask = Task {
@@ -167,8 +159,7 @@ final class RelayDaemonClientTests: XCTestCase {
         let started = try await client.startLoginProfile(
             agent: .codex,
             nickname: "browser",
-            priority: 90
-        )
+            priority: 90)
         XCTAssertTrue(started.accepted)
         XCTAssertEqual(started.kind, .profileLogin)
 
@@ -201,8 +192,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            environment: ["RELAY_DAEMON_FIXTURE_MODE": "login_start_invalid_params"]
-        )
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "login_start_invalid_params"])
 
         _ = try await client.start()
 
@@ -210,8 +200,7 @@ final class RelayDaemonClientTests: XCTestCase {
             _ = try await client.startLoginProfile(
                 agent: .codex,
                 nickname: "browser",
-                priority: 90
-            )
+                priority: 90)
             XCTFail("expected login start to fail")
         } catch let RelayClientError.commandFailed(code, message) {
             XCTAssertEqual(code, "RELAY_INVALID_INPUT")
@@ -229,8 +218,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            environment: ["RELAY_DAEMON_FIXTURE_MODE": "crash_on_status"]
-        )
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "crash_on_status"])
 
         do {
             _ = try await client.fetchStatus()
@@ -248,8 +236,7 @@ final class RelayDaemonClientTests: XCTestCase {
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
             requestTimeoutSeconds: 1.0,
-            environment: ["RELAY_DAEMON_FIXTURE_MODE": "drop_status_response"]
-        )
+            environment: ["RELAY_DAEMON_FIXTURE_MODE": "drop_status_response"])
 
         do {
             _ = try await client.fetchStatus()
@@ -273,8 +260,7 @@ final class RelayDaemonClientTests: XCTestCase {
 
         let client = RelayDaemonClient(
             relayCLIPathOverride: fixture.scriptPath,
-            environment: [:]
-        )
+            environment: [:])
 
         let first = try await client.start()
         let second = try await client.restart()
@@ -299,23 +285,20 @@ private struct RelayDaemonFixture {
     static func make(mode _: String? = nil) throws -> Self {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
             "relay-daemon-client-tests-\(UUID().uuidString)",
-            isDirectory: true
-        )
+            isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
 
         let scriptURL = root.appendingPathComponent("relay-daemon-fixture.sh")
         try fixtureScript.data(using: .utf8)!.write(to: scriptURL)
         try FileManager.default.setAttributes(
             [.posixPermissions: 0o755],
-            ofItemAtPath: scriptURL.path
-        )
+            ofItemAtPath: scriptURL.path)
 
         return Self(
             root: root,
             scriptPath: scriptURL.path,
             commandsPath: root.appendingPathComponent("commands.log"),
-            launchesPath: root.appendingPathComponent("launches.count")
-        )
+            launchesPath: root.appendingPathComponent("launches.count"))
     }
 
     func cleanup() {
@@ -348,8 +331,8 @@ private enum NotificationTimeout: Error {
 
 private func nextNotification(
     from stream: AsyncStream<RelaySessionUpdate>,
-    timeoutNanoseconds: UInt64 = 2_000_000_000
-) async throws -> RelaySessionUpdate {
+    timeoutNanoseconds: UInt64 = 2_000_000_000) async throws -> RelaySessionUpdate
+{
     try await withThrowingTaskGroup(of: RelaySessionUpdate.self) { group in
         group.addTask {
             var iterator = stream.makeAsyncIterator()

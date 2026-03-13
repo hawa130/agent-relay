@@ -1,6 +1,6 @@
 import Foundation
-import XCTest
 @testable import RelayMacOSUI
+import XCTest
 
 @MainActor
 final class RelayAppModelTests: XCTestCase {
@@ -29,8 +29,7 @@ final class RelayAppModelTests: XCTestCase {
 
         XCTAssertEqual(
             result,
-            .notSignedIn(detail: "Browser sign-in was cancelled or did not complete.")
-        )
+            .notSignedIn(detail: "Browser sign-in was cancelled or did not complete."))
         XCTAssertFalse(model.isMutatingProfiles)
         let commands = try fixture.commands()
         XCTAssertEqual(commands.first, "daemon --stdio")
@@ -359,22 +358,19 @@ private struct RelayAppModelFixture {
     static func make(mode _: Mode = .refresh) throws -> Self {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
             "relay-app-model-tests-\(UUID().uuidString)",
-            isDirectory: true
-        )
+            isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
 
         let scriptURL = root.appendingPathComponent("relay-fixture.sh")
         try fixtureScript.data(using: .utf8)!.write(to: scriptURL)
         try FileManager.default.setAttributes(
             [.posixPermissions: 0o755],
-            ofItemAtPath: scriptURL.path
-        )
+            ofItemAtPath: scriptURL.path)
 
         return Self(
             root: root,
             scriptPath: scriptURL.path,
-            commandsPath: root.appendingPathComponent("commands.log")
-        )
+            commandsPath: root.appendingPathComponent("commands.log"))
     }
 
     func cleanup() {
@@ -400,8 +396,8 @@ private enum WaitTimeout: Error {
 @MainActor
 private func waitUntil(
     timeoutNanoseconds: UInt64 = 2_000_000_000,
-    condition: @escaping @MainActor () -> Bool
-) async throws {
+    condition: @escaping @MainActor () -> Bool) async throws
+{
     let deadline = DispatchTime.now().uptimeNanoseconds + timeoutNanoseconds
     while DispatchTime.now().uptimeNanoseconds < deadline {
         if condition() {

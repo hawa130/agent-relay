@@ -1,6 +1,6 @@
 import AppKit
-import XCTest
 @testable import RelayMacOSUI
+import XCTest
 
 final class SettingsNavigationTests: XCTestCase {
     @MainActor

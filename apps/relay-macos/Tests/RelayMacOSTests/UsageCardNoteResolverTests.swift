@@ -1,6 +1,6 @@
 import Foundation
-import XCTest
 @testable import RelayMacOSUI
+import XCTest
 
 final class UsageCardNoteResolverTests: XCTestCase {
     func testUsesUsageNoteBeforeRefreshError() {
@@ -17,53 +17,42 @@ final class UsageCardNoteResolverTests: XCTestCase {
                 windowMinutes: 300,
                 resetAt: nil,
                 status: .healthy,
-                exact: true
-            ),
+                exact: true),
             weekly: UsageWindow(
                 usedPercent: 30,
                 windowMinutes: 10080,
                 resetAt: nil,
                 status: .healthy,
-                exact: true
-            ),
+                exact: true),
             autoSwitchReason: nil,
             canAutoSwitch: false,
             message: "Usage may be outdated. Codex connection failed: timeout",
-            remoteError: UsageRemoteError(kind: .network, httpStatus: nil)
-        )
+            remoteError: UsageRemoteError(kind: .network, httpStatus: nil))
 
         XCTAssertEqual(
             UsageCardNoteResolver.note(
                 usage: usage,
-                usageRefreshError: "remote usage timed out"
-            ),
+                usageRefreshError: "remote usage timed out"),
             UsageCardNote(
                 text: "Usage may be outdated. Codex connection failed: timeout",
-                severity: .warning
-            )
-        )
+                severity: .warning))
     }
 
     func testFallsBackToRefreshErrorWhenSnapshotHasNoNote() {
         XCTAssertEqual(
             UsageCardNoteResolver.note(
                 usage: nil,
-                usageRefreshError: "Codex connection failed: dns error"
-            ),
+                usageRefreshError: "Codex connection failed: dns error"),
             UsageCardNote(
                 text: "Codex connection failed: dns error",
-                severity: .warning
-            )
-        )
+                severity: .warning))
     }
 
     func testIgnoresEmptyRefreshError() {
         XCTAssertNil(
             UsageCardNoteResolver.note(
                 usage: nil,
-                usageRefreshError: "   "
-            )
-        )
+                usageRefreshError: "   "))
     }
 
     func testNonStaleWebEnhancedNoteIsNotWarning() {
@@ -80,28 +69,23 @@ final class UsageCardNoteResolverTests: XCTestCase {
                 windowMinutes: 300,
                 resetAt: nil,
                 status: .healthy,
-                exact: true
-            ),
+                exact: true),
             weekly: UsageWindow(
                 usedPercent: 30,
                 windowMinutes: 10080,
                 resetAt: nil,
                 status: .healthy,
-                exact: true
-            ),
+                exact: true),
             autoSwitchReason: nil,
             canAutoSwitch: false,
             message: "Remote usage synced",
-            remoteError: nil
-        )
+            remoteError: nil)
 
         XCTAssertEqual(
             UsageCardNoteResolver.note(
                 usage: usage,
-                usageRefreshError: nil
-            ),
-            UsageCardNote(text: "Remote usage synced", severity: nil)
-        )
+                usageRefreshError: nil),
+            UsageCardNote(text: "Remote usage synced", severity: nil))
     }
 
     func testLegacyAccountRemoteErrorDecodesAsWarningSeverity() {
@@ -118,30 +102,24 @@ final class UsageCardNoteResolverTests: XCTestCase {
                 windowMinutes: 300,
                 resetAt: nil,
                 status: .unknown,
-                exact: false
-            ),
+                exact: false),
             weekly: UsageWindow(
                 usedPercent: nil,
                 windowMinutes: 10080,
                 resetAt: nil,
                 status: .unknown,
-                exact: false
-            ),
+                exact: false),
             autoSwitchReason: nil,
             canAutoSwitch: false,
             message: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required",
-            remoteError: UsageRemoteError(kind: .other, httpStatus: 402)
-        )
+            remoteError: UsageRemoteError(kind: .other, httpStatus: 402))
 
         XCTAssertEqual(
             UsageCardNoteResolver.note(
                 usage: usage,
-                usageRefreshError: nil
-            ),
+                usageRefreshError: nil),
             UsageCardNote(
                 text: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required",
-                severity: .warning
-            )
-        )
+                severity: .warning))
     }
 }

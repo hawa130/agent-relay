@@ -1,5 +1,5 @@
-import XCTest
 @testable import RelayMacOSUI
+import XCTest
 
 final class MenuBarUsageIconTests: XCTestCase {
     func testDescriptorMapsSessionToOuterRingAndWeeklyToInnerRing() {
@@ -46,19 +46,16 @@ final class MenuBarUsageIconTests: XCTestCase {
                 windowMinutes: 300,
                 resetAt: Date(timeIntervalSince1970: 200),
                 status: .healthy,
-                exact: true
-            ),
+                exact: true),
             weekly: UsageWindow(
                 usedPercent: 80,
-                windowMinutes: 10_080,
+                windowMinutes: 10080,
                 resetAt: Date(timeIntervalSince1970: 300),
                 status: .warning,
-                exact: true
-            ),
+                exact: true),
             autoSwitchReason: nil,
             canAutoSwitch: true,
             message: nil,
-            remoteError: nil
-        )
+            remoteError: nil)
     }
 }

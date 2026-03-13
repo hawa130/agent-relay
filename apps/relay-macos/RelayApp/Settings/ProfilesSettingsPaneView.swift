@@ -15,8 +15,7 @@ enum UsageCardNoteResolver {
         if let note = usage?.userFacingNote {
             return UsageCardNote(
                 text: note,
-                severity: severity(for: usage)
-            )
+                severity: severity(for: usage))
         }
 
         guard let error = usageRefreshError?
@@ -88,9 +87,7 @@ public struct ProfilesSettingsPaneView: View {
                     if !isPresented {
                         model.dismissAddSheet()
                     }
-                }
-            )
-        ) {
+                })) {
             AddProfileSheet(
                 agents: model.agents,
                 profileCountForAgent: { agent in
@@ -105,8 +102,7 @@ public struct ProfilesSettingsPaneView: View {
                 },
                 onCancelLogin: {
                     await model.cancelAddAccount()
-                }
-            )
+                })
         }
         .sheet(
             item: Binding(
@@ -115,14 +111,12 @@ public struct ProfilesSettingsPaneView: View {
                     if profile == nil {
                         model.dismissEditSheet()
                     }
-                }
-            )
-        ) { profile in
+                })) { profile in
             ProfileEditorSheet(
                 title: "Edit Profile",
                 initialDraft: ProfileDraft(profile: profile),
-                mode: .edit(profile)
-            ) { draft in
+                mode: .edit(profile))
+            { draft in
                 await model.editProfile(profileId: profile.id, draft: draft)
             }
         }
@@ -159,18 +153,16 @@ public struct ProfilesSettingsPaneView: View {
                     usage: model.usageSnapshot(for: profile.id),
                     isActive: model.activeProfileId == profile.id,
                     isFetchingUsage: model.isFetchingUsage(profileId: profile.id),
-                    usageRefreshError: model.usageRefreshError(profileId: profile.id)
-                )
-                .tag(Optional(profile.id))
+                    usageRefreshError: model.usageRefreshError(profileId: profile.id))
+                    .tag(Optional(profile.id))
             }
 
             if model.filteredProfiles.isEmpty {
                 ContentUnavailableView(
                     "No Profiles",
                     systemImage: "person.crop.square",
-                    description: Text(emptyStateDescription)
-                )
-                .disabled(true)
+                    description: Text(emptyStateDescription))
+                    .disabled(true)
             }
         }
         .listStyle(.inset)
@@ -201,8 +193,7 @@ public struct ProfilesSettingsPaneView: View {
                 } else {
                     Button {
                         let scope = UsageToolbarRefreshScopeResolver.resolve(
-                            modifierFlags: NSApp.currentEvent?.modifierFlags ?? []
-                        )
+                            modifierFlags: NSApp.currentEvent?.modifierFlags ?? [])
                         Task {
                             switch scope {
                             case .enabled:
@@ -242,8 +233,7 @@ public struct ProfilesSettingsPaneView: View {
             },
             set: { profileId in
                 model.selectProfile(profileId)
-            }
-        )
+            })
     }
 
     private var selectedFilterBinding: Binding<ProfilesSidebarFilter?> {
@@ -253,8 +243,7 @@ public struct ProfilesSettingsPaneView: View {
                 if let filter {
                     model.selectFilter(filter)
                 }
-            }
-        )
+            })
     }
 
     private var detail: some View {
@@ -271,11 +260,10 @@ public struct ProfilesSettingsPaneView: View {
                 ContentUnavailableView(
                     "No Profile Selected",
                     systemImage: "person.crop.square",
-                    description: Text("Choose a profile on the left to inspect its details and actions.")
-                )
-                .frame(maxWidth: .infinity, minHeight: 420)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                .background(NativePreferencesTheme.Colors.paneBackground)
+                    description: Text("Choose a profile on the left to inspect its details and actions."))
+                    .frame(maxWidth: .infinity, minHeight: 420)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .background(NativePreferencesTheme.Colors.paneBackground)
             }
         }
         .navigationSplitViewColumnWidth(min: 380, ideal: 460)
@@ -285,8 +273,7 @@ public struct ProfilesSettingsPaneView: View {
                 Toggle(isOn: selectedProfileActiveBinding) {
                     Label(
                         selectedProfileIsActive ? "Profile is active" : "Activate Profile",
-                        systemImage: selectedProfileIsActive ? "checkmark.circle.fill" : "checkmark.circle"
-                    )
+                        systemImage: selectedProfileIsActive ? "checkmark.circle.fill" : "checkmark.circle")
                 }
                 .labelStyle(.iconOnly)
                 .toggleStyle(.button)
@@ -336,8 +323,7 @@ public struct ProfilesSettingsPaneView: View {
                         ProfileAgentLabel(
                             title: profile.agent.rawValue,
                             showsActiveBadge: model.activeProfileId == profile.id,
-                            accountState: profile.accountState
-                        )
+                            accountState: profile.accountState)
 
                         Text(profile.nickname)
                             .font(.system(size: 19, weight: .semibold, design: .rounded))
@@ -345,8 +331,7 @@ public struct ProfilesSettingsPaneView: View {
                         HStack(spacing: 6) {
                             ProfileStatusBadge(
                                 title: profile.enabled ? "Enabled" : "Disabled",
-                                dotColor: profile.enabled ? NativePreferencesTheme.Colors.statusIcon(.success) : NativePreferencesTheme.Colors.disabledIndicator
-                            )
+                                dotColor: profile.enabled ? NativePreferencesTheme.Colors.statusIcon(.success) : NativePreferencesTheme.Colors.disabledIndicator)
                             ProfileInfoBadge(title: "Priority", value: "\(profile.priority)")
                         }
                         .padding(.top, 4)
@@ -360,7 +345,6 @@ public struct ProfilesSettingsPaneView: View {
                             .labelsHidden()
                             .disabled(model.isMutatingProfiles)
                     }
-
                 }
                 if !selectedCurrentFailureEvents.isEmpty {
                     ProfileCurrentStatusSection(events: selectedCurrentFailureEvents)
@@ -374,8 +358,7 @@ public struct ProfilesSettingsPaneView: View {
         let usageRefreshError = model.usageRefreshError(profileId: profile.id)
         let note = UsageCardNoteResolver.note(
             usage: model.usageSnapshot(for: profile.id),
-            usageRefreshError: usageRefreshError
-        )
+            usageRefreshError: usageRefreshError)
         return SectionSurfaceCard(
             "Usage",
             headerAccessory: AnyView(
@@ -396,9 +379,8 @@ public struct ProfilesSettingsPaneView: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(isFetchingUsage)
-                .help("Refresh Usage")
-            )
-        ) {
+                .help("Refresh Usage")))
+        {
             if let usage = model.usageSnapshot(for: profile.id) {
                 VStack(alignment: .leading, spacing: 10) {
                     UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
@@ -476,8 +458,7 @@ public struct ProfilesSettingsPaneView: View {
                 Task {
                     await model.switchToProfile(profile.id)
                 }
-            }
-        )
+            })
     }
 
     private var selectedProfileEnabledBinding: Binding<Bool> {
@@ -491,8 +472,7 @@ public struct ProfilesSettingsPaneView: View {
                 Task {
                     await model.setProfileEnabled(profile.id, enabled: enabled)
                 }
-            }
-        )
+            })
     }
 
     private var selectedCurrentFailureEvents: [FailureEvent] {
@@ -553,15 +533,14 @@ private struct ProfileListRow: View {
         VStack(alignment: .leading, spacing: 4) {
             ProfileListAgentLabel(
                 agent: profile.agent,
-                accountState: profile.accountState
-            )
+                accountState: profile.accountState)
 
             HStack(alignment: .top, spacing: 8) {
                 if let usage {
                     MultiRingProgressView(
                         items: usage.ringProgressItems,
-                        size: .mini
-                    ) { _ in
+                        size: .mini)
+                    { _ in
                         EmptyView()
                     }
                     .frame(width: 26, height: 26)
@@ -577,14 +556,12 @@ private struct ProfileListRow: View {
                         ProfileListUsageLine(
                             title: "Session",
                             value: usage.session.menuBarDisplayValue,
-                            resetDate: usage.session.resetAt
-                        )
+                            resetDate: usage.session.resetAt)
 
                         ProfileListUsageLine(
                             title: "Weekly",
                             value: usage.weekly.menuBarDisplayValue,
-                            resetDate: usage.weekly.resetAt
-                        )
+                            resetDate: usage.weekly.resetAt)
 
                         HStack {
                             Spacer(minLength: 0)
@@ -632,18 +609,15 @@ private struct ProfileListRow: View {
             isFetchingUsage: isFetchingUsage,
             usage: usage,
             usageRefreshError: usageRefreshError,
-            isStale: usage?.stale == true
-        )
+            isStale: usage?.stale == true)
     }
 
     private func updatedText(for usage: UsageSnapshot) -> some View {
         AdaptiveRelativeDateText(
             prefix: "Updated ",
             date: usage.lastRefreshedAt,
-            style: .named
-        )
+            style: .named)
     }
-
 }
 
 struct ProfileListRowStatusIndicator: View {
@@ -657,15 +631,16 @@ struct ProfileListRowStatusIndicator: View {
             isFetchingUsage: Bool,
             usage: UsageSnapshot?,
             usageRefreshError: String?,
-            isStale: Bool
-        ) {
+            isStale: Bool)
+        {
             if isFetchingUsage {
                 self = .loading
             } else if profile.accountState == .accountUnavailable {
                 let statusDetail = profile.accountErrorHTTPStatus.map { " (HTTP \($0))" } ?? ""
                 self = .warning(message: "Account unavailable for auto-switch\(statusDetail)")
             } else if let note = usage?.userFacingNote,
-                      let severity = UsageCardNoteResolver.severity(for: usage) {
+                      let severity = UsageCardNoteResolver.severity(for: usage)
+            {
                 switch severity {
                 case .warning:
                     self = .warning(message: note)
@@ -719,8 +694,8 @@ private struct ProfileListUsageLine: View {
 
             if let resetDate {
                 ResetRelativeDateText(date: resetDate)
-                .font(.system(size: 10))
-                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                    .font(.system(size: 10))
+                    .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -967,8 +942,8 @@ private struct ProfileEditorSheet: View {
         title: String,
         initialDraft: ProfileDraft,
         mode: ProfileEditorMode,
-        onSave: @escaping @MainActor (ProfileDraft) async -> Void
-    ) {
+        onSave: @escaping @MainActor (ProfileDraft) async -> Void)
+    {
         self.title = title
         self.mode = mode
         self.onSave = onSave
@@ -990,8 +965,7 @@ private struct ProfileEditorSheet: View {
                             title: "Priority",
                             valueText: "\(draft.priority)",
                             value: $draft.priority,
-                            range: 0...10_000
-                        )
+                            range: 0 ... 10000)
 
                         Text("Lower numbers are preferred first during switching.")
                             .font(.caption)
@@ -1225,8 +1199,7 @@ private struct AddProfileSheet: View {
         .padding(12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(flowState.backgroundColor)
-        )
+                .fill(flowState.backgroundColor))
     }
 
     private var loginTitle: String {
@@ -1283,91 +1256,91 @@ private struct AddProfileSheet: View {
         var primaryActionTitle: String? {
             switch self {
             case .requesting:
-                return nil
+                nil
             case .notSignedIn, .failed:
-                return "Try Again"
+                "Try Again"
             }
         }
 
         var secondaryActionTitle: String {
             switch self {
             case .requesting:
-                return "Cancel"
+                "Cancel"
             case .notSignedIn, .failed:
-                return "Back"
+                "Back"
             }
         }
 
         var bodyText: String {
             switch self {
             case .requesting:
-                return "Complete the browser login, or cancel."
+                "Complete the browser login, or cancel."
             case .notSignedIn:
-                return "Login did not complete."
+                "Login did not complete."
             case let .failed(detail):
-                return detail
+                detail
             }
         }
 
         var statusTitle: String {
             switch self {
             case .requesting:
-                return "Add Account..."
+                "Add Account..."
             case .notSignedIn, .failed:
-                return "Add Account"
+                "Add Account"
             }
         }
 
         func statusSubtitle(agentName _: String) -> String {
             switch self {
             case .requesting:
-                return "Requesting login..."
+                "Requesting login..."
             case .notSignedIn:
-                return "Not signed in"
+                "Not signed in"
             case .failed:
-                return "Login failed"
+                "Login failed"
             }
         }
 
         var statusDetail: String? {
             switch self {
             case .requesting:
-                return nil
+                nil
             case let .notSignedIn(detail), let .failed(detail):
-                return detail
+                detail
             }
         }
 
         var symbolName: String {
             switch self {
             case .requesting:
-                return "key.fill"
+                "key.fill"
             case .notSignedIn:
-                return "person.crop.circle.badge.xmark"
+                "person.crop.circle.badge.xmark"
             case .failed:
-                return "exclamationmark.triangle.fill"
+                "exclamationmark.triangle.fill"
             }
         }
 
         var accentColor: Color {
             switch self {
             case .requesting:
-                return .secondary
+                .secondary
             case .notSignedIn:
-                return NativePreferencesTheme.Colors.statusIcon(.warning)
+                NativePreferencesTheme.Colors.statusIcon(.warning)
             case .failed:
-                return NativePreferencesTheme.Colors.statusIcon(.danger)
+                NativePreferencesTheme.Colors.statusIcon(.danger)
             }
         }
 
         var backgroundColor: Color {
             switch self {
             case .requesting:
-                return NativePreferencesTheme.Colors.pendingFill
+                NativePreferencesTheme.Colors.pendingFill
             case .notSignedIn:
-                return NativePreferencesTheme.Colors.statusFill(.warning)
+                NativePreferencesTheme.Colors.statusFill(.warning)
             case .failed:
-                return NativePreferencesTheme.Colors.statusFill(.danger)
+                NativePreferencesTheme.Colors.statusFill(.danger)
             }
         }
     }

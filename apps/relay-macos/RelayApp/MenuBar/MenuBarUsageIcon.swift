@@ -25,25 +25,22 @@ private extension MenuBarUsageIconDescriptor.Ring {
     init(window: UsageWindow, stale: Bool, emphasis: CGFloat) {
         let freshnessAlpha: CGFloat = stale ? 0.72 : 1
         let exactnessAlpha: CGFloat = window.exact ? 1 : 0.88
-        let statusAlpha: CGFloat
-
-        switch window.status {
+        let statusAlpha: CGFloat = switch window.status {
         case .healthy:
-            statusAlpha = 0.96
+            0.96
         case .warning:
-            statusAlpha = 1
+            1
         case .exhausted:
-            statusAlpha = 1
+            1
         case .unknown:
-            statusAlpha = 0.58
+            0.58
         }
 
         let resolvedStrokeAlpha = statusAlpha * freshnessAlpha * exactnessAlpha * emphasis
         self.init(
             progress: CGFloat(window.ringProgress),
             trackAlpha: max(0.14, 0.26 * freshnessAlpha * emphasis),
-            strokeAlpha: max(0.2, resolvedStrokeAlpha)
-        )
+            strokeAlpha: max(0.2, resolvedStrokeAlpha))
     }
 }
 
@@ -66,8 +63,8 @@ enum MenuBarUsageIconRenderer {
 
     private static func draw(
         descriptor: MenuBarUsageIconDescriptor,
-        in bounds: CGRect
-    ) {
+        in bounds: CGRect)
+    {
         guard let context = NSGraphicsContext.current?.cgContext else {
             return
         }
@@ -81,15 +78,13 @@ enum MenuBarUsageIconRenderer {
             center: center,
             radius: 6.55,
             lineWidth: 2.55,
-            in: context
-        )
+            in: context)
         drawRing(
             descriptor.weeklyRing,
             center: center,
             radius: 3.5,
             lineWidth: 2.6,
-            in: context
-        )
+            in: context)
     }
 
     private static func drawRing(
@@ -97,8 +92,8 @@ enum MenuBarUsageIconRenderer {
         center: CGPoint,
         radius: CGFloat,
         lineWidth: CGFloat,
-        in context: CGContext
-    ) {
+        in context: CGContext)
+    {
         context.setLineWidth(lineWidth)
         context.setLineCap(.round)
 
@@ -107,8 +102,7 @@ enum MenuBarUsageIconRenderer {
             x: center.x - radius,
             y: center.y - radius,
             width: radius * 2,
-            height: radius * 2
-        ))
+            height: radius * 2))
         context.strokePath()
 
         guard ring.progress > 0 else {
@@ -121,16 +115,14 @@ enum MenuBarUsageIconRenderer {
                 x: center.x - radius,
                 y: center.y - radius,
                 width: radius * 2,
-                height: radius * 2
-            ))
+                height: radius * 2))
         } else {
             context.addArc(
                 center: center,
                 radius: radius,
                 startAngle: startAngle,
                 endAngle: startAngle - (sweepAngle * ring.progress),
-                clockwise: true
-            )
+                clockwise: true)
         }
         context.strokePath()
     }

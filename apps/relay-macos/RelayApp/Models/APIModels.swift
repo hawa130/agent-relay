@@ -1,6 +1,6 @@
 import Foundation
 
-struct DoctorReport: Decodable, Sendable {
+struct DoctorReport: Decodable {
     let platform: String
     let relayHome: String
     let relayDbPath: String
@@ -13,7 +13,7 @@ struct DoctorReport: Decodable, Sendable {
     let managedFiles: [String]
 }
 
-struct StatusReport: Decodable, Sendable {
+struct StatusReport: Decodable {
     let relayHome: String
     let liveAgentHome: String
     let profileCount: Int
@@ -21,7 +21,7 @@ struct StatusReport: Decodable, Sendable {
     let settings: AppSettings
 }
 
-struct ActiveState: Decodable, Sendable {
+struct ActiveState: Decodable {
     let activeProfileId: String?
     let lastSwitchAt: Date?
     let lastSwitchResult: SwitchOutcome
@@ -40,18 +40,18 @@ struct ActiveState: Decodable, Sendable {
         lastSwitchAt = try container.decodeIfPresent(Date.self, forKey: .lastSwitchAt)
         lastSwitchResult =
             try container.decodeIfPresent(SwitchOutcome.self, forKey: .lastSwitchResult)
-            ?? .notRun
+                ?? .notRun
         autoSwitchEnabled =
             try container.decodeIfPresent(Bool.self, forKey: .autoSwitchEnabled)
-            ?? false
+                ?? false
     }
 
     init(
         activeProfileId: String?,
         lastSwitchAt: Date?,
         lastSwitchResult: SwitchOutcome,
-        autoSwitchEnabled: Bool
-    ) {
+        autoSwitchEnabled: Bool)
+    {
         self.activeProfileId = activeProfileId
         self.lastSwitchAt = lastSwitchAt
         self.lastSwitchResult = lastSwitchResult
@@ -59,7 +59,7 @@ struct ActiveState: Decodable, Sendable {
     }
 }
 
-struct AppSettings: Decodable, Sendable {
+struct AppSettings: Decodable {
     let autoSwitchEnabled: Bool
     let cooldownSeconds: Int
     let refreshIntervalSeconds: Int
@@ -76,24 +76,24 @@ struct AppSettings: Decodable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         autoSwitchEnabled =
             try container.decodeIfPresent(Bool.self, forKey: .autoSwitchEnabled)
-            ?? false
+                ?? false
         cooldownSeconds =
             try container.decodeIfPresent(Int.self, forKey: .cooldownSeconds)
-            ?? 600
+                ?? 600
         refreshIntervalSeconds =
             try container.decodeIfPresent(Int.self, forKey: .refreshIntervalSeconds)
-            ?? 60
+                ?? 60
         networkQueryConcurrency =
             try container.decodeIfPresent(Int.self, forKey: .networkQueryConcurrency)
-            ?? 10
+                ?? 10
     }
 
     init(
         autoSwitchEnabled: Bool,
         cooldownSeconds: Int,
         refreshIntervalSeconds: Int,
-        networkQueryConcurrency: Int
-    ) {
+        networkQueryConcurrency: Int)
+    {
         self.autoSwitchEnabled = autoSwitchEnabled
         self.cooldownSeconds = cooldownSeconds
         self.refreshIntervalSeconds = refreshIntervalSeconds
@@ -101,7 +101,7 @@ struct AppSettings: Decodable, Sendable {
     }
 }
 
-struct CodexSettings: Decodable, Sendable {
+struct CodexSettings: Decodable {
     let usageSourceMode: UsageSourceMode
 
     private enum CodingKeys: String, CodingKey {
@@ -112,7 +112,7 @@ struct CodexSettings: Decodable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         usageSourceMode =
             try container.decodeIfPresent(UsageSourceMode.self, forKey: .usageSourceMode)
-            ?? .auto
+                ?? .auto
     }
 
     init(usageSourceMode: UsageSourceMode) {
@@ -120,7 +120,7 @@ struct CodexSettings: Decodable, Sendable {
     }
 }
 
-struct Profile: Decodable, Identifiable, Sendable {
+struct Profile: Decodable, Identifiable {
     let id: String
     let nickname: String
     let agent: AgentKind
@@ -164,8 +164,8 @@ struct Profile: Decodable, Identifiable, Sendable {
         configPath: String?,
         authMode: AuthMode,
         createdAt: Date,
-        updatedAt: Date
-    ) {
+        updatedAt: Date)
+    {
         self.id = id
         self.nickname = nickname
         self.agent = agent
@@ -199,19 +199,19 @@ struct Profile: Decodable, Identifiable, Sendable {
     }
 }
 
-enum ProfileAccountState: String, Decodable, Sendable {
+enum ProfileAccountState: String, Decodable {
     case healthy = "Healthy"
     case accountUnavailable = "AccountUnavailable"
 }
 
-struct ProfileListItem: Decodable, Sendable {
+struct ProfileListItem: Decodable {
     let profile: Profile
     let isActive: Bool
     let usageSummary: UsageSnapshot?
     let currentFailureEvents: [FailureEvent]
 }
 
-struct UsageSnapshot: Decodable, Sendable {
+struct UsageSnapshot: Decodable {
     let profileId: String?
     let profileName: String?
     let source: UsageSource
@@ -227,22 +227,22 @@ struct UsageSnapshot: Decodable, Sendable {
     let remoteError: UsageRemoteError?
 }
 
-struct UsageRemoteError: Decodable, Sendable, Equatable {
+struct UsageRemoteError: Decodable, Equatable {
     let kind: UsageRemoteErrorKind
     let httpStatus: Int?
 }
 
-enum UsageRemoteErrorKind: String, Decodable, Sendable, Equatable {
+enum UsageRemoteErrorKind: String, Decodable, Equatable {
     case account = "Account"
     case network = "Network"
     case other = "Other"
 }
 
-struct CodexSettingsDraft: Encodable, Sendable {
+struct CodexSettingsDraft: Encodable {
     let sourceMode: UsageSourceMode?
 }
 
-struct UsageWindow: Decodable, Sendable {
+struct UsageWindow: Decodable {
     let usedPercent: Double?
     let windowMinutes: Int?
     let resetAt: Date?
@@ -250,7 +250,7 @@ struct UsageWindow: Decodable, Sendable {
     let exact: Bool
 }
 
-struct FailureEvent: Decodable, Identifiable, Sendable {
+struct FailureEvent: Decodable, Identifiable {
     let id: String
     let profileId: String?
     let reason: FailureReason
@@ -260,18 +260,18 @@ struct FailureEvent: Decodable, Identifiable, Sendable {
     let createdAt: Date
 }
 
-struct LogTail: Decodable, Sendable {
+struct LogTail: Decodable {
     let path: String
     let lines: [String]
 }
 
-struct DiagnosticsExport: Decodable, Sendable {
+struct DiagnosticsExport: Decodable {
     let archivePath: String
     let bundleDir: String
     let createdAt: Date
 }
 
-struct SwitchReport: Decodable, Sendable {
+struct SwitchReport: Decodable {
     let profileId: String
     let previousProfileId: String?
     let checkpointId: String
@@ -280,120 +280,119 @@ struct SwitchReport: Decodable, Sendable {
     let message: String
 }
 
-struct RPCRequestEnvelope<Params: Encodable & Sendable>: Encodable, Sendable {
+struct RPCRequestEnvelope<Params: Encodable & Sendable>: Encodable {
     let jsonrpc = "2.0"
     let id: String
     let method: String
     let params: Params
 }
 
-struct RPCResponseEnvelope<Result: Decodable & Sendable>: Decodable, Sendable {
+struct RPCResponseEnvelope<Result: Decodable & Sendable>: Decodable {
     let jsonrpc: String
     let id: String
     let result: Result
 }
 
-struct RPCErrorEnvelope: Decodable, Sendable {
+struct RPCErrorEnvelope: Decodable {
     let jsonrpc: String
     let id: String?
     let error: RPCErrorObject
 }
 
-struct RPCErrorObject: Decodable, Sendable {
+struct RPCErrorObject: Decodable {
     let code: Int
     let message: String
     let data: RPCErrorData?
 }
 
-struct RPCErrorData: Decodable, Sendable {
+struct RPCErrorData: Decodable {
     let relayErrorCode: String?
 }
 
-struct RPCInitializeParams: Encodable, Sendable {
+struct RPCInitializeParams: Encodable {
     let protocolVersion = "1"
     let clientInfo = RPCClientInfo(name: "relay-macos", version: "0.1.0")
     let capabilities = RPCClientCapabilities(
         supportsSubscriptions: true,
-        supportsHealthUpdates: true
-    )
+        supportsHealthUpdates: true)
 }
 
-struct RPCClientInfo: Encodable, Sendable {
+struct RPCClientInfo: Encodable {
     let name: String
     let version: String
 }
 
-struct RPCClientCapabilities: Encodable, Sendable {
+struct RPCClientCapabilities: Encodable {
     let supportsSubscriptions: Bool
     let supportsHealthUpdates: Bool
 }
 
-struct RPCInitializeResult: Decodable, Sendable {
+struct RPCInitializeResult: Decodable {
     let protocolVersion: String
     let initialState: RPCInitialState
 }
 
-struct RPCInitialState: Decodable, Sendable {
+struct RPCInitialState: Decodable {
     let status: StatusReport
     let profiles: [ProfileListItem]
     let codexSettings: CodexSettings
     let engine: RPCEngineState
 }
 
-struct RPCEngineState: Decodable, Sendable {
+struct RPCEngineState: Decodable {
     let startedAt: Date
     let connectionState: EngineConnectionState
 }
 
-enum EngineConnectionState: String, Decodable, Sendable {
+enum EngineConnectionState: String, Decodable {
     case starting = "Starting"
     case ready = "Ready"
     case degraded = "Degraded"
 }
 
-struct RPCSubscribeParams: Encodable, Sendable {
+struct RPCSubscribeParams: Encodable {
     let topics: [String]
 }
 
-struct RPCUsageRefreshResult: Decodable, Sendable {
+struct RPCUsageRefreshResult: Decodable {
     let snapshots: [UsageSnapshot]
 }
 
-struct UsageResult: Decodable, Sendable {
+struct UsageResult: Decodable {
     let snapshot: UsageSnapshot
 }
 
-struct RPCSettingsResult: Decodable, Sendable {
+struct RPCSettingsResult: Decodable {
     let app: AppSettings
     let codex: CodexSettings
 }
 
-struct AppSettingsPatch: Encodable, Sendable {
+struct AppSettingsPatch: Encodable {
     let autoSwitchEnabled: Bool?
     let cooldownSeconds: Int?
     let refreshIntervalSeconds: Int?
     let networkQueryConcurrency: Int?
 }
 
-struct RPCSettingsUpdatePayload: Encodable, Sendable {
+struct RPCSettingsUpdatePayload: Encodable {
     let app: AppSettingsPatch?
     let codex: CodexSettingsDraft?
 }
 
-struct RPCEventsResult: Decodable, Sendable {
+struct RPCEventsResult: Decodable {
     let events: [FailureEvent]
 }
 
-struct RPCLogsResult: Decodable, Sendable {
+struct RPCLogsResult: Decodable {
     let logs: LogTail
 }
 
-struct RPCActivityRefreshResult: Decodable, Sendable {
+struct RPCActivityRefreshResult: Decodable {
     let events: [FailureEvent]
     let logs: LogTail
 }
 
-enum RelaySessionUpdate: Sendable {
+enum RelaySessionUpdate {
     case usageUpdated(UsageUpdatedNotification)
     case queryStateUpdated(QueryStateUpdatedNotification)
     case activeStateUpdated(ActiveStateUpdatedNotification)
@@ -408,16 +407,16 @@ enum RelaySessionUpdate: Sendable {
     case healthUpdated(HealthUpdatedNotification)
 }
 
-struct UsageUpdatedNotification: Decodable, Sendable {
+struct UsageUpdatedNotification: Decodable {
     let snapshots: [UsageSnapshot]
     let trigger: UsageUpdateTrigger
 }
 
-struct QueryStateUpdatedNotification: Decodable, Sendable {
+struct QueryStateUpdatedNotification: Decodable {
     let states: [QueryStateItem]
 }
 
-struct QueryStateItem: Decodable, Hashable, Sendable {
+struct QueryStateItem: Decodable, Hashable {
     let key: QueryStateKey
     let status: QueryStateStatus
     let trigger: QueryStateTrigger
@@ -426,79 +425,79 @@ struct QueryStateItem: Decodable, Hashable, Sendable {
     let updatedAt: Date
 }
 
-struct QueryStateKey: Decodable, Hashable, Sendable {
+struct QueryStateKey: Decodable, Hashable {
     let kind: QueryStateKind
     let profileId: String?
 }
 
-enum QueryStateKind: String, Decodable, Hashable, Sendable {
+enum QueryStateKind: String, Decodable, Hashable {
     case usageProfile = "UsageProfile"
 }
 
-enum QueryStateStatus: String, Decodable, Hashable, Sendable {
+enum QueryStateStatus: String, Decodable, Hashable {
     case pending = "Pending"
     case error = "Error"
 }
 
-enum QueryStateTrigger: String, Decodable, Hashable, Sendable {
+enum QueryStateTrigger: String, Decodable, Hashable {
     case startup = "Startup"
     case interval = "Interval"
     case manual = "Manual"
     case postSwitch = "PostSwitch"
 }
 
-struct ActiveStateUpdatedNotification: Decodable, Sendable {
+struct ActiveStateUpdatedNotification: Decodable {
     let activeState: ActiveState
     let activeProfile: ProfileListItem?
 }
 
-struct SettingsUpdatedNotification: Decodable, Sendable {
+struct SettingsUpdatedNotification: Decodable {
     let settings: RPCSettingsResult
 }
 
-struct ProfilesUpdatedNotification: Decodable, Sendable {
+struct ProfilesUpdatedNotification: Decodable {
     let profiles: [ProfileListItem]
 }
 
-struct ActivityEventsUpdatedNotification: Decodable, Sendable {
+struct ActivityEventsUpdatedNotification: Decodable {
     let events: [FailureEvent]
 }
 
-struct ActivityLogsUpdatedNotification: Decodable, Sendable {
+struct ActivityLogsUpdatedNotification: Decodable {
     let logs: LogTail
 }
 
-struct DoctorUpdatedNotification: Decodable, Sendable {
+struct DoctorUpdatedNotification: Decodable {
     let report: DoctorReport
 }
 
-struct SwitchCompletedNotification: Decodable, Sendable {
+struct SwitchCompletedNotification: Decodable {
     let report: SwitchReport
     let trigger: SwitchTrigger
 }
 
-struct SwitchFailedNotification: Decodable, Sendable {
+struct SwitchFailedNotification: Decodable {
     let errorCode: String
     let message: String
     let profileId: String?
     let trigger: SwitchTrigger
 }
 
-struct TaskStartResult: Decodable, Sendable {
+struct TaskStartResult: Decodable {
     let taskId: String
     let kind: RelayTaskKind
     let accepted: Bool
 }
 
-struct TaskCancelResult: Decodable, Sendable {
+struct TaskCancelResult: Decodable {
     let accepted: Bool
 }
 
-struct TaskUpdatedNotification: Decodable, Sendable {
+struct TaskUpdatedNotification: Decodable {
     let task: RelayTaskUpdate
 }
 
-struct RelayTaskUpdate: Decodable, Sendable {
+struct RelayTaskUpdate: Decodable {
     let taskId: String
     let kind: RelayTaskKind
     let status: RelayTaskStatus
@@ -543,8 +542,8 @@ struct RelayTaskUpdate: Decodable, Sendable {
         finishedAt: Date?,
         message: String?,
         errorCode: String?,
-        profileLoginResult: AgentLinkResult?
-    ) {
+        profileLoginResult: AgentLinkResult?)
+    {
         self.taskId = taskId
         self.kind = kind
         self.status = status
@@ -558,42 +557,42 @@ struct RelayTaskUpdate: Decodable, Sendable {
     var isTerminal: Bool {
         switch status {
         case .succeeded, .failed, .cancelled:
-            return true
+            true
         case .pending:
-            return false
+            false
         }
     }
 }
 
-enum RelayTaskKind: String, Decodable, Sendable {
+enum RelayTaskKind: String, Decodable {
     case profileLogin = "ProfileLogin"
 }
 
-enum RelayTaskStatus: String, Decodable, Sendable {
+enum RelayTaskStatus: String, Decodable {
     case pending = "Pending"
     case succeeded = "Succeeded"
     case failed = "Failed"
     case cancelled = "Cancelled"
 }
 
-struct HealthUpdatedNotification: Decodable, Sendable {
+struct HealthUpdatedNotification: Decodable {
     let state: EngineConnectionState
     let detail: String?
 }
 
-enum UsageUpdateTrigger: String, Decodable, Sendable {
+enum UsageUpdateTrigger: String, Decodable {
     case startup = "Startup"
     case interval = "Interval"
     case manual = "Manual"
     case postSwitch = "PostSwitch"
 }
 
-enum SwitchTrigger: String, Decodable, Sendable {
+enum SwitchTrigger: String, Decodable {
     case manual = "Manual"
     case auto = "Auto"
 }
 
-struct ProfileProbeIdentity: Decodable, Sendable {
+struct ProfileProbeIdentity: Decodable {
     let profileId: String
     let accountId: String
     let email: String?
@@ -637,14 +636,13 @@ struct ProfileProbeIdentity: Decodable, Sendable {
         }
         guard let accountId =
             try container.decodeIfPresent(String.self, forKey: .accountId)
-            ?? nestedAccountID
-            ?? principalId
+                ?? nestedAccountID
+                ?? principalId
         else {
             throw DecodingError.dataCorruptedError(
                 forKey: .accountId,
                 in: container,
-                debugDescription: "Missing probe identity account/principal identifier"
-            )
+                debugDescription: "Missing probe identity account/principal identifier")
         }
         self.accountId = accountId
 
@@ -657,25 +655,25 @@ struct ProfileProbeIdentity: Decodable, Sendable {
         }
         email =
             try container.decodeIfPresent(String.self, forKey: .email)
-            ?? nestedEmail
-            ?? displayName
+                ?? nestedEmail
+                ?? displayName
         planHint =
             try container.decodeIfPresent(String.self, forKey: .planHint)
-            ?? nestedPlanHint
+                ?? nestedPlanHint
     }
 }
 
-struct AgentLinkResult: Decodable, Sendable {
+struct AgentLinkResult: Decodable {
     let profile: Profile
     let probeIdentity: ProfileProbeIdentity
     let activated: Bool
 }
 
-struct RPCTaskID: Encodable, Sendable {
+struct RPCTaskID: Encodable {
     let taskId: String
 }
 
-enum AgentKind: String, Codable, Sendable {
+enum AgentKind: String, Codable {
     case codex = "Codex"
 
     var cliArgument: String {
@@ -687,13 +685,13 @@ enum AgentKind: String, Codable, Sendable {
     }
 }
 
-enum AuthMode: String, Codable, Sendable, CaseIterable {
+enum AuthMode: String, Codable, CaseIterable {
     case configFilesystem = "ConfigFilesystem"
     case envReference = "EnvReference"
     case keychainReference = "KeychainReference"
 }
 
-enum FailureReason: String, Decodable, Sendable {
+enum FailureReason: String, Decodable {
     case sessionExhausted = "SessionExhausted"
     case weeklyExhausted = "WeeklyExhausted"
     case accountUnavailable = "AccountUnavailable"
@@ -707,34 +705,34 @@ enum FailureReason: String, Decodable, Sendable {
     var displayName: String {
         switch self {
         case .sessionExhausted:
-            return "Session Exhausted"
+            "Session Exhausted"
         case .weeklyExhausted:
-            return "Weekly Exhausted"
+            "Weekly Exhausted"
         case .accountUnavailable:
-            return "Account Unavailable"
+            "Account Unavailable"
         case .authInvalid:
-            return "Authentication Invalid"
+            "Authentication Invalid"
         case .quotaExhausted:
-            return "Quota Exhausted"
+            "Quota Exhausted"
         case .rateLimited:
-            return "Rate Limited"
+            "Rate Limited"
         case .commandFailed:
-            return "Command Failed"
+            "Command Failed"
         case .validationFailed:
-            return "Validation Failed"
+            "Validation Failed"
         case .unknown:
-            return "Unknown"
+            "Unknown"
         }
     }
 }
 
-enum SwitchOutcome: String, Decodable, Sendable {
+enum SwitchOutcome: String, Decodable {
     case notRun = "NotRun"
     case success = "Success"
     case failed = "Failed"
 }
 
-enum UsageSource: String, Decodable, Sendable {
+enum UsageSource: String, Decodable {
     case local = "Local"
     case fallback = "Fallback"
     case webEnhanced = "WebEnhanced"
@@ -742,16 +740,16 @@ enum UsageSource: String, Decodable, Sendable {
     var displayName: String {
         switch self {
         case .local:
-            return "On-device"
+            "On-device"
         case .fallback:
-            return "Fallback"
+            "Fallback"
         case .webEnhanced:
-            return "Web"
+            "Web"
         }
     }
 }
 
-enum UsageSourceMode: String, CaseIterable, Decodable, Encodable, Sendable {
+enum UsageSourceMode: String, CaseIterable, Decodable, Encodable {
     case auto = "Auto"
     case local = "Local"
     case webEnhanced = "WebEnhanced"
@@ -759,44 +757,44 @@ enum UsageSourceMode: String, CaseIterable, Decodable, Encodable, Sendable {
     var cliValue: String {
         switch self {
         case .auto:
-            return "auto"
+            "auto"
         case .local:
-            return "local"
+            "local"
         case .webEnhanced:
-            return "web-enhanced"
+            "web-enhanced"
         }
     }
 
     var displayName: String {
         switch self {
         case .auto:
-            return "Auto"
+            "Auto"
         case .local:
-            return "On-device"
+            "On-device"
         case .webEnhanced:
-            return "Web"
+            "Web"
         }
     }
 
     var helpText: String {
         switch self {
         case .auto:
-            return "AgentRelay chooses the best available source for Codex usage."
+            "AgentRelay chooses the best available source for Codex usage."
         case .local:
-            return "Read usage from the local Codex environment only."
+            "Read usage from the local Codex environment only."
         case .webEnhanced:
-            return "Prefer the remote web-backed source when available."
+            "Prefer the remote web-backed source when available."
         }
     }
 }
 
-enum UsageConfidence: String, Decodable, Sendable {
+enum UsageConfidence: String, Decodable {
     case high = "High"
     case medium = "Medium"
     case low = "Low"
 }
 
-enum UsageStatus: String, Decodable, Sendable {
+enum UsageStatus: String, Decodable {
     case healthy = "Healthy"
     case warning = "Warning"
     case exhausted = "Exhausted"
@@ -821,27 +819,27 @@ extension AuthMode {
     var cliArgument: String {
         switch self {
         case .configFilesystem:
-            return "config-filesystem"
+            "config-filesystem"
         case .envReference:
-            return "env-reference"
+            "env-reference"
         case .keychainReference:
-            return "keychain-reference"
+            "keychain-reference"
         }
     }
 
     var displayName: String {
         switch self {
         case .configFilesystem:
-            return "Config Filesystem"
+            "Config Filesystem"
         case .envReference:
-            return "Environment Reference"
+            "Environment Reference"
         case .keychainReference:
-            return "Keychain Reference"
+            "Keychain Reference"
         }
     }
 }
 
-struct ProfileDraft: Sendable {
+struct ProfileDraft {
     var nickname: String
     var priority: Int
     var agentHome: String
@@ -857,8 +855,8 @@ struct ProfileDraft: Sendable {
         configPath: String,
         authMode: AuthMode,
         clearAgentHome: Bool,
-        clearConfigPath: Bool
-    ) {
+        clearConfigPath: Bool)
+    {
         self.nickname = nickname
         self.priority = priority
         self.agentHome = agentHome
@@ -869,17 +867,17 @@ struct ProfileDraft: Sendable {
     }
 
     init(profile: Profile) {
-        self.nickname = profile.nickname
-        self.priority = profile.priority
-        self.agentHome = profile.agentHome ?? ""
-        self.configPath = profile.configPath ?? ""
-        self.authMode = profile.authMode
-        self.clearAgentHome = false
-        self.clearConfigPath = false
+        nickname = profile.nickname
+        priority = profile.priority
+        agentHome = profile.agentHome ?? ""
+        configPath = profile.configPath ?? ""
+        authMode = profile.authMode
+        clearAgentHome = false
+        clearConfigPath = false
     }
 }
 
-struct EditProfilePayload: Encodable, Sendable {
+struct EditProfilePayload: Encodable {
     let id: String
     let nickname: String
     let priority: Int
@@ -897,29 +895,29 @@ struct EditProfilePayload: Encodable, Sendable {
     }
 }
 
-struct ProfileIdPayload: Encodable, Sendable {
+struct ProfileIdPayload: Encodable {
     let id: String
 }
 
-struct ImportProfilePayload: Encodable, Sendable {
+struct ImportProfilePayload: Encodable {
     let nickname: String?
     let priority: Int
 }
 
-struct LoginProfilePayload: Encodable, Sendable {
+struct LoginProfilePayload: Encodable {
     let nickname: String?
     let priority: Int
 }
 
-struct AutoSwitchPayload: Encodable, Sendable {
+struct AutoSwitchPayload: Encodable {
     let enabled: Bool
 }
 
-struct EventsListPayload: Encodable, Sendable {
+struct EventsListPayload: Encodable {
     let limit: Int
 }
 
-struct LogsTailPayload: Encodable, Sendable {
+struct LogsTailPayload: Encodable {
     let lines: Int
 }
 
@@ -937,8 +935,7 @@ extension JSONDecoder {
 
             throw DecodingError.dataCorruptedError(
                 in: container,
-                debugDescription: "Invalid RFC3339 date: \(value)"
-            )
+                debugDescription: "Invalid RFC3339 date: \(value)")
         }
         return decoder
     }

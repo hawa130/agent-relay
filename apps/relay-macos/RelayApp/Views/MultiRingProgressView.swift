@@ -25,8 +25,8 @@ public struct RingProgressItem: Identifiable, Hashable, Sendable {
         tone: RingProgressTone,
         isDimmed: Bool = false,
         valueText: String? = nil,
-        detailText: String? = nil
-    ) {
+        detailText: String? = nil)
+    {
         self.id = id
         self.label = label
         self.shortLabel = shortLabel
@@ -52,8 +52,8 @@ public struct RingProgressSize {
         diameter: CGFloat,
         ringThickness: CGFloat,
         ringSpacing: CGFloat,
-        centerPadding: CGFloat
-    ) {
+        centerPadding: CGFloat)
+    {
         self.diameter = diameter
         self.ringThickness = ringThickness
         self.ringSpacing = ringSpacing
@@ -65,8 +65,7 @@ public struct RingProgressSize {
             diameter: 60,
             ringThickness: 6,
             ringSpacing: 4,
-            centerPadding: 6
-        )
+            centerPadding: 6)
     }
 
     public static var mini: RingProgressSize {
@@ -74,8 +73,7 @@ public struct RingProgressSize {
             diameter: 26,
             ringThickness: 3,
             ringSpacing: 1,
-            centerPadding: 2
-        )
+            centerPadding: 2)
     }
 
     public static var regular: RingProgressSize {
@@ -83,8 +81,7 @@ public struct RingProgressSize {
             diameter: 112,
             ringThickness: 10,
             ringSpacing: 6,
-            centerPadding: 10
-        )
+            centerPadding: 10)
     }
 
     public static var large: RingProgressSize {
@@ -92,8 +89,7 @@ public struct RingProgressSize {
             diameter: 148,
             ringThickness: 14,
             ringSpacing: 8,
-            centerPadding: 14
-        )
+            centerPadding: 14)
     }
 }
 
@@ -111,8 +107,8 @@ public struct RingProgressStyle {
         trackColor: Color = Color.secondary,
         trackOpacity: Double = 0.14,
         dimmedOpacity: Double = 0.45,
-        animation: Animation? = .spring(duration: 0.45, bounce: 0.18)
-    ) {
+        animation: Animation? = .spring(duration: 0.45, bounce: 0.18))
+    {
         self.startAngle = startAngle
         self.lineCap = lineCap
         self.trackColor = trackColor
@@ -129,8 +125,8 @@ public struct RingProgressStyle {
 enum RingProgressLayout {
     static func focusedItem(
         in items: [RingProgressItem],
-        focusedRingID: String?
-    ) -> RingProgressItem? {
+        focusedRingID: String?) -> RingProgressItem?
+    {
         guard !items.isEmpty else {
             return nil
         }
@@ -144,16 +140,16 @@ enum RingProgressLayout {
 
     static func ringDiameter(
         size: RingProgressSize,
-        ringIndex: Int
-    ) -> CGFloat {
+        ringIndex: Int) -> CGFloat
+    {
         let step = 2 * (size.ringThickness + size.ringSpacing)
         return max(size.ringThickness, size.diameter - CGFloat(ringIndex) * step)
     }
 
     static func centerDiameter(
         size: RingProgressSize,
-        ringCount: Int
-    ) -> CGFloat {
+        ringCount: Int) -> CGFloat
+    {
         guard ringCount > 0 else {
             return max(0, size.diameter - (size.centerPadding * 2))
         }
@@ -175,8 +171,8 @@ public struct MultiRingProgressView<CenterContent: View>: View {
         size: RingProgressSize = .regular,
         style: RingProgressStyle = .default,
         focusedRingID: String? = nil,
-        @ViewBuilder centerContent: @escaping (RingProgressItem?) -> CenterContent
-    ) {
+        @ViewBuilder centerContent: @escaping (RingProgressItem?) -> CenterContent)
+    {
         self.items = items
         self.size = size
         self.style = style
@@ -194,8 +190,7 @@ public struct MultiRingProgressView<CenterContent: View>: View {
                 Circle()
                     .stroke(
                         style.trackColor.opacity(style.trackOpacity),
-                        style: StrokeStyle(lineWidth: size.ringThickness, lineCap: style.lineCap)
-                    )
+                        style: StrokeStyle(lineWidth: size.ringThickness, lineCap: style.lineCap))
                     .frame(width: diameter, height: diameter)
 
                 Circle()
@@ -203,8 +198,7 @@ public struct MultiRingProgressView<CenterContent: View>: View {
                     .stroke(
                         toneColor(for: item)
                             .opacity(item.isDimmed ? style.dimmedOpacity : 1),
-                        style: StrokeStyle(lineWidth: size.ringThickness, lineCap: style.lineCap)
-                    )
+                        style: StrokeStyle(lineWidth: size.ringThickness, lineCap: style.lineCap))
                     .rotationEffect(style.startAngle)
                     .frame(width: diameter, height: diameter)
             }
@@ -212,8 +206,7 @@ public struct MultiRingProgressView<CenterContent: View>: View {
             centerContent(focusedItem)
                 .frame(
                     width: RingProgressLayout.centerDiameter(size: size, ringCount: items.count),
-                    height: RingProgressLayout.centerDiameter(size: size, ringCount: items.count)
-                )
+                    height: RingProgressLayout.centerDiameter(size: size, ringCount: items.count))
         }
         .frame(width: size.diameter, height: size.diameter)
         .animation(style.animation, value: animationState)
@@ -244,13 +237,13 @@ public struct MultiRingProgressView<CenterContent: View>: View {
     private func toneColor(for item: RingProgressItem) -> Color {
         switch item.tone {
         case .positive:
-            return NativePreferencesTheme.Colors.usageTint(.healthy)
+            NativePreferencesTheme.Colors.usageTint(.healthy)
         case .warning:
-            return NativePreferencesTheme.Colors.usageTint(.warning)
+            NativePreferencesTheme.Colors.usageTint(.warning)
         case .critical:
-            return NativePreferencesTheme.Colors.usageTint(.exhausted)
+            NativePreferencesTheme.Colors.usageTint(.exhausted)
         case .neutral:
-            return NativePreferencesTheme.Colors.usageTint(.unknown)
+            NativePreferencesTheme.Colors.usageTint(.unknown)
         }
     }
 }
@@ -260,14 +253,14 @@ public extension MultiRingProgressView where CenterContent == DefaultRingProgres
         items: [RingProgressItem],
         size: RingProgressSize = .regular,
         style: RingProgressStyle = .default,
-        focusedRingID: String? = nil
-    ) {
+        focusedRingID: String? = nil)
+    {
         self.init(
             items: items,
             size: size,
             style: style,
-            focusedRingID: focusedRingID
-        ) { item in
+            focusedRingID: focusedRingID)
+        { item in
             DefaultRingProgressCenterContent(item: item, size: size)
         }
     }

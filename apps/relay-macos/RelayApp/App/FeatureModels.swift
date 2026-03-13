@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-enum AddAccountResult: Sendable, Equatable {
+enum AddAccountResult: Equatable {
     case success
     case cancelled
     case notSignedIn(detail: String)
@@ -16,17 +16,37 @@ public final class SettingsPaneModel: ObservableObject {
 
     public init(session: RelayAppModel) {
         self.session = session
-        self.selectedItem = .general
+        selectedItem = .general
         bindSession()
     }
 
-    var autoSwitchEnabled: Bool { session.autoSwitchEnabled }
-    var refreshIntervalSeconds: Int { session.refreshIntervalSeconds }
-    var networkQueryConcurrency: Int { session.networkQueryConcurrency }
-    var profilesCount: Int { session.profiles.count }
-    var agents: [AgentSettingsDescriptor] { AgentSettingsCatalog.supportedAgents }
-    var codexSettings: CodexSettings? { session.codexSettings }
-    var engineConnectionState: EngineConnectionState { session.engineConnectionState }
+    var autoSwitchEnabled: Bool {
+        session.autoSwitchEnabled
+    }
+
+    var refreshIntervalSeconds: Int {
+        session.refreshIntervalSeconds
+    }
+
+    var networkQueryConcurrency: Int {
+        session.networkQueryConcurrency
+    }
+
+    var profilesCount: Int {
+        session.profiles.count
+    }
+
+    var agents: [AgentSettingsDescriptor] {
+        AgentSettingsCatalog.supportedAgents
+    }
+
+    var codexSettings: CodexSettings? {
+        session.codexSettings
+    }
+
+    var engineConnectionState: EngineConnectionState {
+        session.engineConnectionState
+    }
 
     func selectItem(_ item: SettingsSidebarSelection) {
         guard selectedItem != item else {
@@ -80,35 +100,69 @@ public final class ProfilesPaneModel: ObservableObject {
 
     public init(session: RelayAppModel) {
         self.session = session
-        self.selectedFilter = .all
+        selectedFilter = .all
         bindSession()
     }
 
-    var profiles: [Profile] { session.profiles }
+    var profiles: [Profile] {
+        session.profiles
+    }
+
     var filteredProfiles: [Profile] {
         switch selectedFilter {
         case .all:
-            return session.profiles
+            session.profiles
         case .codex:
-            return session.profiles.filter { $0.agent == .codex }
+            session.profiles.filter { $0.agent == .codex }
         }
     }
-    var agents: [AgentSettingsDescriptor] { AgentSettingsCatalog.supportedAgents }
-    var selectedProfileId: String? { session.selectedProfileId }
-    var activeProfileId: String? { session.activeProfileId }
+
+    var agents: [AgentSettingsDescriptor] {
+        AgentSettingsCatalog.supportedAgents
+    }
+
+    var selectedProfileId: String? {
+        session.selectedProfileId
+    }
+
+    var activeProfileId: String? {
+        session.activeProfileId
+    }
+
     var selectedProfile: Profile? {
         guard let selectedProfileId else {
             return filteredProfiles.first
         }
         return filteredProfiles.first { $0.id == selectedProfileId }
     }
-    var isSwitching: Bool { session.isSwitching }
-    var isMutatingProfiles: Bool { session.isMutatingProfiles }
-    var isLoggingIn: Bool { session.isLoggingIn }
-    var isFetchingEnabledUsage: Bool { session.isFetchingEnabledUsage }
-    var selectedFilterProfileCount: Int { filteredProfiles.count }
-    var selectedFilterEmptyStateDescription: String { selectedFilter.emptyStateDescription }
-    func isFetchingUsage(profileId: String) -> Bool { session.isFetchingUsage(profileId: profileId) }
+
+    var isSwitching: Bool {
+        session.isSwitching
+    }
+
+    var isMutatingProfiles: Bool {
+        session.isMutatingProfiles
+    }
+
+    var isLoggingIn: Bool {
+        session.isLoggingIn
+    }
+
+    var isFetchingEnabledUsage: Bool {
+        session.isFetchingEnabledUsage
+    }
+
+    var selectedFilterProfileCount: Int {
+        filteredProfiles.count
+    }
+
+    var selectedFilterEmptyStateDescription: String {
+        selectedFilter.emptyStateDescription
+    }
+
+    func isFetchingUsage(profileId: String) -> Bool {
+        session.isFetchingUsage(profileId: profileId)
+    }
 
     func usageRefreshError(profileId: String) -> String? {
         session.usageRefreshError(profileId: profileId)
@@ -143,9 +197,9 @@ public final class ProfilesPaneModel: ObservableObject {
     func profileCount(for filter: ProfilesSidebarFilter) -> Int {
         switch filter {
         case .all:
-            return session.profiles.count
+            session.profiles.count
         case .codex:
-            return session.profiles.filter { $0.agent == .codex }.count
+            session.profiles.filter { $0.agent == .codex }.count
         }
     }
 
@@ -247,7 +301,8 @@ public final class ProfilesPaneModel: ObservableObject {
         }
 
         if let selectedProfileId = session.selectedProfileId,
-           filteredProfiles.contains(where: { $0.id == selectedProfileId }) {
+           filteredProfiles.contains(where: { $0.id == selectedProfileId })
+        {
             return
         }
 

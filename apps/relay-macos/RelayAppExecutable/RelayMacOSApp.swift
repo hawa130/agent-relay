@@ -1,5 +1,5 @@
-import SwiftUI
 import RelayMacOSUI
+import SwiftUI
 
 @main
 struct RelayMacOSApp: App {

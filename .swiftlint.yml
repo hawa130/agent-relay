@@ -1,0 +1,44 @@
+included:
+  - apps/relay-macos/RelayApp
+  - apps/relay-macos/RelayAppExecutable
+  - apps/relay-macos/Tests
+
+excluded:
+  - .build
+  - .swiftpm
+  - .swift-cache
+  - dist
+
+disabled_rules:
+  - cyclomatic_complexity
+  - file_length
+  - function_body_length
+  - nesting
+  - opening_brace
+  - trailing_comma
+  - type_body_length
+
+opt_in_rules:
+  - empty_count
+  - explicit_init
+  - first_where
+  - force_unwrapping
+  - non_optional_string_data_conversion
+  - redundant_nil_coalescing
+
+analyzer_rules: []
+
+line_length:
+  warning: 160
+  error: 2500
+  ignores_urls: true
+  ignores_comments: true
+
+identifier_name:
+  excluded:
+    - id
+    - x
+    - y
+    - i
+
+reporter: "xcode"

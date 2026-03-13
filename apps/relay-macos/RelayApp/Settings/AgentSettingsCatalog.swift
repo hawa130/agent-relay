@@ -10,7 +10,9 @@ struct AgentSettingsDescriptor: Identifiable {
     let accentColor: Color
     let visualScale: CGFloat
 
-    var id: String { agent.cliArgument }
+    var id: String {
+        agent.cliArgument
+    }
 
     func iconImage(template: Bool = true) -> NSImage? {
         guard let url = Bundle.module.url(forResource: iconResourceName, withExtension: "svg"),
@@ -34,8 +36,7 @@ enum AgentSettingsCatalog {
             subtitle: "Configure usage source and other Codex-specific behavior.",
             iconResourceName: "ProviderIcon-codex",
             accentColor: Color(red: 73 / 255, green: 163 / 255, blue: 176 / 255),
-            visualScale: 1.16
-        ),
+            visualScale: 1.16)
     ]
 
     static func descriptor(for agent: AgentKind) -> AgentSettingsDescriptor? {
@@ -46,12 +47,13 @@ enum AgentSettingsCatalog {
 struct AgentIcon: View {
     let agent: AgentKind
     var size: CGFloat = 18
-    var tint: Color? = nil
+    var tint: Color?
 
     var body: some View {
         let foreground = tint ?? .secondary
         if let descriptor = AgentSettingsCatalog.descriptor(for: agent),
-           let image = descriptor.iconImage() {
+           let image = descriptor.iconImage()
+        {
             iconImage(image, descriptor: descriptor, foreground: foreground)
         } else {
             Image(systemName: "terminal")
@@ -61,15 +63,13 @@ struct AgentIcon: View {
         }
     }
 
-    @ViewBuilder
     private func iconImage(_ image: NSImage, descriptor: AgentSettingsDescriptor, foreground: Color) -> some View {
         Image(nsImage: image)
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(
                 width: size * descriptor.visualScale,
-                height: size * descriptor.visualScale
-            )
+                height: size * descriptor.visualScale)
             .foregroundStyle(foreground)
     }
 }

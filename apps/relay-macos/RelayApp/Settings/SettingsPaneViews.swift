@@ -61,8 +61,7 @@ public struct SettingsPaneView: View {
                 ContentUnavailableView(
                     "Settings Unavailable",
                     systemImage: "slider.horizontal.3",
-                    description: Text("This agent does not expose configurable settings yet.")
-                )
+                    description: Text("This agent does not expose configurable settings yet."))
             }
         }
     }
@@ -74,16 +73,15 @@ public struct SettingsPaneView: View {
                 if let selection {
                     model.selectItem(selection)
                 }
-            }
-        )
+            })
     }
 
     private var titleText: String {
         switch model.selectedItem {
         case .general:
-            return "General"
+            "General"
         case let .agent(agent):
-            return AgentSettingsCatalog.descriptor(for: agent)?.title ?? "Settings"
+            AgentSettingsCatalog.descriptor(for: agent)?.title ?? "Settings"
         }
     }
 }
@@ -110,9 +108,7 @@ private struct GeneralSettingsDetailView: View {
                             Task {
                                 await model.setAutoSwitch(enabled: enabled)
                             }
-                        }
-                    )
-                )
+                        }))
 
                 LaunchAtLogin.Toggle("Launch at login")
 
@@ -124,9 +120,7 @@ private struct GeneralSettingsDetailView: View {
                             Task {
                                 await model.setRefreshInterval(seconds: seconds)
                             }
-                        }
-                    )
-                ) {
+                        })) {
                     ForEach(refreshIntervalOptions, id: \.self) { seconds in
                         Text(refreshIntervalLabel(for: seconds)).tag(seconds)
                     }
@@ -140,9 +134,7 @@ private struct GeneralSettingsDetailView: View {
                             Task {
                                 await model.setNetworkQueryConcurrency(value)
                             }
-                        }
-                    )
-                ) {
+                        })) {
                     ForEach(networkQueryConcurrencyOptions, id: \.self) { value in
                         Text("\(value)").tag(value)
                     }
@@ -203,11 +195,11 @@ private struct GeneralSettingsDetailView: View {
     private var engineStateLabel: String {
         switch model.engineConnectionState {
         case .starting:
-            return "Starting"
+            "Starting"
         case .ready:
-            return "Connected"
+            "Connected"
         case .degraded:
-            return "Degraded"
+            "Degraded"
         }
     }
 }
@@ -229,9 +221,7 @@ private struct AgentSettingsDetailView: View {
                                 Task {
                                     await model.setUsageSourceMode(mode)
                                 }
-                            }
-                        )
-                    ) {
+                            })) {
                         ForEach(UsageSourceMode.allCases, id: \.self) { mode in
                             Text(mode.displayName).tag(mode)
                         }
@@ -289,11 +279,7 @@ struct SectionSurfaceCard<Content: View>: View {
 }
 
 struct NativePaneScrollView<Content: View>: View {
-    let content: Content
-
-    init(@ViewBuilder content: () -> Content) {
-        self.content = content()
-    }
+    @ViewBuilder let content: Content
 
     var body: some View {
         ScrollView {

@@ -1,6 +1,6 @@
 import Foundation
-import XCTest
 @testable import RelayMacOSUI
+import XCTest
 
 @MainActor
 final class RelayAppModelDaemonNotificationTests: XCTestCase {
@@ -10,8 +10,7 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
 
         let scope = RelayFixtureEnvironment(
             relayCLIPath: fixture.scriptPath,
-            fixtureMode: "health_update"
-        )
+            fixtureMode: "health_update")
         scope.install()
         defer { scope.uninstall() }
 
@@ -29,8 +28,7 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
 
         let scope = RelayFixtureEnvironment(
             relayCLIPath: fixture.scriptPath,
-            fixtureMode: "switch_failed"
-        )
+            fixtureMode: "switch_failed")
         scope.install()
         defer { scope.uninstall() }
 
@@ -48,8 +46,7 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
 
         let scope = RelayFixtureEnvironment(
             relayCLIPath: fixture.scriptPath,
-            fixtureMode: "usage_active_update"
-        )
+            fixtureMode: "usage_active_update")
         scope.install()
         defer { scope.uninstall() }
 
@@ -69,8 +66,7 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
 
         let scope = RelayFixtureEnvironment(
             relayCLIPath: fixture.scriptPath,
-            fixtureMode: "query_state_error"
-        )
+            fixtureMode: "query_state_error")
         scope.install()
         defer { scope.uninstall() }
 
@@ -89,8 +85,7 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
 
         let scope = RelayFixtureEnvironment(
             relayCLIPath: fixture.scriptPath,
-            fixtureMode: "initial_account_unavailable"
-        )
+            fixtureMode: "initial_account_unavailable")
         scope.install()
         defer { scope.uninstall() }
 
@@ -114,8 +109,7 @@ final class RelayAppModelDaemonNotificationTests: XCTestCase {
 
         let scope = RelayFixtureEnvironment(
             relayCLIPath: fixture.scriptPath,
-            fixtureMode: "profiles_updated_account_unavailable"
-        )
+            fixtureMode: "profiles_updated_account_unavailable")
         scope.install()
         defer { scope.uninstall() }
 
@@ -168,16 +162,14 @@ private struct RelayAppModelNotificationFixture {
     static func make(mode _: String) throws -> Self {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(
             "relay-app-model-notification-tests-\(UUID().uuidString)",
-            isDirectory: true
-        )
+            isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
 
         let scriptURL = root.appendingPathComponent("relay-fixture.sh")
         try fixtureScript.data(using: .utf8)!.write(to: scriptURL)
         try FileManager.default.setAttributes(
             [.posixPermissions: 0o755],
-            ofItemAtPath: scriptURL.path
-        )
+            ofItemAtPath: scriptURL.path)
 
         return Self(root: root, scriptPath: scriptURL.path)
     }
@@ -194,8 +186,8 @@ private enum WaitTimeout: Error {
 @MainActor
 private func waitUntil(
     timeoutNanoseconds: UInt64 = 3_000_000_000,
-    condition: @escaping @MainActor () -> Bool
-) async throws {
+    condition: @escaping @MainActor () -> Bool) async throws
+{
     let deadline = DispatchTime.now().uptimeNanoseconds + timeoutNanoseconds
     while DispatchTime.now().uptimeNanoseconds < deadline {
         if condition() {

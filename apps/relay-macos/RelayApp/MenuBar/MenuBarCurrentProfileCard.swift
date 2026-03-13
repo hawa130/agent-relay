@@ -10,8 +10,7 @@ struct MenuBarCurrentProfileCard: View {
                     providerName: activeProfile.agent.rawValue,
                     nickname: activeProfile.nickname,
                     subtitle: subtitle,
-                    planText: usage?.source.displayName
-                )
+                    planText: usage?.source.displayName)
 
                 if hasDetails {
                     Divider()
@@ -24,8 +23,7 @@ struct MenuBarCurrentProfileCard: View {
                 } else {
                     MenuBarUsageCardSectionView(
                         metrics: metrics,
-                        usageNotes: presenter.currentCardNotes(usage: usage)
-                    )
+                        usageNotes: presenter.currentCardNotes(usage: usage))
                 }
             } else {
                 Text("No active profile")
@@ -82,8 +80,7 @@ struct MenuBarCurrentProfileCard: View {
                 resetDate: usage.session.resetAt,
                 detailLeftText: nil,
                 detailRightText: nil,
-                tint: usage.session.status.menuBarTint
-            ),
+                tint: usage.session.status.menuBarTint),
             MenuBarMetricRowModel(
                 id: "weekly",
                 title: "Weekly",
@@ -92,8 +89,7 @@ struct MenuBarCurrentProfileCard: View {
                 resetDate: usage.weekly.resetAt,
                 detailLeftText: nil,
                 detailRightText: nil,
-                tint: usage.weekly.status.menuBarTint
-            )
+                tint: usage.weekly.status.menuBarTint)
         ]
     }
 }

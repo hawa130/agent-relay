@@ -65,7 +65,9 @@ AgentRelay is intentionally limited:
 ## Working Rules
 
 - Prefer extending `relay-core` modules over adding new packages.
-- Run the repository formatter after code changes. Use `just fmt` to write formatting updates and `just fmt-check` for verification-oriented checks such as release/CI flows.
+- Run the repository formatter after code changes. Use `just fmt` to write Rust and Swift formatting updates and `just fmt-check` for verification-oriented checks such as release/CI flows.
+- Run repository-wide quality checks with `just lint` and the full verification gate with `just check` before releases or when claiming the workspace is green.
+- The macOS app uses third-party Swift tooling: `swiftformat` for formatting and `swiftlint` for lint checks.
 - Put business logic in `services`, not in the CLI entrypoint or Swift UI layer.
 - Keep `models` stable because CLI JSON and the daemon RPC contract depend on them.
 - Put persistence details behind `store`.

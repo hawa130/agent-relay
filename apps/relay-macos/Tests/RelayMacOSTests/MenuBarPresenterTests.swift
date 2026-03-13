@@ -1,6 +1,6 @@
 import Foundation
-import XCTest
 @testable import RelayMacOSUI
+import XCTest
 
 @MainActor
 final class MenuBarPresenterTests: XCTestCase {
@@ -19,30 +19,25 @@ final class MenuBarPresenterTests: XCTestCase {
                 windowMinutes: 300,
                 resetAt: nil,
                 status: .unknown,
-                exact: false
-            ),
+                exact: false),
             weekly: UsageWindow(
                 usedPercent: nil,
                 windowMinutes: 10080,
                 resetAt: nil,
                 status: .unknown,
-                exact: false
-            ),
+                exact: false),
             autoSwitchReason: nil,
             canAutoSwitch: false,
             message: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required",
-            remoteError: UsageRemoteError(kind: .other, httpStatus: 402)
-        )
+            remoteError: UsageRemoteError(kind: .other, httpStatus: 402))
 
         XCTAssertEqual(
             presenter.currentCardNotes(usage: usage),
             [
                 UsageCardNote(
                     text: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required",
-                    severity: .warning
-                )
-            ]
-        )
+                    severity: .warning)
+            ])
     }
 
     func testProfileSymbolUsesTriangleForStructuredRemoteError() {
@@ -57,8 +52,7 @@ final class MenuBarPresenterTests: XCTestCase {
             configPath: nil,
             authMode: .configFilesystem,
             createdAt: Date(),
-            updatedAt: Date()
-        )
+            updatedAt: Date())
         let usage = UsageSnapshot(
             profileId: "p_1",
             profileName: "work",
@@ -72,29 +66,23 @@ final class MenuBarPresenterTests: XCTestCase {
                 windowMinutes: 300,
                 resetAt: nil,
                 status: .unknown,
-                exact: false
-            ),
+                exact: false),
             weekly: UsageWindow(
                 usedPercent: nil,
                 windowMinutes: 10080,
                 resetAt: nil,
                 status: .unknown,
-                exact: false
-            ),
+                exact: false),
             autoSwitchReason: nil,
             canAutoSwitch: false,
             message: "Usage may be outdated. Codex connection failed: timeout",
-            remoteError: UsageRemoteError(kind: .network, httpStatus: nil)
-        )
+            remoteError: UsageRemoteError(kind: .network, httpStatus: nil))
 
         XCTAssertEqual(
             presenter.profileSymbolName(profile: profile, usage: usage, isActive: false),
-            "exclamationmark.triangle.fill"
-        )
+            "exclamationmark.triangle.fill")
         XCTAssertEqual(
             presenter.profileStatusSeverity(profile: profile, usage: usage, isActive: false),
-            .warning
-        )
+            .warning)
     }
-
 }

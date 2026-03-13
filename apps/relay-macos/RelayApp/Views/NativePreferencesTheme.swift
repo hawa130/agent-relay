@@ -49,73 +49,68 @@ public enum NativePreferencesTheme {
         static func usageTint(_ status: UsageStatus) -> Color {
             switch status {
             case .healthy:
-                return .green
+                .green
             case .warning:
-                return .orange
+                .orange
             case .exhausted:
-                return .red
+                .red
             case .unknown:
-                return .gray
+                .gray
             }
         }
 
         static func statusIcon(_ kind: NativePreferencesTheme.StatusKind) -> Color {
             switch kind {
             case .success:
-                return Color(nsColor: .systemGreen)
+                Color(nsColor: .systemGreen)
             case .warning:
-                return Color(nsColor: .systemOrange)
+                Color(nsColor: .systemOrange)
             case .danger:
-                return Color(nsColor: .systemRed)
+                Color(nsColor: .systemRed)
             case .info:
-                return Color(nsColor: .systemBlue)
+                Color(nsColor: .systemBlue)
             case .neutral:
-                return .secondary
+                .secondary
             }
         }
 
         static func statusText(_ kind: NativePreferencesTheme.StatusKind) -> Color {
             switch kind {
             case .success:
-                return Color(nsColor: .systemGreen)
+                Color(nsColor: .systemGreen)
             case .warning:
-                return Color(nsColor: .systemOrange)
+                Color(nsColor: .systemOrange)
             case .danger:
-                return Color(nsColor: .systemRed)
+                Color(nsColor: .systemRed)
             case .info:
-                return Color(nsColor: .systemBlue)
+                Color(nsColor: .systemBlue)
             case .neutral:
-                return .secondary
+                .secondary
             }
         }
 
         static func statusFill(_ kind: NativePreferencesTheme.StatusKind) -> Color {
             switch kind {
             case .success:
-                return dynamicColor(
+                dynamicColor(
                     light: NSColor(red: 0.82, green: 0.92, blue: 0.82, alpha: 1),
-                    dark: NSColor(red: 0.16, green: 0.29, blue: 0.18, alpha: 1)
-                )
+                    dark: NSColor(red: 0.16, green: 0.29, blue: 0.18, alpha: 1))
             case .warning:
-                return dynamicColor(
+                dynamicColor(
                     light: NSColor(red: 0.98, green: 0.89, blue: 0.74, alpha: 1),
-                    dark: NSColor(red: 0.34, green: 0.24, blue: 0.08, alpha: 1)
-                )
+                    dark: NSColor(red: 0.34, green: 0.24, blue: 0.08, alpha: 1))
             case .danger:
-                return dynamicColor(
+                dynamicColor(
                     light: NSColor(red: 0.97, green: 0.82, blue: 0.82, alpha: 1),
-                    dark: NSColor(red: 0.37, green: 0.13, blue: 0.14, alpha: 1)
-                )
+                    dark: NSColor(red: 0.37, green: 0.13, blue: 0.14, alpha: 1))
             case .info:
-                return dynamicColor(
+                dynamicColor(
                     light: NSColor(red: 0.81, green: 0.88, blue: 0.98, alpha: 1),
-                    dark: NSColor(red: 0.15, green: 0.24, blue: 0.40, alpha: 1)
-                )
+                    dark: NSColor(red: 0.15, green: 0.24, blue: 0.40, alpha: 1))
             case .neutral:
-                return dynamicColor(
+                dynamicColor(
                     light: NSColor(red: 0.88, green: 0.88, blue: 0.89, alpha: 1),
-                    dark: NSColor(red: 0.25, green: 0.25, blue: 0.26, alpha: 1)
-                )
+                    dark: NSColor(red: 0.25, green: 0.25, blue: 0.26, alpha: 1))
             }
         }
 
@@ -124,12 +119,11 @@ public enum NativePreferencesTheme {
                 nsColor: NSColor(name: nil) { appearance in
                     switch appearance.bestMatch(from: [.darkAqua, .aqua]) {
                     case .darkAqua:
-                        return dark
+                        dark
                     default:
-                        return light
+                        light
                     }
-                }
-            )
+                })
         }
     }
 
@@ -145,30 +139,30 @@ public enum NativePreferencesTheme {
         public static func fill(_ kind: Kind) -> Color {
             switch kind {
             case .success:
-                return dynamicColor(light: NSColor(red: 0.82, green: 0.92, blue: 0.82, alpha: 1), dark: NSColor(red: 0.16, green: 0.29, blue: 0.18, alpha: 1))
+                dynamicColor(light: NSColor(red: 0.82, green: 0.92, blue: 0.82, alpha: 1), dark: NSColor(red: 0.16, green: 0.29, blue: 0.18, alpha: 1))
             case .warning:
-                return dynamicColor(light: NSColor(red: 0.98, green: 0.89, blue: 0.74, alpha: 1), dark: NSColor(red: 0.34, green: 0.24, blue: 0.08, alpha: 1))
+                dynamicColor(light: NSColor(red: 0.98, green: 0.89, blue: 0.74, alpha: 1), dark: NSColor(red: 0.34, green: 0.24, blue: 0.08, alpha: 1))
             case .danger:
-                return dynamicColor(light: NSColor(red: 0.97, green: 0.82, blue: 0.82, alpha: 1), dark: NSColor(red: 0.37, green: 0.13, blue: 0.14, alpha: 1))
+                dynamicColor(light: NSColor(red: 0.97, green: 0.82, blue: 0.82, alpha: 1), dark: NSColor(red: 0.37, green: 0.13, blue: 0.14, alpha: 1))
             case .info:
-                return dynamicColor(light: NSColor(red: 0.81, green: 0.88, blue: 0.98, alpha: 1), dark: NSColor(red: 0.15, green: 0.24, blue: 0.40, alpha: 1))
+                dynamicColor(light: NSColor(red: 0.81, green: 0.88, blue: 0.98, alpha: 1), dark: NSColor(red: 0.15, green: 0.24, blue: 0.40, alpha: 1))
             case .neutral:
-                return dynamicColor(light: NSColor(red: 0.88, green: 0.88, blue: 0.89, alpha: 1), dark: NSColor(red: 0.25, green: 0.25, blue: 0.26, alpha: 1))
+                dynamicColor(light: NSColor(red: 0.88, green: 0.88, blue: 0.89, alpha: 1), dark: NSColor(red: 0.25, green: 0.25, blue: 0.26, alpha: 1))
             }
         }
 
         public static func text(_ kind: Kind) -> Color {
             switch kind {
             case .success:
-                return dynamicColor(light: NSColor(red: 0.11, green: 0.38, blue: 0.14, alpha: 1), dark: NSColor(red: 0.69, green: 0.88, blue: 0.70, alpha: 1))
+                dynamicColor(light: NSColor(red: 0.11, green: 0.38, blue: 0.14, alpha: 1), dark: NSColor(red: 0.69, green: 0.88, blue: 0.70, alpha: 1))
             case .warning:
-                return dynamicColor(light: NSColor(red: 0.58, green: 0.33, blue: 0.04, alpha: 1), dark: NSColor(red: 0.96, green: 0.78, blue: 0.39, alpha: 1))
+                dynamicColor(light: NSColor(red: 0.58, green: 0.33, blue: 0.04, alpha: 1), dark: NSColor(red: 0.96, green: 0.78, blue: 0.39, alpha: 1))
             case .danger:
-                return dynamicColor(light: NSColor(red: 0.63, green: 0.13, blue: 0.15, alpha: 1), dark: NSColor(red: 0.98, green: 0.72, blue: 0.73, alpha: 1))
+                dynamicColor(light: NSColor(red: 0.63, green: 0.13, blue: 0.15, alpha: 1), dark: NSColor(red: 0.98, green: 0.72, blue: 0.73, alpha: 1))
             case .info:
-                return dynamicColor(light: NSColor(red: 0.12, green: 0.30, blue: 0.67, alpha: 1), dark: NSColor(red: 0.72, green: 0.82, blue: 1.0, alpha: 1))
+                dynamicColor(light: NSColor(red: 0.12, green: 0.30, blue: 0.67, alpha: 1), dark: NSColor(red: 0.72, green: 0.82, blue: 1.0, alpha: 1))
             case .neutral:
-                return dynamicColor(light: NSColor(red: 0.34, green: 0.34, blue: 0.36, alpha: 1), dark: NSColor(red: 0.78, green: 0.78, blue: 0.80, alpha: 1))
+                dynamicColor(light: NSColor(red: 0.34, green: 0.34, blue: 0.36, alpha: 1), dark: NSColor(red: 0.78, green: 0.78, blue: 0.80, alpha: 1))
             }
         }
 
@@ -177,12 +171,11 @@ public enum NativePreferencesTheme {
                 nsColor: NSColor(name: nil) { appearance in
                     switch appearance.bestMatch(from: [.darkAqua, .aqua]) {
                     case .darkAqua:
-                        return dark
+                        dark
                     default:
-                        return light
+                        light
                     }
-                }
-            )
+                })
         }
     }
 }

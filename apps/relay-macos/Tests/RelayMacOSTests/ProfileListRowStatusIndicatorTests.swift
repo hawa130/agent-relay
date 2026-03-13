@@ -1,11 +1,11 @@
-import XCTest
 @testable import RelayMacOSUI
+import XCTest
 
 final class ProfileListRowStatusIndicatorTests: XCTestCase {
     private func profile(
         accountState: ProfileAccountState = .healthy,
-        accountErrorHTTPStatus: Int? = nil
-    ) -> Profile {
+        accountErrorHTTPStatus: Int? = nil) -> Profile
+    {
         Profile(
             id: "p_1",
             nickname: "work",
@@ -18,8 +18,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
             configPath: nil,
             authMode: .configFilesystem,
             createdAt: Date(),
-            updatedAt: Date()
-        )
+            updatedAt: Date())
     }
 
     func testLoadingIndicatorTakesPrecedenceOverWarning() {
@@ -28,8 +27,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
             isFetchingUsage: true,
             usage: nil,
             usageRefreshError: "remote usage timed out",
-            isStale: true
-        )
+            isStale: true)
 
         XCTAssertEqual(indicator, .loading)
     }
@@ -40,8 +38,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
             isFetchingUsage: false,
             usage: nil,
             usageRefreshError: "remote usage timed out",
-            isStale: true
-        )
+            isStale: true)
 
         XCTAssertEqual(indicator, .warning(message: "remote usage timed out"))
     }
@@ -52,8 +49,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
             isFetchingUsage: false,
             usage: nil,
             usageRefreshError: "remote usage timed out",
-            isStale: false
-        )
+            isStale: false)
 
         XCTAssertEqual(indicator, .warning(message: "remote usage timed out"))
     }
@@ -64,8 +60,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
             isFetchingUsage: false,
             usage: nil,
             usageRefreshError: nil,
-            isStale: true
-        )
+            isStale: true)
 
         XCTAssertEqual(indicator, .stale)
     }
@@ -76,8 +71,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
             isFetchingUsage: false,
             usage: nil,
             usageRefreshError: nil,
-            isStale: false
-        )
+            isStale: false)
 
         XCTAssertNil(indicator)
     }
@@ -88,8 +82,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
             isFetchingUsage: false,
             usage: nil,
             usageRefreshError: "",
-            isStale: false
-        )
+            isStale: false)
 
         XCTAssertNil(indicator)
     }
@@ -108,33 +101,28 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
                 windowMinutes: 300,
                 resetAt: nil,
                 status: .unknown,
-                exact: false
-            ),
+                exact: false),
             weekly: UsageWindow(
                 usedPercent: nil,
                 windowMinutes: 10080,
                 resetAt: nil,
                 status: .unknown,
-                exact: false
-            ),
+                exact: false),
             autoSwitchReason: nil,
             canAutoSwitch: false,
             message: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required",
-            remoteError: UsageRemoteError(kind: .other, httpStatus: 402)
-        )
+            remoteError: UsageRemoteError(kind: .other, httpStatus: 402))
 
         let indicator = ProfileListRowStatusIndicator.Kind(
             profile: profile(),
             isFetchingUsage: false,
             usage: usage,
             usageRefreshError: nil,
-            isStale: true
-        )
+            isStale: true)
 
         XCTAssertEqual(
             indicator,
-            .warning(message: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required")
-        )
+            .warning(message: "Usage may be outdated. Codex connection failed: failed to fetch codex rate limits: GET https://chatgpt.com/backend-api/wham/usage failed: 402 Payment Required"))
     }
 
     func testAccountUnavailableIndicatorUsesProfileState() {
@@ -143,8 +131,7 @@ final class ProfileListRowStatusIndicatorTests: XCTestCase {
             isFetchingUsage: false,
             usage: nil,
             usageRefreshError: nil,
-            isStale: false
-        )
+            isStale: false)
 
         XCTAssertEqual(indicator, .warning(message: "Account unavailable for auto-switch (HTTP 402)"))
     }

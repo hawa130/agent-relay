@@ -16,8 +16,7 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
             model: model,
             openWindow: { [weak self] windowID in
                 self?.openWindow(windowID)
-            }
-        )
+            })
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

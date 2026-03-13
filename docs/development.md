@@ -1,13 +1,15 @@
 # Development
 
-## Workspace
+## Workspace Shape
 
-Rust packages:
+The repository keeps the Rust workspace at two package levels:
 
 - `apps/relay-cli`
 - `crates/relay-core`
 
-`relay-core` is split by modules:
+The native macOS control plane lives in `apps/relay-macos`.
+
+Inside `relay-core`, prefer module boundaries over new crates:
 
 - `models`
 - `services`
@@ -15,35 +17,41 @@ Rust packages:
 - `platform`
 - `adapters`
 
-## Local Commands
+## Common Commands
 
-Format and test:
-
-```bash
-just fmt
-cargo test
-```
-
-Build helpers with `just`:
+Format, lint, and test with the standard workspace commands:
 
 ```bash
 just fmt
 just fmt-check
+just lint
+just check
 just test
 just test-rust
 just test-macos
-just release
-just macos
-just linux
-just all
-just app
 ```
 
-`just linux` and `just all` assume the Linux Rust target and a compatible
-cross-linker are already installed locally.
+Additional build helpers:
 
-`just test-macos` runs Swift tests with an isolated home and module cache under
-`apps/relay-macos`.
+```bash
+just build-release
+just build-macos
+just build-linux
+just build-all
+just build-app
+```
+
+`just build-linux` and `just build-all` assume the Linux Rust target and a compatible cross-linker are already installed. `just test-macos` runs Swift tests with an isolated home and module cache under `apps/relay-macos`.
+
+Swift tooling is managed with third-party tools installed through Homebrew:
+
+```bash
+brew install swiftformat swiftlint
+```
+
+`just fmt` and `just fmt-check` include `swiftformat` for the macOS app source tree. `just lint` runs both `cargo clippy --workspace --all-targets -- -D warnings` and `swiftlint lint --config .swiftlint.yml`. `just check` runs formatting verification, linting, and tests together.
+
+## Local Iteration
 
 Run the CLI directly from source:
 
@@ -51,55 +59,62 @@ Run the CLI directly from source:
 cargo run -p agrelay-cli --bin agrelay -- --help
 ```
 
-Run with isolated state:
+Run with isolated state when you need deterministic local testing:
 
 ```bash
 AGRELAY_HOME=/tmp/agrelay-dev CODEX_HOME=/tmp/codex-dev \
   cargo run -p agrelay-cli --bin agrelay -- doctor --json
 ```
 
-`relay-cli` now runs on a Tokio entrypoint because `relay-core` uses SeaORM's async database API and reuses a single store connection per app bootstrap.
+Use temp directories for any test or manual workflow that touches filesystem state.
 
-Schema changes use a SeaORM 2.x entity-first workflow:
+## Schema Workflow
+
+Schema changes follow the SeaORM 2.x entity-first workflow:
 
 1. update the hand-written entities under `relay-core::store::entities`
 2. adjust store and service logic as needed
-3. delete `relay.db` for breaking schema changes during development
-4. run tests so write bootstrap rebuilds the schema through schema sync
+3. delete `relay.db` during development if the change is breaking
+4. run tests so write bootstrap recreates or syncs the schema
+
+The entities are the schema source of truth. Keep schema guidance aligned with `docs/sqlite-schema.md`.
 
 ## Test Strategy
 
-Current coverage includes:
+The project uses several verification layers:
 
-- unit tests for SeaORM store/state/adapters
-- integration tests for CLI profile CRUD
-- integration tests for import, switch, rollback, events, logs, and diagnostics
+- `relay-core` model tests for serde and protocol contracts
+- `relay-core` store tests for SeaORM entities and state-file behavior
+- `relay-core` service tests with temp stores and fake adapters
+- CLI integration tests in `apps/relay-cli/tests/cli.rs`
+- Swift decoding and daemon-client tests in `apps/relay-macos`
 
-The CLI integration suite lives in:
+Tests that touch the filesystem should use temp directories and isolated homes.
 
-- `apps/relay-cli/tests/cli.rs`
+## Contributor Constraints
 
-## Design Constraints
-
-- keep CLI as the only execution layer
-- keep JSON output stable
-- keep live config writes transactional
+- keep the CLI as the only execution layer
+- keep JSON and RPC contracts stable
+- keep live config writes transactional and recoverable
 - do not touch project-local `.codex/`
 - prefer extending `relay-core` modules over adding new packages
+- keep business logic in `services`, persistence details in `store`, and provider-specific behavior in `adapters`
 
-## Release Notes for Developers
+## Release Verification
 
 Before cutting a release:
 
 1. run `just fmt-check`
-2. run `cargo clippy --workspace --all-targets -- -D warnings`
-3. run `cargo test`
+2. run `just test`
+3. run `cargo clippy --workspace --all-targets -- -D warnings`
 4. verify `cargo install --path apps/relay-cli`
 5. smoke test `agrelay doctor --json`
 6. smoke test `agrelay switch` against temp Codex homes
 
+For the full repo gate, prefer `just check`.
+
 ## Supporting Docs
 
 - SQLite schema workflow: `docs/sqlite-schema.md`
-- Linux support matrix and test plan: `docs/linux-support.md`
+- Linux support reference: `docs/linux-support.md`
 - Security release checklist: `docs/security-checklist.md`

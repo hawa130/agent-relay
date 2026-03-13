@@ -10,7 +10,6 @@ struct AdaptiveRelativeDateText: View {
     let date: Date
     var style: Style = .automatic
 
-    @ViewBuilder
     var body: some View {
         switch style {
         case .automatic:

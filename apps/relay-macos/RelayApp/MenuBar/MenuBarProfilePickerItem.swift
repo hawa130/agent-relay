@@ -33,15 +33,13 @@ struct MenuBarProfilePickerItem: View {
                         if let sessionText = presenter.usageText(title: "Session", window: usage?.session) {
                             usageLine(
                                 left: sessionText,
-                                rightDate: usage?.session.resetAt
-                            )
+                                rightDate: usage?.session.resetAt)
                         }
 
                         if let weeklyText = presenter.usageText(title: "Weekly", window: usage?.weekly) {
                             usageLine(
                                 left: weeklyText,
-                                rightDate: usage?.weekly.resetAt
-                            )
+                                rightDate: usage?.weekly.resetAt)
                         }
 
                         if let footerText = presenter.profileFooterText(profile: profile, usage: usage) {
@@ -61,11 +59,10 @@ struct MenuBarProfilePickerItem: View {
         .opacity(isDimmed && !isHighlighted ? 0.72 : 1)
     }
 
-    @ViewBuilder
     private func usageLine(
         left: String,
-        rightDate: Date?
-    ) -> some View {
+        rightDate: Date?) -> some View
+    {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(left)
                 .font(.system(size: 10, weight: .medium))
@@ -113,8 +110,8 @@ struct MenuBarProfilePickerItem: View {
         if let severity = presenter.profileStatusSeverity(
             profile: profile,
             usage: usage,
-            isActive: isActive
-        ) {
+            isActive: isActive)
+        {
             return MenuBarHighlightStyle.severityIcon(isHighlighted, severity: severity)
         }
 
@@ -129,8 +126,8 @@ struct MenuBarProfilePickerItem: View {
         if let severity = presenter.profileStatusSeverity(
             profile: profile,
             usage: usage,
-            isActive: isActive
-        ) {
+            isActive: isActive)
+        {
             return MenuBarHighlightStyle.severityText(isHighlighted, severity: severity)
         }
 
