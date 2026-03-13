@@ -302,7 +302,7 @@ final class RelayAppModelTests: XCTestCase {
         XCTAssertTrue(commands.contains("rpc relay/usage/refresh include_disabled=true"))
     }
 
-    func testRemoveProfileDoesNotBlockOnFollowupRefresh() async throws {
+    func testRemoveProfileUsesRemovalUpdateWithoutReadbackCommands() async throws {
         let fixture = try RelayAppModelFixture.make(mode: .removeDelayedRefresh)
         defer { fixture.cleanup() }
         let originalRelayCLIPath = getenv("AGRELAY_CLI_PATH").map { String(cString: $0) }
@@ -323,12 +323,7 @@ final class RelayAppModelTests: XCTestCase {
         }
 
         let model = RelayAppModel()
-        let clock = ContinuousClock()
-        let elapsed = await clock.measure {
-            await model.removeProfile("p_alt")
-        }
-
-        XCTAssertLessThan(elapsed, .milliseconds(400))
+        await model.removeProfile("p_alt")
         try await waitUntil {
             !model.profiles.contains(where: { $0.id == "p_alt" })
         }
@@ -362,7 +357,7 @@ private struct RelayAppModelFixture {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
 
         let scriptURL = root.appendingPathComponent("relay-fixture.sh")
-        try fixtureScript.data(using: .utf8)!.write(to: scriptURL)
+        try fixtureScript.write(to: scriptURL, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes(
             [.posixPermissions: 0o755],
             ofItemAtPath: scriptURL.path)
@@ -408,15 +403,130 @@ private func waitUntil(
     throw WaitTimeout.timedOut
 }
 
-private let fixtureScript = """
+private let fixtureScript = #"""
 #!/bin/sh
 set -eu
 
 script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 printf '%s\n' "$*" >> "$script_dir/commands.log"
 
-active_profile_item='{"profile":{"id":"p_active","nickname":"active","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/active-home","config_path":"/tmp/active-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":true,"usage_summary":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}'
-alt_profile_item='{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":110,"enabled":true,"agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":false,"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}'
+emit_json() {
+  python3 -c 'import json,sys
+text=sys.stdin.read()
+decoder=json.JSONDecoder()
+index=0
+length=len(text)
+while True:
+    while index < length and text[index].isspace():
+        index += 1
+    if index >= length:
+        break
+    value, index = decoder.raw_decode(text, index)
+    print(json.dumps(value, separators=(",", ":")))'
+}
+
+emit_line() {
+  tr -d '\n'
+  printf '\n'
+}
+
+active_profile_item=$(cat <<'JSON'
+{
+  "profile": {
+    "id": "p_active",
+    "nickname": "active",
+    "agent": "Codex",
+    "priority": 100,
+    "enabled": true,
+    "account_state": "Healthy",
+    "account_error_http_status": null,
+    "account_state_updated_at": null,
+    "agent_home": "/tmp/active-home",
+    "config_path": "/tmp/active-home/config.toml",
+    "auth_mode": "ConfigFilesystem",
+    "created_at": "2026-03-08T12:27:12Z",
+    "updated_at": "2026-03-08T12:27:12Z"
+  },
+  "is_active": true,
+  "current_failure_events": [],
+  "usage_summary": {
+    "profile_id": "p_active",
+    "profile_name": "active",
+    "source": "Local",
+    "confidence": "High",
+    "stale": false,
+    "last_refreshed_at": "2026-03-08T12:27:12Z",
+    "next_reset_at": "2026-03-08T17:06:00Z",
+    "session": {
+      "used_percent": 18.0,
+      "window_minutes": 300,
+      "reset_at": "2026-03-08T17:06:00Z",
+      "status": "Healthy",
+      "exact": true
+    },
+    "weekly": {
+      "used_percent": 22.0,
+      "window_minutes": 10080,
+      "reset_at": "2026-03-12T06:36:18Z",
+      "status": "Healthy",
+      "exact": true
+    },
+    "auto_switch_reason": null,
+    "can_auto_switch": false,
+    "message": "local usage"
+  }
+}
+JSON
+)
+
+alt_profile_item=$(cat <<'JSON'
+{
+  "profile": {
+    "id": "p_alt",
+    "nickname": "alt",
+    "agent": "Codex",
+    "priority": 110,
+    "enabled": true,
+    "account_state": "Healthy",
+    "account_error_http_status": null,
+    "account_state_updated_at": null,
+    "agent_home": "/tmp/alt-home",
+    "config_path": "/tmp/alt-home/config.toml",
+    "auth_mode": "ConfigFilesystem",
+    "created_at": "2026-03-08T12:27:12Z",
+    "updated_at": "2026-03-08T12:27:12Z"
+  },
+  "is_active": false,
+  "current_failure_events": [],
+  "usage_summary": {
+    "profile_id": "p_alt",
+    "profile_name": "alt",
+    "source": "Local",
+    "confidence": "High",
+    "stale": false,
+    "last_refreshed_at": "2026-03-08T12:27:12Z",
+    "next_reset_at": "2026-03-08T17:06:00Z",
+    "session": {
+      "used_percent": 29.0,
+      "window_minutes": 300,
+      "reset_at": "2026-03-08T17:06:00Z",
+      "status": "Healthy",
+      "exact": true
+    },
+    "weekly": {
+      "used_percent": 31.0,
+      "window_minutes": 10080,
+      "reset_at": "2026-03-12T06:36:18Z",
+      "status": "Healthy",
+      "exact": true
+    },
+    "auto_switch_reason": null,
+    "can_auto_switch": false,
+    "message": "local usage"
+  }
+}
+JSON
+)
 
 case "$*" in
   "daemon --stdio")
@@ -429,77 +539,590 @@ case "$*" in
           printf '%s\n' 'rpc initialize' >> "$script_dir/commands.log"
           mode="${RELAY_FIXTURE_MODE:-refresh}"
           if [ "$mode" = "remove_delayed_refresh" ]; then
-            cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[{"profile":{"id":"p_active","nickname":"active","agent":"Codex","priority":100,"enabled":true,"agent_home":"/tmp/active-home","config_path":"/tmp/active-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":true,"usage_summary":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}},{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":110,"enabled":true,"agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":false,"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
+            emit_line <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "protocol_version": "1",
+    "initial_state": {
+      "status": {
+        "relay_home": "/tmp/relay",
+        "live_agent_home": "/Users/test/.codex",
+        "profile_count": 2,
+        "active_state": {
+          "active_profile_id": "p_active",
+          "last_switch_at": "2026-03-08T12:27:12Z",
+          "last_switch_result": "Success",
+          "auto_switch_enabled": false
+        },
+        "settings": {
+          "auto_switch_enabled": false,
+          "cooldown_seconds": 600,
+          "refresh_interval_seconds": 60
+        }
+      },
+      "profiles": [$active_profile_item,$alt_profile_item],
+      "codex_settings": {
+        "usage_source_mode": "Auto"
+      },
+      "engine": {
+        "started_at": "2026-03-08T12:27:12Z",
+        "connection_state": "Ready"
+      }
+    }
+  }
+}
 EOF
             continue
           fi
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":1,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "protocol_version": "1",
+    "initial_state": {
+      "status": {
+        "relay_home": "/tmp/relay",
+        "live_agent_home": "/Users/test/.codex",
+        "profile_count": 1,
+        "active_state": {
+          "active_profile_id": "p_active",
+          "last_switch_at": "2026-03-08T12:27:12Z",
+          "last_switch_result": "Success",
+          "auto_switch_enabled": false
+        },
+        "settings": {
+          "auto_switch_enabled": false,
+          "cooldown_seconds": 600,
+          "refresh_interval_seconds": 60
+        }
+      },
+      "profiles": [],
+      "codex_settings": {
+        "usage_source_mode": "Auto"
+      },
+      "engine": {
+        "started_at": "2026-03-08T12:27:12Z",
+        "connection_state": "Ready"
+      }
+    }
+  }
+}
 EOF
           ;;
         session/subscribe)
           printf '%s\n' 'rpc session/subscribe' >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","query_state.updated","active_state.updated","settings.updated","profiles.updated","activity.events.updated","activity.logs.updated","doctor.updated","switch.completed","switch.failed","task.updated","health.updated"]}}
-EOF
-          mode="${RELAY_FIXTURE_MODE:-refresh}"
-          cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"settings.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"settings":{"app":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60},"codex":{"usage_source_mode":"Auto"}}}}}
-EOF
           if [ "$mode" = "remove_delayed_refresh" ]; then
-            cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"profiles.updated","seq":2,"timestamp":"2026-03-08T12:27:12Z","payload":{"profiles":[$active_profile_item,$alt_profile_item]}}}
+            emit_line <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "subscribed_topics": [
+      "usage.updated",
+      "query_state.updated",
+      "active_state.updated",
+      "settings.updated",
+      "profiles.updated",
+      "activity.events.updated",
+      "activity.logs.updated",
+      "doctor.updated",
+      "switch.completed",
+      "switch.failed",
+      "task.updated",
+      "health.updated"
+    ]
+  }
+}
 EOF
           else
-            cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"profiles.updated","seq":2,"timestamp":"2026-03-08T12:27:12Z","payload":{"profiles":[]}}}
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "subscribed_topics": [
+      "usage.updated",
+      "query_state.updated",
+      "active_state.updated",
+      "settings.updated",
+      "profiles.updated",
+      "activity.events.updated",
+      "activity.logs.updated",
+      "doctor.updated",
+      "switch.completed",
+      "switch.failed",
+      "task.updated",
+      "health.updated"
+    ]
+  }
+}
+EOF
+          fi
+          mode="${RELAY_FIXTURE_MODE:-refresh}"
+          if [ "$mode" = "remove_delayed_refresh" ]; then
+            emit_line <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "settings.updated",
+    "seq": 1,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "settings": {
+        "app": {
+          "auto_switch_enabled": false,
+          "cooldown_seconds": 600,
+          "refresh_interval_seconds": 60
+        },
+        "codex": {
+          "usage_source_mode": "Auto"
+        }
+      }
+    }
+  }
+}
+EOF
+          else
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "settings.updated",
+    "seq": 1,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "settings": {
+        "app": {
+          "auto_switch_enabled": false,
+          "cooldown_seconds": 600,
+          "refresh_interval_seconds": 60
+        },
+        "codex": {
+          "usage_source_mode": "Auto"
+        }
+      }
+    }
+  }
+}
+EOF
+          fi
+          if [ "$mode" = "remove_delayed_refresh" ]; then
+            emit_line <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "profiles.updated",
+    "seq": 2,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "profiles": [$active_profile_item,$alt_profile_item]
+    }
+  }
+}
+EOF
+          else
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "profiles.updated",
+    "seq": 2,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "profiles": []
+    }
+  }
+}
 EOF
           fi
           ;;
         relay/usage/refresh)
           printf '%s\n' 'rpc relay/usage/refresh' >> "$script_dir/commands.log"
-          include_disabled="$(python3 -c 'import json,sys; params=json.loads(sys.argv[1]).get("params", {}); print(str(params.get("include_disabled", False)).lower())' "$line")"
+          include_disabled="$(python3 -c \
+            'import json,sys; params=json.loads(sys.argv[1]).get("params", {}); print(str(params.get("include_disabled", False)).lower())' \
+            "$line")"
           printf '%s\n' "rpc relay/usage/refresh include_disabled=$include_disabled" >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":3,"timestamp":"2026-03-08T12:27:12Z","payload":{"states":[{"key":{"kind":"UsageProfile","profile_id":"p_alt"},"status":"Pending","trigger":"Manual","updated_at":"2026-03-08T12:27:12Z"}]}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "query_state.updated",
+    "seq": 3,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "states": [
+        {
+          "key": {
+            "kind": "UsageProfile",
+            "profile_id": "p_alt"
+          },
+          "status": "Pending",
+          "trigger": "Manual",
+          "updated_at": "2026-03-08T12:27:12Z"
+        }
+      ]
+    }
+  }
+}
 EOF
           sleep 0.2
-          cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"usage.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}],"trigger":"Manual"}}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":5,"timestamp":"2026-03-08T12:27:13Z","payload":{"states":[]}}}
-{"jsonrpc":"2.0","id":"$id","result":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}]}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "usage.updated",
+    "seq": 4,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "snapshots": [
+        {
+          "profile_id": "p_alt",
+          "profile_name": "alt",
+          "source": "Local",
+          "confidence": "High",
+          "stale": false,
+          "last_refreshed_at": "2026-03-08T12:27:12Z",
+          "next_reset_at": "2026-03-08T17:06:00Z",
+          "session": {
+            "used_percent": 29.0,
+            "window_minutes": 300,
+            "reset_at": "2026-03-08T17:06:00Z",
+            "status": "Healthy",
+            "exact": true
+          },
+          "weekly": {
+            "used_percent": 31.0,
+            "window_minutes": 10080,
+            "reset_at": "2026-03-12T06:36:18Z",
+            "status": "Healthy",
+            "exact": true
+          },
+          "auto_switch_reason": null,
+          "can_auto_switch": false,
+          "message": "local usage"
+        }
+      ],
+      "trigger": "Manual"
+    }
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "query_state.updated",
+    "seq": 5,
+    "timestamp": "2026-03-08T12:27:13Z",
+    "payload": {
+      "states": []
+    }
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "snapshots": [
+      {
+        "profile_id": "p_alt",
+        "profile_name": "alt",
+        "source": "Local",
+        "confidence": "High",
+        "stale": false,
+        "last_refreshed_at": "2026-03-08T12:27:12Z",
+        "next_reset_at": "2026-03-08T17:06:00Z",
+        "session": {
+          "used_percent": 29.0,
+          "window_minutes": 300,
+          "reset_at": "2026-03-08T17:06:00Z",
+          "status": "Healthy",
+          "exact": true
+        },
+        "weekly": {
+          "used_percent": 31.0,
+          "window_minutes": 10080,
+          "reset_at": "2026-03-12T06:36:18Z",
+          "status": "Healthy",
+          "exact": true
+        },
+        "auto_switch_reason": null,
+        "can_auto_switch": false,
+        "message": "local usage"
+      }
+    ]
+  }
+}
 EOF
           ;;
         relay/profiles/login/start)
           printf '%s\n' 'rpc relay/profiles/login/start' >> "$script_dir/commands.log"
           case "${RELAY_FIXTURE_MODE:-refresh}" in
             "login_cancelled")
-              cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"task_id":"task-login-1","kind":"ProfileLogin","accepted":true}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Pending","started_at":"2026-03-08T12:27:12Z","finished_at":null,"message":null,"error_code":null,"result":null}}}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":5,"timestamp":"2026-03-08T12:27:13Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Cancelled","started_at":"2026-03-08T12:27:12Z","finished_at":"2026-03-08T12:27:13Z","message":"Browser sign-in was cancelled or did not complete.","error_code":null,"result":null}}}}
+              emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "task_id": "task-login-1",
+    "kind": "ProfileLogin",
+    "accepted": true
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "task.updated",
+    "seq": 4,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "task": {
+        "task_id": "task-login-1",
+        "kind": "ProfileLogin",
+        "status": "Pending",
+        "started_at": "2026-03-08T12:27:12Z",
+        "finished_at": null,
+        "message": null,
+        "error_code": null,
+        "result": null
+      }
+    }
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "task.updated",
+    "seq": 5,
+    "timestamp": "2026-03-08T12:27:13Z",
+    "payload": {
+      "task": {
+        "task_id": "task-login-1",
+        "kind": "ProfileLogin",
+        "status": "Cancelled",
+        "started_at": "2026-03-08T12:27:12Z",
+        "finished_at": "2026-03-08T12:27:13Z",
+        "message": "Browser sign-in was cancelled or did not complete.",
+        "error_code": null,
+        "result": null
+      }
+    }
+  }
+}
 EOF
               ;;
             "login_failed")
-              cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"task_id":"task-login-1","kind":"ProfileLogin","accepted":true}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Pending","started_at":"2026-03-08T12:27:12Z","finished_at":null,"message":null,"error_code":null,"result":null}}}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":5,"timestamp":"2026-03-08T12:27:13Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Failed","started_at":"2026-03-08T12:27:12Z","finished_at":"2026-03-08T12:27:13Z","message":"codex binary not found","error_code":"RELAY_EXTERNAL_COMMAND","result":null}}}}
+              emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "task_id": "task-login-1",
+    "kind": "ProfileLogin",
+    "accepted": true
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "task.updated",
+    "seq": 4,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "task": {
+        "task_id": "task-login-1",
+        "kind": "ProfileLogin",
+        "status": "Pending",
+        "started_at": "2026-03-08T12:27:12Z",
+        "finished_at": null,
+        "message": null,
+        "error_code": null,
+        "result": null
+      }
+    }
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "task.updated",
+    "seq": 5,
+    "timestamp": "2026-03-08T12:27:13Z",
+    "payload": {
+      "task": {
+        "task_id": "task-login-1",
+        "kind": "ProfileLogin",
+        "status": "Failed",
+        "started_at": "2026-03-08T12:27:12Z",
+        "finished_at": "2026-03-08T12:27:13Z",
+        "message": "codex binary not found",
+        "error_code": "RELAY_EXTERNAL_COMMAND",
+        "result": null
+      }
+    }
+  }
+}
 EOF
               ;;
             "login_waits_for_cancel")
-              cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"task_id":"task-login-1","kind":"ProfileLogin","accepted":true}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Pending","started_at":"2026-03-08T12:27:12Z","finished_at":null,"message":null,"error_code":null,"result":null}}}}
+              emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "task_id": "task-login-1",
+    "kind": "ProfileLogin",
+    "accepted": true
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "task.updated",
+    "seq": 4,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "task": {
+        "task_id": "task-login-1",
+        "kind": "ProfileLogin",
+        "status": "Pending",
+        "started_at": "2026-03-08T12:27:12Z",
+        "finished_at": null,
+        "message": null,
+        "error_code": null,
+        "result": null
+      }
+    }
+  }
+}
 EOF
               ;;
             *)
-              cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"task_id":"task-login-1","kind":"ProfileLogin","accepted":true}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Pending","started_at":"2026-03-08T12:27:12Z","finished_at":null,"message":null,"error_code":null,"result":null}}}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"profiles.updated","seq":5,"timestamp":"2026-03-08T12:27:12Z","payload":{"profiles":[$active_profile_item,{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":false,"usage_summary":null}]}}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":6,"timestamp":"2026-03-08T12:27:13Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Succeeded","started_at":"2026-03-08T12:27:12Z","finished_at":"2026-03-08T12:27:13Z","message":null,"error_code":null,"result":{"profile":{"id":"p_browser","nickname":"browser","agent":"Codex","priority":90,"enabled":true,"agent_home":"/tmp/browser-home","config_path":"/tmp/browser-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"probe_identity":{"profile_id":"p_browser","account_id":"acct-123","email":"browser@example.com","plan_hint":"team","provider":"CodexOfficial","principal_id":"acct-123","display_name":"browser@example.com"},"activated":false}}}}}
+              emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "task_id": "task-login-1",
+    "kind": "ProfileLogin",
+    "accepted": true
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "task.updated",
+    "seq": 4,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "task": {
+        "task_id": "task-login-1",
+        "kind": "ProfileLogin",
+        "status": "Pending",
+        "started_at": "2026-03-08T12:27:12Z",
+        "finished_at": null,
+        "message": null,
+        "error_code": null,
+        "result": null
+      }
+    }
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "profiles.updated",
+    "seq": 5,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "profiles": [
+        $active_profile_item,
+        {
+          "profile": {
+            "id": "p_browser",
+            "nickname": "browser",
+            "agent": "Codex",
+            "priority": 90,
+            "enabled": true,
+            "account_state": "Healthy",
+            "account_error_http_status": null,
+            "account_state_updated_at": null,
+            "agent_home": "/tmp/browser-home",
+            "config_path": "/tmp/browser-home/config.toml",
+            "auth_mode": "ConfigFilesystem",
+            "created_at": "2026-03-08T12:27:12Z",
+            "updated_at": "2026-03-08T12:27:12Z"
+          },
+          "is_active": false,
+          "current_failure_events": [],
+          "usage_summary": null
+        }
+      ]
+    }
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "task.updated",
+    "seq": 6,
+    "timestamp": "2026-03-08T12:27:13Z",
+    "payload": {
+      "task": {
+        "task_id": "task-login-1",
+        "kind": "ProfileLogin",
+        "status": "Succeeded",
+        "started_at": "2026-03-08T12:27:12Z",
+        "finished_at": "2026-03-08T12:27:13Z",
+        "message": null,
+        "error_code": null,
+        "result": {
+          "profile": {
+            "id": "p_browser",
+            "nickname": "browser",
+            "agent": "Codex",
+            "priority": 90,
+            "enabled": true,
+            "account_state": "Healthy",
+            "account_error_http_status": null,
+            "account_state_updated_at": null,
+            "agent_home": "/tmp/browser-home",
+            "config_path": "/tmp/browser-home/config.toml",
+            "auth_mode": "ConfigFilesystem",
+            "created_at": "2026-03-08T12:27:12Z",
+            "updated_at": "2026-03-08T12:27:12Z"
+          },
+          "probe_identity": {
+            "profile_id": "p_browser",
+            "account_id": "acct-123",
+            "email": "browser@example.com",
+            "plan_hint": "team",
+            "provider": "CodexOfficial",
+            "principal_id": "acct-123",
+            "display_name": "browser@example.com"
+          },
+          "activated": false
+        }
+      }
+    }
+  }
+}
 EOF
               ;;
           esac
@@ -507,64 +1130,283 @@ EOF
         relay/tasks/cancel)
           printf '%s\n' 'rpc relay/tasks/cancel' >> "$script_dir/commands.log"
           if [ "${RELAY_FIXTURE_MODE:-refresh}" = "login_waits_for_cancel" ]; then
-            cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"accepted":true}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":7,"timestamp":"2026-03-08T12:27:14Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Cancelled","started_at":"2026-03-08T12:27:12Z","finished_at":"2026-03-08T12:27:14Z","message":"Browser sign-in was cancelled or did not complete.","error_code":null,"result":null}}}}
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "accepted": true
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "task.updated",
+    "seq": 7,
+    "timestamp": "2026-03-08T12:27:14Z",
+    "payload": {
+      "task": {
+        "task_id": "task-login-1",
+        "kind": "ProfileLogin",
+        "status": "Cancelled",
+        "started_at": "2026-03-08T12:27:12Z",
+        "finished_at": "2026-03-08T12:27:14Z",
+        "message": "Browser sign-in was cancelled or did not complete.",
+        "error_code": null,
+        "result": null
+      }
+    }
+  }
+}
 EOF
           else
-            cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"accepted":true}}
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "accepted": true
+  }
+}
 EOF
           fi
           ;;
         relay/profiles/remove)
           printf '%s\n' 'rpc relay/profiles/remove' >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":110,"enabled":true,"agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"profiles.updated","seq":5,"timestamp":"2026-03-08T12:27:12Z","payload":{"profiles":[$active_profile_item]}}}
+          if [ "${RELAY_FIXTURE_MODE:-refresh}" = "remove_delayed_refresh" ]; then
+            emit_line <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "id": "p_alt",
+    "nickname": "alt",
+    "agent": "Codex",
+    "priority": 110,
+    "enabled": true,
+    "account_state": "Healthy",
+    "account_error_http_status": null,
+    "account_state_updated_at": null,
+    "agent_home": "/tmp/alt-home",
+    "config_path": "/tmp/alt-home/config.toml",
+    "auth_mode": "ConfigFilesystem",
+    "created_at": "2026-03-08T12:27:12Z",
+    "updated_at": "2026-03-08T12:27:12Z"
+  }
+}
 EOF
+            emit_line <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "profiles.updated",
+    "seq": 5,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "profiles": [$active_profile_item]
+    }
+  }
+}
+EOF
+          else
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "id": "p_alt",
+    "nickname": "alt",
+    "agent": "Codex",
+    "priority": 110,
+    "enabled": true,
+    "account_state": "Healthy",
+    "account_error_http_status": null,
+    "account_state_updated_at": null,
+    "agent_home": "/tmp/alt-home",
+    "config_path": "/tmp/alt-home/config.toml",
+    "auth_mode": "ConfigFilesystem",
+    "created_at": "2026-03-08T12:27:12Z",
+    "updated_at": "2026-03-08T12:27:12Z"
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "profiles.updated",
+    "seq": 5,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "profiles": [$active_profile_item]
+    }
+  }
+}
+EOF
+          fi
           ;;
         relay/settings/update)
           printf '%s\n' 'rpc relay/settings/update' >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"app":{"auto_switch_enabled":true,"cooldown_seconds":600,"refresh_interval_seconds":60},"codex":{"usage_source_mode":"Auto"}}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"settings.updated","seq":6,"timestamp":"2026-03-08T12:27:12Z","payload":{"settings":{"app":{"auto_switch_enabled":true,"cooldown_seconds":600,"refresh_interval_seconds":60},"codex":{"usage_source_mode":"Auto"}}}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "app": {
+      "auto_switch_enabled": true,
+      "cooldown_seconds": 600,
+      "refresh_interval_seconds": 60
+    },
+    "codex": {
+      "usage_source_mode": "Auto"
+    }
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "settings.updated",
+    "seq": 6,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "settings": {
+        "app": {
+          "auto_switch_enabled": true,
+          "cooldown_seconds": 600,
+          "refresh_interval_seconds": 60
+        },
+        "codex": {
+          "usage_source_mode": "Auto"
+        }
+      }
+    }
+  }
+}
 EOF
           ;;
         relay/activity/refresh)
           printf '%s\n' 'rpc relay/activity/refresh' >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"events":[],"logs":{"path":"/tmp/relay/logs/relay.log","lines":[]}}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"activity.events.updated","seq":7,"timestamp":"2026-03-08T12:27:12Z","payload":{"events":[]}}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"activity.logs.updated","seq":8,"timestamp":"2026-03-08T12:27:12Z","payload":{"logs":{"path":"/tmp/relay/logs/relay.log","lines":[]}}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "events": [],
+    "logs": {
+      "path": "/tmp/relay/logs/relay.log",
+      "lines": []
+    }
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "activity.events.updated",
+    "seq": 7,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "events": []
+    }
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "activity.logs.updated",
+    "seq": 8,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "logs": {
+        "path": "/tmp/relay/logs/relay.log",
+        "lines": []
+      }
+    }
+  }
+}
 EOF
           ;;
         relay/doctor/refresh)
           printf '%s\n' 'rpc relay/doctor/refresh' >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"platform":"macOS","relay_home":"/tmp/relay","relay_db_path":"/tmp/relay/relay.db","relay_log_path":"/tmp/relay/logs/relay.log","primary_agent":"Codex","live_agent_home":"/Users/test/.codex","agent_binary":"/usr/bin/codex","default_agent_home":"/Users/test/.codex","default_agent_home_exists":true,"managed_files":["config.toml","auth.json","version.json"]}}
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"doctor.updated","seq":9,"timestamp":"2026-03-08T12:27:12Z","payload":{"report":{"platform":"macOS","relay_home":"/tmp/relay","relay_db_path":"/tmp/relay/relay.db","relay_log_path":"/tmp/relay/logs/relay.log","primary_agent":"Codex","live_agent_home":"/Users/test/.codex","agent_binary":"/usr/bin/codex","default_agent_home":"/Users/test/.codex","default_agent_home_exists":true,"managed_files":["config.toml","auth.json","version.json"]}}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "platform": "macOS",
+    "relay_home": "/tmp/relay",
+    "relay_db_path": "/tmp/relay/relay.db",
+    "relay_log_path": "/tmp/relay/logs/relay.log",
+    "primary_agent": "Codex",
+    "live_agent_home": "/Users/test/.codex",
+    "agent_binary": "/usr/bin/codex",
+    "default_agent_home": "/Users/test/.codex",
+    "default_agent_home_exists": true,
+    "managed_files": ["config.toml", "auth.json", "version.json"]
+  }
+}
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "doctor.updated",
+    "seq": 9,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "report": {
+        "platform": "macOS",
+        "relay_home": "/tmp/relay",
+        "relay_db_path": "/tmp/relay/relay.db",
+        "relay_log_path": "/tmp/relay/logs/relay.log",
+        "primary_agent": "Codex",
+        "live_agent_home": "/Users/test/.codex",
+        "agent_binary": "/usr/bin/codex",
+        "default_agent_home": "/Users/test/.codex",
+        "default_agent_home_exists": true,
+        "managed_files": ["config.toml", "auth.json", "version.json"]
+      }
+    }
+  }
+}
 EOF
           ;;
         shutdown)
           printf '%s\n' 'rpc shutdown' >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"accepted":true}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "accepted": true
+  }
+}
 EOF
           exit 0
           ;;
         *)
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {}
+}
 EOF
           ;;
       esac
     done
     ;;
   *)
-    cat <<EOF
-{"success":false,"error_code":"BAD_COMMAND","message":"unexpected command: $*","data":null}
+    emit_json <<EOF
+{
+  "success": false,
+  "error_code": "BAD_COMMAND",
+  "message": "unexpected command: $*",
+  "data": null
+}
 EOF
     ;;
 esac
-"""
+"""#

@@ -166,7 +166,7 @@ private struct RelayAppModelNotificationFixture {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
 
         let scriptURL = root.appendingPathComponent("relay-fixture.sh")
-        try fixtureScript.data(using: .utf8)!.write(to: scriptURL)
+        try fixtureScript.write(to: scriptURL, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes(
             [.posixPermissions: 0o755],
             ofItemAtPath: scriptURL.path)
@@ -198,16 +198,250 @@ private func waitUntil(
     throw WaitTimeout.timedOut
 }
 
-private let fixtureScript = """
+private let fixtureScript = #"""
 #!/bin/sh
 set -eu
 
 mode="${RELAY_FIXTURE_MODE:-default}"
 
-active_profile_item='{"profile":{"id":"p_active","nickname":"active","agent":"Codex","priority":100,"enabled":true,"account_state":"Healthy","account_error_http_status":null,"account_state_updated_at":null,"agent_home":"/tmp/active-home","config_path":"/tmp/active-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":true,"current_failure_events":[],"usage_summary":{"profile_id":"p_active","profile_name":"active","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}'
-alt_profile_item='{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":90,"enabled":true,"account_state":"Healthy","account_error_http_status":null,"account_state_updated_at":null,"agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":false,"current_failure_events":[],"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}'
-alt_profile_item_account_initial='{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":90,"enabled":true,"account_state":"AccountUnavailable","account_error_http_status":403,"account_state_updated_at":"2026-03-12T10:00:00Z","agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-12T10:00:00Z"},"is_active":false,"current_failure_events":[{"id":"ev_account_initial","profile_id":"p_alt","reason":"AccountUnavailable","message":"account unavailable","cooldown_until":null,"created_at":"2026-03-12T10:00:00Z","resolved_at":null}],"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Fallback","confidence":"Low","stale":true,"last_refreshed_at":"2026-03-12T10:00:00Z","next_reset_at":null,"session":{"used_percent":null,"window_minutes":300,"reset_at":null,"status":"Unknown","exact":false},"weekly":{"used_percent":null,"window_minutes":10080,"reset_at":null,"status":"Unknown","exact":false},"auto_switch_reason":"AccountUnavailable","can_auto_switch":false,"message":"account unavailable","remote_error":{"kind":"Account","http_status":403}}}'
-alt_profile_item_account_update='{"profile":{"id":"p_alt","nickname":"alt","agent":"Codex","priority":90,"enabled":true,"account_state":"AccountUnavailable","account_error_http_status":401,"account_state_updated_at":"2026-03-12T11:00:00Z","agent_home":"/tmp/alt-home","config_path":"/tmp/alt-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-12T11:00:00Z"},"is_active":false,"current_failure_events":[{"id":"ev_account_update","profile_id":"p_alt","reason":"AccountUnavailable","message":"account unavailable","cooldown_until":null,"created_at":"2026-03-12T11:00:00Z","resolved_at":null}],"usage_summary":{"profile_id":"p_alt","profile_name":"alt","source":"Fallback","confidence":"Low","stale":true,"last_refreshed_at":"2026-03-12T11:00:00Z","next_reset_at":null,"session":{"used_percent":null,"window_minutes":300,"reset_at":null,"status":"Unknown","exact":false},"weekly":{"used_percent":null,"window_minutes":10080,"reset_at":null,"status":"Unknown","exact":false},"auto_switch_reason":"AccountUnavailable","can_auto_switch":false,"message":"account unavailable","remote_error":{"kind":"Account","http_status":401}}}'
+emit_json() {
+  python3 -c 'import json,sys
+text=sys.stdin.read()
+decoder=json.JSONDecoder()
+index=0
+length=len(text)
+while True:
+    while index < length and text[index].isspace():
+        index += 1
+    if index >= length:
+        break
+    value, index = decoder.raw_decode(text, index)
+    print(json.dumps(value, separators=(",", ":")))'
+}
+
+active_profile_item=$(cat <<'JSON'
+{
+  "profile": {
+    "id": "p_active",
+    "nickname": "active",
+    "agent": "Codex",
+    "priority": 100,
+    "enabled": true,
+    "account_state": "Healthy",
+    "account_error_http_status": null,
+    "account_state_updated_at": null,
+    "agent_home": "/tmp/active-home",
+    "config_path": "/tmp/active-home/config.toml",
+    "auth_mode": "ConfigFilesystem",
+    "created_at": "2026-03-08T12:27:12Z",
+    "updated_at": "2026-03-08T12:27:12Z"
+  },
+  "is_active": true,
+  "current_failure_events": [],
+  "usage_summary": {
+    "profile_id": "p_active",
+    "profile_name": "active",
+    "source": "Local",
+    "confidence": "High",
+    "stale": false,
+    "last_refreshed_at": "2026-03-08T12:27:12Z",
+    "next_reset_at": "2026-03-08T17:06:00Z",
+    "session": {
+      "used_percent": 18.0,
+      "window_minutes": 300,
+      "reset_at": "2026-03-08T17:06:00Z",
+      "status": "Healthy",
+      "exact": true
+    },
+    "weekly": {
+      "used_percent": 22.0,
+      "window_minutes": 10080,
+      "reset_at": "2026-03-12T06:36:18Z",
+      "status": "Healthy",
+      "exact": true
+    },
+    "auto_switch_reason": null,
+    "can_auto_switch": false,
+    "message": "local usage"
+  }
+}
+JSON
+)
+
+alt_profile_item=$(cat <<'JSON'
+{
+  "profile": {
+    "id": "p_alt",
+    "nickname": "alt",
+    "agent": "Codex",
+    "priority": 90,
+    "enabled": true,
+    "account_state": "Healthy",
+    "account_error_http_status": null,
+    "account_state_updated_at": null,
+    "agent_home": "/tmp/alt-home",
+    "config_path": "/tmp/alt-home/config.toml",
+    "auth_mode": "ConfigFilesystem",
+    "created_at": "2026-03-08T12:27:12Z",
+    "updated_at": "2026-03-08T12:27:12Z"
+  },
+  "is_active": false,
+  "current_failure_events": [],
+  "usage_summary": {
+    "profile_id": "p_alt",
+    "profile_name": "alt",
+    "source": "Local",
+    "confidence": "High",
+    "stale": false,
+    "last_refreshed_at": "2026-03-08T12:27:12Z",
+    "next_reset_at": "2026-03-08T17:06:00Z",
+    "session": {
+      "used_percent": 29.0,
+      "window_minutes": 300,
+      "reset_at": "2026-03-08T17:06:00Z",
+      "status": "Healthy",
+      "exact": true
+    },
+    "weekly": {
+      "used_percent": 31.0,
+      "window_minutes": 10080,
+      "reset_at": "2026-03-12T06:36:18Z",
+      "status": "Healthy",
+      "exact": true
+    },
+    "auto_switch_reason": null,
+    "can_auto_switch": false,
+    "message": "local usage"
+  }
+}
+JSON
+)
+
+alt_profile_item_account_initial=$(cat <<'JSON'
+{
+  "profile": {
+    "id": "p_alt",
+    "nickname": "alt",
+    "agent": "Codex",
+    "priority": 90,
+    "enabled": true,
+    "account_state": "AccountUnavailable",
+    "account_error_http_status": 403,
+    "account_state_updated_at": "2026-03-12T10:00:00Z",
+    "agent_home": "/tmp/alt-home",
+    "config_path": "/tmp/alt-home/config.toml",
+    "auth_mode": "ConfigFilesystem",
+    "created_at": "2026-03-08T12:27:12Z",
+    "updated_at": "2026-03-12T10:00:00Z"
+  },
+  "is_active": false,
+  "current_failure_events": [
+    {
+      "id": "ev_account_initial",
+      "profile_id": "p_alt",
+      "reason": "AccountUnavailable",
+      "message": "account unavailable",
+      "cooldown_until": null,
+      "created_at": "2026-03-12T10:00:00Z",
+      "resolved_at": null
+    }
+  ],
+  "usage_summary": {
+    "profile_id": "p_alt",
+    "profile_name": "alt",
+    "source": "Fallback",
+    "confidence": "Low",
+    "stale": true,
+    "last_refreshed_at": "2026-03-12T10:00:00Z",
+    "next_reset_at": null,
+    "session": {
+      "used_percent": null,
+      "window_minutes": 300,
+      "reset_at": null,
+      "status": "Unknown",
+      "exact": false
+    },
+    "weekly": {
+      "used_percent": null,
+      "window_minutes": 10080,
+      "reset_at": null,
+      "status": "Unknown",
+      "exact": false
+    },
+    "auto_switch_reason": "AccountUnavailable",
+    "can_auto_switch": false,
+    "message": "account unavailable",
+    "remote_error": {
+      "kind": "Account",
+      "http_status": 403
+    }
+  }
+}
+JSON
+)
+
+alt_profile_item_account_update=$(cat <<'JSON'
+{
+  "profile": {
+    "id": "p_alt",
+    "nickname": "alt",
+    "agent": "Codex",
+    "priority": 90,
+    "enabled": true,
+    "account_state": "AccountUnavailable",
+    "account_error_http_status": 401,
+    "account_state_updated_at": "2026-03-12T11:00:00Z",
+    "agent_home": "/tmp/alt-home",
+    "config_path": "/tmp/alt-home/config.toml",
+    "auth_mode": "ConfigFilesystem",
+    "created_at": "2026-03-08T12:27:12Z",
+    "updated_at": "2026-03-12T11:00:00Z"
+  },
+  "is_active": false,
+  "current_failure_events": [
+    {
+      "id": "ev_account_update",
+      "profile_id": "p_alt",
+      "reason": "AccountUnavailable",
+      "message": "account unavailable",
+      "cooldown_until": null,
+      "created_at": "2026-03-12T11:00:00Z",
+      "resolved_at": null
+    }
+  ],
+  "usage_summary": {
+    "profile_id": "p_alt",
+    "profile_name": "alt",
+    "source": "Fallback",
+    "confidence": "Low",
+    "stale": true,
+    "last_refreshed_at": "2026-03-12T11:00:00Z",
+    "next_reset_at": null,
+    "session": {
+      "used_percent": null,
+      "window_minutes": 300,
+      "reset_at": null,
+      "status": "Unknown",
+      "exact": false
+    },
+    "weekly": {
+      "used_percent": null,
+      "window_minutes": 10080,
+      "reset_at": null,
+      "status": "Unknown",
+      "exact": false
+    },
+    "auto_switch_reason": "AccountUnavailable",
+    "can_auto_switch": false,
+    "message": "account unavailable",
+    "remote_error": {
+      "kind": "Account",
+      "http_status": 401
+    }
+  }
+}
+JSON
+)
 
 case "$*" in
   "daemon --stdio")
@@ -222,103 +456,379 @@ case "$*" in
               profiles_json="[$active_profile_item,$alt_profile_item_account_initial]"
               ;;
           esac
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","server_info":{"name":"relay","version":"0.1.0"},"capabilities":{"supports_subscriptions":true,"supports_health_updates":true},"initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":$profiles_json,"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "protocol_version": "1",
+    "server_info": {
+      "name": "relay",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "supports_subscriptions": true,
+      "supports_health_updates": true
+    },
+    "initial_state": {
+      "status": {
+        "relay_home": "/tmp/relay",
+        "live_agent_home": "/Users/test/.codex",
+        "profile_count": 2,
+        "active_state": {
+          "active_profile_id": "p_active",
+          "last_switch_at": "2026-03-08T12:27:12Z",
+          "last_switch_result": "Success",
+          "auto_switch_enabled": false
+        },
+        "settings": {
+          "auto_switch_enabled": false,
+          "cooldown_seconds": 600,
+          "refresh_interval_seconds": 60
+        }
+      },
+      "profiles": $profiles_json,
+      "codex_settings": {
+        "usage_source_mode": "Auto"
+      },
+      "engine": {
+        "started_at": "2026-03-08T12:27:12Z",
+        "connection_state": "Ready"
+      }
+    }
+  }
+}
 EOF
           ;;
         session/subscribe)
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","query_state.updated","active_state.updated","settings.updated","profiles.updated","activity.events.updated","activity.logs.updated","doctor.updated","switch.completed","switch.failed","health.updated"]}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "subscribed_topics": [
+      "usage.updated",
+      "query_state.updated",
+      "active_state.updated",
+      "settings.updated",
+      "profiles.updated",
+      "activity.events.updated",
+      "activity.logs.updated",
+      "doctor.updated",
+      "switch.completed",
+      "switch.failed",
+      "health.updated"
+    ]
+  }
+}
 EOF
           case "$mode" in
             health_update)
               sleep 0.1
-              cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"health.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"state":"Degraded","detail":"Relay engine degraded for test."}}}
+              emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "health.updated",
+    "seq": 1,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "state": "Degraded",
+      "detail": "Relay engine degraded for test."
+    }
+  }
+}
 EOF
               ;;
             switch_failed)
               sleep 0.1
-              cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"switch.failed","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"error_code":"RELAY_CONFLICT","message":"no eligible profile available","profile_id":"p_active","trigger":"Auto"}}}
+              emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "switch.failed",
+    "seq": 1,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "error_code": "RELAY_CONFLICT",
+      "message": "no eligible profile available",
+      "profile_id": "p_active",
+      "trigger": "Auto"
+    }
+  }
+}
 EOF
               ;;
             usage_active_update)
               sleep 0.05
-              cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"usage.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"WebEnhanced","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":61.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Warning","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"push usage"}],"trigger":"Manual"}}}
+              emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "usage.updated",
+    "seq": 1,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "snapshots": [
+        {
+          "profile_id": "p_alt",
+          "profile_name": "alt",
+          "source": "WebEnhanced",
+          "confidence": "High",
+          "stale": false,
+          "last_refreshed_at": "2026-03-08T12:27:12Z",
+          "next_reset_at": "2026-03-08T17:06:00Z",
+          "session": {
+            "used_percent": 61.0,
+            "window_minutes": 300,
+            "reset_at": "2026-03-08T17:06:00Z",
+            "status": "Warning",
+            "exact": true
+          },
+          "weekly": {
+            "used_percent": 31.0,
+            "window_minutes": 10080,
+            "reset_at": "2026-03-12T06:36:18Z",
+            "status": "Healthy",
+            "exact": true
+          },
+          "auto_switch_reason": null,
+          "can_auto_switch": false,
+          "message": "push usage"
+        }
+      ],
+      "trigger": "Manual"
+    }
+  }
+}
 EOF
               sleep 0.05
-              cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"active_state.updated","seq":2,"timestamp":"2026-03-08T12:27:13Z","payload":{"active_state":{"active_profile_id":"p_alt","last_switch_at":"2026-03-08T12:27:13Z","last_switch_result":"Success","auto_switch_enabled":false},"active_profile":$alt_profile_item}}}
+              emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "active_state.updated",
+    "seq": 2,
+    "timestamp": "2026-03-08T12:27:13Z",
+    "payload": {
+      "active_state": {
+        "active_profile_id": "p_alt",
+        "last_switch_at": "2026-03-08T12:27:13Z",
+        "last_switch_result": "Success",
+        "auto_switch_enabled": false
+      },
+      "active_profile": $alt_profile_item
+    }
+  }
+}
 EOF
               ;;
             query_state_error)
               sleep 0.05
-              cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"states":[{"key":{"kind":"UsageProfile","profile_id":"p_alt"},"status":"Pending","trigger":"Manual","updated_at":"2026-03-08T12:27:12Z"}]}}}
+              emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "query_state.updated",
+    "seq": 1,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "states": [
+        {
+          "key": {
+            "kind": "UsageProfile",
+            "profile_id": "p_alt"
+          },
+          "status": "Pending",
+          "trigger": "Manual",
+          "updated_at": "2026-03-08T12:27:12Z"
+        }
+      ]
+    }
+  }
+}
 EOF
               sleep 0.05
-              cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":2,"timestamp":"2026-03-08T12:27:13Z","payload":{"states":[{"key":{"kind":"UsageProfile","profile_id":"p_alt"},"status":"Error","trigger":"Manual","error_code":"RELAY_EXTERNAL_COMMAND","message":"remote usage timed out","updated_at":"2026-03-08T12:27:13Z"}]}}}
+              emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "query_state.updated",
+    "seq": 2,
+    "timestamp": "2026-03-08T12:27:13Z",
+    "payload": {
+      "states": [
+        {
+          "key": {
+            "kind": "UsageProfile",
+            "profile_id": "p_alt"
+          },
+          "status": "Error",
+          "trigger": "Manual",
+          "error_code": "RELAY_EXTERNAL_COMMAND",
+          "message": "remote usage timed out",
+          "updated_at": "2026-03-08T12:27:13Z"
+        }
+      ]
+    }
+  }
+}
 EOF
               ;;
             profiles_updated_account_unavailable)
               sleep 0.05
-              cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"profiles.updated","seq":1,"timestamp":"2026-03-12T11:00:00Z","payload":{"profiles":[$active_profile_item,$alt_profile_item_account_update]}}}
+              emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "profiles.updated",
+    "seq": 1,
+    "timestamp": "2026-03-12T11:00:00Z",
+    "payload": {
+      "profiles": [$active_profile_item,$alt_profile_item_account_update]
+    }
+  }
+}
 EOF
               ;;
           esac
           ;;
         relay/status/get)
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":2,"active_state":{"active_profile_id":"p_active","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "relay_home": "/tmp/relay",
+    "live_agent_home": "/Users/test/.codex",
+    "profile_count": 2,
+    "active_state": {
+      "active_profile_id": "p_active",
+      "last_switch_at": "2026-03-08T12:27:12Z",
+      "last_switch_result": "Success",
+      "auto_switch_enabled": false
+    },
+    "settings": {
+      "auto_switch_enabled": false,
+      "cooldown_seconds": 600,
+      "refresh_interval_seconds": 60
+    }
+  }
+}
 EOF
           ;;
         relay/settings/get)
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"app":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60},"codex":{"usage_source_mode":"Auto"}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "app": {
+      "auto_switch_enabled": false,
+      "cooldown_seconds": 600,
+      "refresh_interval_seconds": 60
+    },
+    "codex": {
+      "usage_source_mode": "Auto"
+    }
+  }
+}
 EOF
           ;;
         relay/profiles/list)
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":[$active_profile_item,$alt_profile_item]}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": [$active_profile_item,$alt_profile_item]
+}
 EOF
           ;;
         relay/doctor/get)
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"platform":"macOS","relay_home":"/tmp/relay","relay_db_path":"/tmp/relay/relay.db","relay_log_path":"/tmp/relay/logs/relay.log","primary_agent":"Codex","live_agent_home":"/Users/test/.codex","agent_binary":"/usr/bin/codex","default_agent_home":"/Users/test/.codex","default_agent_home_exists":true,"managed_files":["config.toml","auth.json","version.json"]}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "platform": "macOS",
+    "relay_home": "/tmp/relay",
+    "relay_db_path": "/tmp/relay/relay.db",
+    "relay_log_path": "/tmp/relay/logs/relay.log",
+    "primary_agent": "Codex",
+    "live_agent_home": "/Users/test/.codex",
+    "agent_binary": "/usr/bin/codex",
+    "default_agent_home": "/Users/test/.codex",
+    "default_agent_home_exists": true,
+    "managed_files": ["config.toml", "auth.json", "version.json"]
+  }
+}
 EOF
           ;;
         relay/activity/events/list)
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"events":[]}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "events": []
+  }
+}
 EOF
           ;;
         relay/activity/logs/tail)
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"logs":{"path":"/tmp/relay/logs/relay.log","lines":[]}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "logs": {
+      "path": "/tmp/relay/logs/relay.log",
+      "lines": []
+    }
+  }
+}
 EOF
           ;;
         shutdown)
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"accepted":true}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "accepted": true
+  }
+}
 EOF
           exit 0
           ;;
         *)
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {}
+}
 EOF
           ;;
       esac
     done
     ;;
   *)
-    cat <<EOF
-{"success":false,"error_code":"BAD_COMMAND","message":"unexpected command: $*","data":null}
+    emit_json <<EOF
+{
+  "success": false,
+  "error_code": "BAD_COMMAND",
+  "message": "unexpected command: $*",
+  "data": null
+}
 EOF
     ;;
 esac
-"""
+"""#

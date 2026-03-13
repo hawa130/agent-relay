@@ -331,7 +331,9 @@ public struct ProfilesSettingsPaneView: View {
                         HStack(spacing: 6) {
                             ProfileStatusBadge(
                                 title: profile.enabled ? "Enabled" : "Disabled",
-                                dotColor: profile.enabled ? NativePreferencesTheme.Colors.statusIcon(.success) : NativePreferencesTheme.Colors.disabledIndicator)
+                                dotColor: profile.enabled
+                                    ? NativePreferencesTheme.Colors.statusIcon(.success)
+                                    : NativePreferencesTheme.Colors.disabledIndicator)
                             ProfileInfoBadge(title: "Priority", value: "\(profile.priority)")
                         }
                         .padding(.top, 4)
