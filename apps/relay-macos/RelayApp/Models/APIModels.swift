@@ -1,12 +1,5 @@
 import Foundation
 
-struct RelayEnvelope<T: Decodable & Sendable>: Decodable, Sendable {
-    let success: Bool
-    let errorCode: String?
-    let message: String
-    let data: T?
-}
-
 struct DoctorReport: Decodable, Sendable {
     let platform: String
     let relayHome: String
@@ -209,15 +202,6 @@ struct Profile: Decodable, Identifiable, Sendable {
 enum ProfileAccountState: String, Decodable, Sendable {
     case healthy = "Healthy"
     case accountUnavailable = "AccountUnavailable"
-}
-
-struct ProfileDetail: Decodable, Sendable {
-    let profile: Profile
-    let isActive: Bool
-    let usage: UsageSnapshot?
-    let currentFailureEvents: [FailureEvent]
-    let switchEligible: Bool
-    let switchIneligibilityReason: String?
 }
 
 struct ProfileListItem: Decodable, Sendable {

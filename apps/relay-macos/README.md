@@ -5,7 +5,7 @@
 V1 rules:
 
 - The app is a control plane only.
-- All real profile, switch, validation, and diagnostics operations go through `agrelay --json`.
+- All real profile, switch, validation, and diagnostics operations go through the long-lived `agrelay daemon --stdio` JSON-RPC session.
 - No UI code mutates Codex configuration files directly.
 
 ## Build
@@ -65,8 +65,8 @@ RelayApp/
 ## Current Scope
 
 - `MenuBarExtra` entry point
-- CLI client wrapper via `Process`
-- status polling and JSON decoding
+- daemon/RPC client via `Process`
+- status refresh and JSON-RPC decoding
 - profile list and manual switch actions
 - settings window with profile enable/disable and auto-switch control
 - activity window with events, logs, and diagnostics export
@@ -79,4 +79,4 @@ RelayApp/
 - For reliable menu bar behavior, login item integration, and Finder launch, use the `.app` bundle built by `./scripts/build-app.sh`.
 - The app resolves `agrelay` in this order: `AGRELAY_CLI_PATH`, bundled `Contents/Resources/bin/agrelay`, then `PATH`.
 - `SMAppService` launch-at-login support requires running from a proper app bundle; the toggle is wired now but may report unsupported when running directly from `swift run`.
-- The app expects the AgentRelay CLI JSON contract to stay stable.
+- The app expects the AgentRelay daemon RPC contract to stay stable.
