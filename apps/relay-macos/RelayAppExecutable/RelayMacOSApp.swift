@@ -71,7 +71,7 @@ private struct WindowActionRegistryCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
-        let _ = WindowActionRegistry.shared.install(openWindow)
-        CommandGroup(after: .appInfo) {}
+        WindowActionRegistry.shared.install(openWindow)
+        return CommandGroup(after: .appInfo) {}
     }
 }

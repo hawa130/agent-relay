@@ -2,25 +2,30 @@ import Foundation
 @testable import RelayMacOSUI
 import XCTest
 
+private func utf8Data(_ string: String) -> Data {
+    Data(string.utf8)
+}
+
 final class ModelDecodingTests: XCTestCase {
     func testStatusReportDecodesCurrentFields() throws {
-        let json = """
-        {
-          "relay_home": "/tmp/relay",
-          "live_agent_home": "/Users/test/.codex",
-          "profile_count": 2,
-          "active_state": {
-            "active_profile_id": "p_active",
-            "last_switch_at": "2026-03-08T12:27:12Z",
-            "last_switch_result": "Success",
-            "auto_switch_enabled": true
-          },
-          "settings": {
-            "auto_switch_enabled": true,
-            "cooldown_seconds": 600
-          }
-        }
-        """.data(using: .utf8)!
+        let json = utf8Data(
+            """
+            {
+              "relay_home": "/tmp/relay",
+              "live_agent_home": "/Users/test/.codex",
+              "profile_count": 2,
+              "active_state": {
+                "active_profile_id": "p_active",
+                "last_switch_at": "2026-03-08T12:27:12Z",
+                "last_switch_result": "Success",
+                "auto_switch_enabled": true
+              },
+              "settings": {
+                "auto_switch_enabled": true,
+                "cooldown_seconds": 600
+              }
+            }
+            """)
 
         let report = try JSONDecoder.relayDecoder.decode(StatusReport.self, from: json)
 
@@ -32,22 +37,23 @@ final class ModelDecodingTests: XCTestCase {
     }
 
     func testProfileDecodesCurrentAgentHomeKey() throws {
-        let json = """
-        {
-          "id": "p_1",
-          "nickname": "work",
-          "agent": "Codex",
-          "priority": 100,
-          "enabled": true,
-          "account_state": "AccountUnavailable",
-          "account_error_http_status": 402,
-          "agent_home": "/Users/test/.relay/profiles/work",
-          "config_path": "/Users/test/.relay/profiles/work/config.toml",
-          "auth_mode": "ConfigFilesystem",
-          "created_at": "2026-03-08T12:27:12Z",
-          "updated_at": "2026-03-08T12:27:12Z"
-        }
-        """.data(using: .utf8)!
+        let json = utf8Data(
+            """
+            {
+              "id": "p_1",
+              "nickname": "work",
+              "agent": "Codex",
+              "priority": 100,
+              "enabled": true,
+              "account_state": "AccountUnavailable",
+              "account_error_http_status": 402,
+              "agent_home": "/Users/test/.relay/profiles/work",
+              "config_path": "/Users/test/.relay/profiles/work/config.toml",
+              "auth_mode": "ConfigFilesystem",
+              "created_at": "2026-03-08T12:27:12Z",
+              "updated_at": "2026-03-08T12:27:12Z"
+            }
+            """)
 
         let profile = try JSONDecoder.relayDecoder.decode(Profile.self, from: json)
 
@@ -58,16 +64,17 @@ final class ModelDecodingTests: XCTestCase {
     }
 
     func testSwitchReportDecodesSnakeCaseIDFields() throws {
-        let json = """
-        {
-          "profile_id": "p_target",
-          "previous_profile_id": "p_prev",
-          "checkpoint_id": "cp_1",
-          "rollback_performed": false,
-          "switched_at": "2026-03-08T12:27:12Z",
-          "message": "switched"
-        }
-        """.data(using: .utf8)!
+        let json = utf8Data(
+            """
+            {
+              "profile_id": "p_target",
+              "previous_profile_id": "p_prev",
+              "checkpoint_id": "cp_1",
+              "rollback_performed": false,
+              "switched_at": "2026-03-08T12:27:12Z",
+              "message": "switched"
+            }
+            """)
 
         let report = try JSONDecoder.relayDecoder.decode(SwitchReport.self, from: json)
 
@@ -77,38 +84,39 @@ final class ModelDecodingTests: XCTestCase {
     }
 
     func testUsageSnapshotDecodesProfileID() throws {
-        let json = """
-        {
-          "profile_id": "p_usage",
-          "profile_name": "work",
-          "source": "Local",
-          "confidence": "High",
-          "stale": false,
-          "last_refreshed_at": "2026-03-08T12:27:12Z",
-          "next_reset_at": "2026-03-08T17:06:00Z",
-          "session": {
-            "used_percent": 29.0,
-            "window_minutes": 300,
-            "reset_at": "2026-03-08T17:06:00Z",
-            "status": "Healthy",
-            "exact": true
-          },
-          "weekly": {
-            "used_percent": 31.0,
-            "window_minutes": 10080,
-            "reset_at": "2026-03-12T06:36:18Z",
-            "status": "Healthy",
-            "exact": true
-          },
-          "auto_switch_reason": null,
-          "can_auto_switch": false,
-          "message": "codex app-server rate limit RPC",
-          "remote_error": {
-            "kind": "Other",
-            "http_status": 402
-          }
-        }
-        """.data(using: .utf8)!
+        let json = utf8Data(
+            """
+            {
+              "profile_id": "p_usage",
+              "profile_name": "work",
+              "source": "Local",
+              "confidence": "High",
+              "stale": false,
+              "last_refreshed_at": "2026-03-08T12:27:12Z",
+              "next_reset_at": "2026-03-08T17:06:00Z",
+              "session": {
+                "used_percent": 29.0,
+                "window_minutes": 300,
+                "reset_at": "2026-03-08T17:06:00Z",
+                "status": "Healthy",
+                "exact": true
+              },
+              "weekly": {
+                "used_percent": 31.0,
+                "window_minutes": 10080,
+                "reset_at": "2026-03-12T06:36:18Z",
+                "status": "Healthy",
+                "exact": true
+              },
+              "auto_switch_reason": null,
+              "can_auto_switch": false,
+              "message": "codex app-server rate limit RPC",
+              "remote_error": {
+                "kind": "Other",
+                "http_status": 402
+              }
+            }
+            """)
 
         let snapshot = try JSONDecoder.relayDecoder.decode(UsageSnapshot.self, from: json)
 
@@ -119,12 +127,13 @@ final class ModelDecodingTests: XCTestCase {
     }
 
     func testAppSettingsDecodeCurrentFields() throws {
-        let json = """
-        {
-          "auto_switch_enabled": false,
-          "cooldown_seconds": 600
-        }
-        """.data(using: .utf8)!
+        let json = utf8Data(
+            """
+            {
+              "auto_switch_enabled": false,
+              "cooldown_seconds": 600
+            }
+            """)
 
         let settings = try JSONDecoder.relayDecoder.decode(AppSettings.self, from: json)
 
@@ -133,11 +142,12 @@ final class ModelDecodingTests: XCTestCase {
     }
 
     func testCodexSettingsDecodeCurrentFields() throws {
-        let json = """
-        {
-          "usage_source_mode": "WebEnhanced"
-        }
-        """.data(using: .utf8)!
+        let json = utf8Data(
+            """
+            {
+              "usage_source_mode": "WebEnhanced"
+            }
+            """)
 
         let settings = try JSONDecoder.relayDecoder.decode(CodexSettings.self, from: json)
 
@@ -145,40 +155,41 @@ final class ModelDecodingTests: XCTestCase {
     }
 
     func testAgentLinkResultDecodesProbeIdentity() throws {
-        let json = """
-        {
-          "profile": {
-            "id": "p_browser",
-            "nickname": "browser",
-            "agent": "Codex",
-            "priority": 90,
-            "enabled": true,
-            "account_state": "Healthy",
-            "account_error_http_status": null,
-            "account_state_updated_at": null,
-            "agent_home": "/tmp/browser-home",
-            "config_path": "/tmp/browser-home/config.toml",
-            "auth_mode": "ConfigFilesystem",
-            "created_at": "2026-03-08T12:27:12Z",
-            "updated_at": "2026-03-08T12:27:12Z"
-          },
-          "probe_identity": {
-            "profile_id": "p_browser",
-            "provider": "CodexOfficial",
-            "principal_id": "acct-123",
-            "display_name": "browser@example.com",
-            "credentials": {
-              "account_id": "acct-123",
-              "access_token": "access-token"
-            },
-            "metadata": {
-              "email": "browser@example.com",
-              "plan_hint": "team"
+        let json = utf8Data(
+            """
+            {
+              "profile": {
+                "id": "p_browser",
+                "nickname": "browser",
+                "agent": "Codex",
+                "priority": 90,
+                "enabled": true,
+                "account_state": "Healthy",
+                "account_error_http_status": null,
+                "account_state_updated_at": null,
+                "agent_home": "/tmp/browser-home",
+                "config_path": "/tmp/browser-home/config.toml",
+                "auth_mode": "ConfigFilesystem",
+                "created_at": "2026-03-08T12:27:12Z",
+                "updated_at": "2026-03-08T12:27:12Z"
+              },
+              "probe_identity": {
+                "profile_id": "p_browser",
+                "provider": "CodexOfficial",
+                "principal_id": "acct-123",
+                "display_name": "browser@example.com",
+                "credentials": {
+                  "account_id": "acct-123",
+                  "access_token": "access-token"
+                },
+                "metadata": {
+                  "email": "browser@example.com",
+                  "plan_hint": "team"
+                }
+              },
+              "activated": false
             }
-          },
-          "activated": false
-        }
-        """.data(using: .utf8)!
+            """)
 
         let result = try JSONDecoder.relayDecoder.decode(AgentLinkResult.self, from: json)
 
@@ -188,63 +199,64 @@ final class ModelDecodingTests: XCTestCase {
     }
 
     func testProfileListItemDecodesAggregateListFields() throws {
-        let json = """
-        {
-          "profile": {
-            "id": "p_1",
-            "nickname": "work",
-            "agent": "Codex",
-            "priority": 100,
-            "enabled": true,
-            "account_state": "Healthy",
-            "account_error_http_status": null,
-            "account_state_updated_at": null,
-            "agent_home": "/Users/test/.relay/profiles/work",
-            "config_path": "/Users/test/.relay/profiles/work/config.toml",
-            "auth_mode": "ConfigFilesystem",
-            "created_at": "2026-03-08T12:27:12Z",
-            "updated_at": "2026-03-08T12:27:12Z"
-          },
-          "is_active": true,
-          "current_failure_events": [
+        let json = utf8Data(
+            """
             {
-              "id": "ev_1",
-              "profile_id": "p_1",
-              "reason": "ValidationFailed",
-              "message": "still broken",
-              "cooldown_until": null,
-              "created_at": "2026-03-08T12:27:12Z",
-              "resolved_at": null
+              "profile": {
+                "id": "p_1",
+                "nickname": "work",
+                "agent": "Codex",
+                "priority": 100,
+                "enabled": true,
+                "account_state": "Healthy",
+                "account_error_http_status": null,
+                "account_state_updated_at": null,
+                "agent_home": "/Users/test/.relay/profiles/work",
+                "config_path": "/Users/test/.relay/profiles/work/config.toml",
+                "auth_mode": "ConfigFilesystem",
+                "created_at": "2026-03-08T12:27:12Z",
+                "updated_at": "2026-03-08T12:27:12Z"
+              },
+              "is_active": true,
+              "current_failure_events": [
+                {
+                  "id": "ev_1",
+                  "profile_id": "p_1",
+                  "reason": "ValidationFailed",
+                  "message": "still broken",
+                  "cooldown_until": null,
+                  "created_at": "2026-03-08T12:27:12Z",
+                  "resolved_at": null
+                }
+              ],
+              "usage_summary": {
+                "profile_id": "p_1",
+                "profile_name": "work",
+                "source": "Local",
+                "confidence": "High",
+                "stale": false,
+                "last_refreshed_at": "2026-03-08T12:27:12Z",
+                "next_reset_at": "2026-03-08T17:06:00Z",
+                "session": {
+                  "used_percent": 18.0,
+                  "window_minutes": 300,
+                  "reset_at": "2026-03-08T17:06:00Z",
+                  "status": "Healthy",
+                  "exact": true
+                },
+                "weekly": {
+                  "used_percent": 22.0,
+                  "window_minutes": 10080,
+                  "reset_at": "2026-03-12T06:36:18Z",
+                  "status": "Healthy",
+                  "exact": true
+                },
+                "auto_switch_reason": null,
+                "can_auto_switch": false,
+                "message": "local usage"
+              }
             }
-          ],
-          "usage_summary": {
-            "profile_id": "p_1",
-            "profile_name": "work",
-            "source": "Local",
-            "confidence": "High",
-            "stale": false,
-            "last_refreshed_at": "2026-03-08T12:27:12Z",
-            "next_reset_at": "2026-03-08T17:06:00Z",
-            "session": {
-              "used_percent": 18.0,
-              "window_minutes": 300,
-              "reset_at": "2026-03-08T17:06:00Z",
-              "status": "Healthy",
-              "exact": true
-            },
-            "weekly": {
-              "used_percent": 22.0,
-              "window_minutes": 10080,
-              "reset_at": "2026-03-12T06:36:18Z",
-              "status": "Healthy",
-              "exact": true
-            },
-            "auto_switch_reason": null,
-            "can_auto_switch": false,
-            "message": "local usage"
-          }
-        }
-        """.data(using: .utf8)!
+            """)
 
         let item = try JSONDecoder.relayDecoder.decode(ProfileListItem.self, from: json)
 
@@ -256,67 +268,68 @@ final class ModelDecodingTests: XCTestCase {
     }
 
     func testProfileListItemDecodesAccountUsageAndAccountStateFields() throws {
-        let json = """
-        {
-          "profile": {
-            "id": "p_2",
-            "nickname": "suspended",
-            "agent": "Codex",
-            "priority": 90,
-            "enabled": false,
-            "account_state": "AccountUnavailable",
-            "account_error_http_status": 401,
-            "account_state_updated_at": "2026-03-12T10:00:00Z",
-            "agent_home": "/Users/test/.relay/profiles/suspended",
-            "config_path": "/Users/test/.relay/profiles/suspended/config.toml",
-            "auth_mode": "ConfigFilesystem",
-            "created_at": "2026-03-08T12:27:12Z",
-            "updated_at": "2026-03-12T10:00:00Z"
-          },
-          "is_active": false,
-          "current_failure_events": [
+        let json = utf8Data(
+            """
             {
-              "id": "ev_2",
-              "profile_id": "p_2",
-              "reason": "AccountUnavailable",
-              "message": "account unavailable",
-              "cooldown_until": null,
-              "created_at": "2026-03-12T10:00:00Z",
-              "resolved_at": null
+              "profile": {
+                "id": "p_2",
+                "nickname": "suspended",
+                "agent": "Codex",
+                "priority": 90,
+                "enabled": false,
+                "account_state": "AccountUnavailable",
+                "account_error_http_status": 401,
+                "account_state_updated_at": "2026-03-12T10:00:00Z",
+                "agent_home": "/Users/test/.relay/profiles/suspended",
+                "config_path": "/Users/test/.relay/profiles/suspended/config.toml",
+                "auth_mode": "ConfigFilesystem",
+                "created_at": "2026-03-08T12:27:12Z",
+                "updated_at": "2026-03-12T10:00:00Z"
+              },
+              "is_active": false,
+              "current_failure_events": [
+                {
+                  "id": "ev_2",
+                  "profile_id": "p_2",
+                  "reason": "AccountUnavailable",
+                  "message": "account unavailable",
+                  "cooldown_until": null,
+                  "created_at": "2026-03-12T10:00:00Z",
+                  "resolved_at": null
+                }
+              ],
+              "usage_summary": {
+                "profile_id": "p_2",
+                "profile_name": "suspended",
+                "source": "Fallback",
+                "confidence": "Low",
+                "stale": true,
+                "last_refreshed_at": "2026-03-12T10:00:00Z",
+                "next_reset_at": null,
+                "session": {
+                  "used_percent": null,
+                  "window_minutes": 300,
+                  "reset_at": null,
+                  "status": "Unknown",
+                  "exact": false
+                },
+                "weekly": {
+                  "used_percent": null,
+                  "window_minutes": 10080,
+                  "reset_at": null,
+                  "status": "Unknown",
+                  "exact": false
+                },
+                "auto_switch_reason": "AccountUnavailable",
+                "can_auto_switch": false,
+                "message": "account unavailable",
+                "remote_error": {
+                  "kind": "Account",
+                  "http_status": 401
+                }
+              }
             }
-          ],
-          "usage_summary": {
-            "profile_id": "p_2",
-            "profile_name": "suspended",
-            "source": "Fallback",
-            "confidence": "Low",
-            "stale": true,
-            "last_refreshed_at": "2026-03-12T10:00:00Z",
-            "next_reset_at": null,
-            "session": {
-              "used_percent": null,
-              "window_minutes": 300,
-              "reset_at": null,
-              "status": "Unknown",
-              "exact": false
-            },
-            "weekly": {
-              "used_percent": null,
-              "window_minutes": 10080,
-              "reset_at": null,
-              "status": "Unknown",
-              "exact": false
-            },
-            "auto_switch_reason": "AccountUnavailable",
-            "can_auto_switch": false,
-            "message": "account unavailable",
-            "remote_error": {
-              "kind": "Account",
-              "http_status": 401
-            }
-          }
-        }
-        """.data(using: .utf8)!
+            """)
 
         let item = try JSONDecoder.relayDecoder.decode(ProfileListItem.self, from: json)
 

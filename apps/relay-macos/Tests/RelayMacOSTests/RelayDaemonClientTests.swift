@@ -289,7 +289,7 @@ private struct RelayDaemonFixture {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
 
         let scriptURL = root.appendingPathComponent("relay-daemon-fixture.sh")
-        try fixtureScript.data(using: .utf8)!.write(to: scriptURL)
+        try fixtureScript.write(to: scriptURL, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes(
             [.posixPermissions: 0o755],
             ofItemAtPath: scriptURL.path)
@@ -352,12 +352,27 @@ private func nextNotification(
     }
 }
 
-private let fixtureScript = """
+private let fixtureScript = #"""
 #!/bin/sh
 set -eu
 
 script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 printf '%s\n' "$*" >> "$script_dir/commands.log"
+
+emit_json() {
+  python3 -c 'import json,sys
+text=sys.stdin.read()
+decoder=json.JSONDecoder()
+index=0
+length=len(text)
+while True:
+    while index < length and text[index].isspace():
+        index += 1
+    if index >= length:
+        break
+    value, index = decoder.raw_decode(text, index)
+    print(json.dumps(value, separators=(",", ":")))'
+}
 
 case "$*" in
   "daemon --stdio")
@@ -377,14 +392,114 @@ case "$*" in
       case "$method" in
         initialize)
           printf '%s\n' 'rpc initialize' >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"protocol_version":"1","server_info":{"name":"relay","version":"0.1.0"},"capabilities":{"supports_subscriptions":true,"supports_health_updates":true},"initial_state":{"status":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":$launches,"active_state":{"active_profile_id":"p_active_$launches","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}},"profiles":[{"profile":{"id":"p_active_$launches","nickname":"active-$launches","agent":"Codex","priority":100,"enabled":true,"account_state":"Healthy","account_error_http_status":null,"account_state_updated_at":null,"agent_home":"/tmp/active-home","config_path":"/tmp/active-home/config.toml","auth_mode":"ConfigFilesystem","created_at":"2026-03-08T12:27:12Z","updated_at":"2026-03-08T12:27:12Z"},"is_active":true,"current_failure_events":[],"usage_summary":{"profile_id":"p_active_$launches","profile_name":"active-$launches","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}],"codex_settings":{"usage_source_mode":"Auto"},"engine":{"started_at":"2026-03-08T12:27:12Z","connection_state":"Ready"}}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "protocol_version": "1",
+    "server_info": {
+      "name": "relay",
+      "version": "0.1.0"
+    },
+    "capabilities": {
+      "supports_subscriptions": true,
+      "supports_health_updates": true
+    },
+    "initial_state": {
+      "status": {
+        "relay_home": "/tmp/relay",
+        "live_agent_home": "/Users/test/.codex",
+        "profile_count": $launches,
+        "active_state": {
+          "active_profile_id": "p_active_$launches",
+          "last_switch_at": "2026-03-08T12:27:12Z",
+          "last_switch_result": "Success",
+          "auto_switch_enabled": false
+        },
+        "settings": {
+          "auto_switch_enabled": false,
+          "cooldown_seconds": 600,
+          "refresh_interval_seconds": 60
+        }
+      },
+      "profiles": [
+        {
+          "profile": {
+            "id": "p_active_$launches",
+            "nickname": "active-$launches",
+            "agent": "Codex",
+            "priority": 100,
+            "enabled": true,
+            "account_state": "Healthy",
+            "account_error_http_status": null,
+            "account_state_updated_at": null,
+            "agent_home": "/tmp/active-home",
+            "config_path": "/tmp/active-home/config.toml",
+            "auth_mode": "ConfigFilesystem",
+            "created_at": "2026-03-08T12:27:12Z",
+            "updated_at": "2026-03-08T12:27:12Z"
+          },
+          "is_active": true,
+          "current_failure_events": [],
+          "usage_summary": {
+            "profile_id": "p_active_$launches",
+            "profile_name": "active-$launches",
+            "source": "Local",
+            "confidence": "High",
+            "stale": false,
+            "last_refreshed_at": "2026-03-08T12:27:12Z",
+            "next_reset_at": "2026-03-08T17:06:00Z",
+            "session": {
+              "used_percent": 18.0,
+              "window_minutes": 300,
+              "reset_at": "2026-03-08T17:06:00Z",
+              "status": "Healthy",
+              "exact": true
+            },
+            "weekly": {
+              "used_percent": 22.0,
+              "window_minutes": 10080,
+              "reset_at": "2026-03-12T06:36:18Z",
+              "status": "Healthy",
+              "exact": true
+            },
+            "auto_switch_reason": null,
+            "can_auto_switch": false,
+            "message": "local usage"
+          }
+        }
+      ],
+      "codex_settings": {
+        "usage_source_mode": "Auto"
+      },
+      "engine": {
+        "started_at": "2026-03-08T12:27:12Z",
+        "connection_state": "Ready"
+      }
+    }
+  }
+}
 EOF
           ;;
         session/subscribe)
           printf '%s\n' 'rpc session/subscribe' >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"subscribed_topics":["usage.updated","query_state.updated","active_state.updated","switch.completed","switch.failed","task.updated","health.updated"]}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "subscribed_topics": [
+      "usage.updated",
+      "query_state.updated",
+      "active_state.updated",
+      "switch.completed",
+      "switch.failed",
+      "task.updated",
+      "health.updated"
+    ]
+  }
+}
 EOF
           ;;
         relay/status/get)
@@ -398,93 +513,367 @@ EOF
           if [ "$mode" = "out_of_order_responses" ]; then
             sleep 0.2
           fi
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"relay_home":"/tmp/relay","live_agent_home":"/Users/test/.codex","profile_count":$launches,"active_state":{"active_profile_id":"p_active_$launches","last_switch_at":"2026-03-08T12:27:12Z","last_switch_result":"Success","auto_switch_enabled":false},"settings":{"auto_switch_enabled":false,"cooldown_seconds":600,"refresh_interval_seconds":60}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "relay_home": "/tmp/relay",
+    "live_agent_home": "/Users/test/.codex",
+    "profile_count": $launches,
+    "active_state": {
+      "active_profile_id": "p_active_$launches",
+      "last_switch_at": "2026-03-08T12:27:12Z",
+      "last_switch_result": "Success",
+      "auto_switch_enabled": false
+    },
+    "settings": {
+      "auto_switch_enabled": false,
+      "cooldown_seconds": 600,
+      "refresh_interval_seconds": 60
+    }
+  }
+}
 EOF
           ;;
         relay/usage/get)
           printf '%s\n' 'rpc relay/usage/get' >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"snapshot":{"profile_id":"p_active_$launches","profile_name":"active-$launches","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":18.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":22.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "snapshot": {
+      "profile_id": "p_active_$launches",
+      "profile_name": "active-$launches",
+      "source": "Local",
+      "confidence": "High",
+      "stale": false,
+      "last_refreshed_at": "2026-03-08T12:27:12Z",
+      "next_reset_at": "2026-03-08T17:06:00Z",
+      "session": {
+        "used_percent": 18.0,
+        "window_minutes": 300,
+        "reset_at": "2026-03-08T17:06:00Z",
+        "status": "Healthy",
+        "exact": true
+      },
+      "weekly": {
+        "used_percent": 22.0,
+        "window_minutes": 10080,
+        "reset_at": "2026-03-12T06:36:18Z",
+        "status": "Healthy",
+        "exact": true
+      },
+      "auto_switch_reason": null,
+      "can_auto_switch": false,
+      "message": "local usage"
+    }
+  }
+}
 EOF
           ;;
         relay/usage/refresh)
           printf '%s\n' 'rpc relay/usage/refresh' >> "$script_dir/commands.log"
-          include_disabled="$(python3 -c 'import json,sys; params=json.loads(sys.argv[1]).get("params", {}); print(str(params.get("include_disabled", False)).lower())' "$line")"
+          include_disabled="$(python3 -c \
+            'import json,sys; params=json.loads(sys.argv[1]).get("params", {}); print(str(params.get("include_disabled", False)).lower())' \
+            "$line")"
           printf '%s\n' "rpc relay/usage/refresh include_disabled=$include_disabled" >> "$script_dir/commands.log"
           if [ "$mode" = "notification_then_refresh_response" ]; then
-            cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"usage.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}],"trigger":"Manual"}}}
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "usage.updated",
+    "seq": 1,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "snapshots": [
+        {
+          "profile_id": "p_alt",
+          "profile_name": "alt",
+          "source": "Local",
+          "confidence": "High",
+          "stale": false,
+          "last_refreshed_at": "2026-03-08T12:27:12Z",
+          "next_reset_at": "2026-03-08T17:06:00Z",
+          "session": {
+            "used_percent": 29.0,
+            "window_minutes": 300,
+            "reset_at": "2026-03-08T17:06:00Z",
+            "status": "Healthy",
+            "exact": true
+          },
+          "weekly": {
+            "used_percent": 31.0,
+            "window_minutes": 10080,
+            "reset_at": "2026-03-12T06:36:18Z",
+            "status": "Healthy",
+            "exact": true
+          },
+          "auto_switch_reason": null,
+          "can_auto_switch": false,
+          "message": "local usage"
+        }
+      ],
+      "trigger": "Manual"
+    }
+  }
+}
 EOF
             sleep 0.1
           elif [ "$mode" = "query_state_then_refresh_response" ]; then
-            cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":1,"timestamp":"2026-03-08T12:27:12Z","payload":{"states":[{"key":{"kind":"UsageProfile","profile_id":"p_alt"},"status":"Pending","trigger":"Manual","updated_at":"2026-03-08T12:27:12Z"}]}}}
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "query_state.updated",
+    "seq": 1,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "states": [
+        {
+          "key": {
+            "kind": "UsageProfile",
+            "profile_id": "p_alt"
+          },
+          "status": "Pending",
+          "trigger": "Manual",
+          "updated_at": "2026-03-08T12:27:12Z"
+        }
+      ]
+    }
+  }
+}
 EOF
             sleep 0.05
-            cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"usage.updated","seq":2,"timestamp":"2026-03-08T12:27:12Z","payload":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}],"trigger":"Manual"}}}
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "usage.updated",
+    "seq": 2,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "snapshots": [
+        {
+          "profile_id": "p_alt",
+          "profile_name": "alt",
+          "source": "Local",
+          "confidence": "High",
+          "stale": false,
+          "last_refreshed_at": "2026-03-08T12:27:12Z",
+          "next_reset_at": "2026-03-08T17:06:00Z",
+          "session": {
+            "used_percent": 29.0,
+            "window_minutes": 300,
+            "reset_at": "2026-03-08T17:06:00Z",
+            "status": "Healthy",
+            "exact": true
+          },
+          "weekly": {
+            "used_percent": 31.0,
+            "window_minutes": 10080,
+            "reset_at": "2026-03-12T06:36:18Z",
+            "status": "Healthy",
+            "exact": true
+          },
+          "auto_switch_reason": null,
+          "can_auto_switch": false,
+          "message": "local usage"
+        }
+      ],
+      "trigger": "Manual"
+    }
+  }
+}
 EOF
             sleep 0.05
-            cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"query_state.updated","seq":3,"timestamp":"2026-03-08T12:27:13Z","payload":{"states":[]}}}
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "query_state.updated",
+    "seq": 3,
+    "timestamp": "2026-03-08T12:27:13Z",
+    "payload": {
+      "states": []
+    }
+  }
+}
 EOF
             sleep 0.05
           fi
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"snapshots":[{"profile_id":"p_alt","profile_name":"alt","source":"Local","confidence":"High","stale":false,"last_refreshed_at":"2026-03-08T12:27:12Z","next_reset_at":"2026-03-08T17:06:00Z","session":{"used_percent":29.0,"window_minutes":300,"reset_at":"2026-03-08T17:06:00Z","status":"Healthy","exact":true},"weekly":{"used_percent":31.0,"window_minutes":10080,"reset_at":"2026-03-12T06:36:18Z","status":"Healthy","exact":true},"auto_switch_reason":null,"can_auto_switch":false,"message":"local usage"}]}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "snapshots": [
+      {
+        "profile_id": "p_alt",
+        "profile_name": "alt",
+        "source": "Local",
+        "confidence": "High",
+        "stale": false,
+        "last_refreshed_at": "2026-03-08T12:27:12Z",
+        "next_reset_at": "2026-03-08T17:06:00Z",
+        "session": {
+          "used_percent": 29.0,
+          "window_minutes": 300,
+          "reset_at": "2026-03-08T17:06:00Z",
+          "status": "Healthy",
+          "exact": true
+        },
+        "weekly": {
+          "used_percent": 31.0,
+          "window_minutes": 10080,
+          "reset_at": "2026-03-12T06:36:18Z",
+          "status": "Healthy",
+          "exact": true
+        },
+        "auto_switch_reason": null,
+        "can_auto_switch": false,
+        "message": "local usage"
+      }
+    ]
+  }
+}
 EOF
           ;;
         relay/profiles/login/start)
           printf '%s\n' 'rpc relay/profiles/login/start' >> "$script_dir/commands.log"
           if [ "$mode" = "login_start_invalid_params" ]; then
-            cat <<EOF
-{"jsonrpc":"2.0","id":"$id","error":{"code":-32602,"message":"missing field `mode`","data":{"relay_error_code":"RELAY_INVALID_INPUT"}}}
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "error": {
+    "code": -32602,
+    "message": "missing field `mode`",
+    "data": {
+      "relay_error_code": "RELAY_INVALID_INPUT"
+    }
+  }
+}
 EOF
             continue
           fi
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"task_id":"task-login-1","kind":"ProfileLogin","accepted":true}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "task_id": "task-login-1",
+    "kind": "ProfileLogin",
+    "accepted": true
+  }
+}
 EOF
           if [ "$mode" = "login_task_updates" ]; then
             sleep 0.05
-            cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":4,"timestamp":"2026-03-08T12:27:12Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Pending","started_at":"2026-03-08T12:27:12Z","finished_at":null,"message":null,"error_code":null,"result":null}}}}
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "task.updated",
+    "seq": 4,
+    "timestamp": "2026-03-08T12:27:12Z",
+    "payload": {
+      "task": {
+        "task_id": "task-login-1",
+        "kind": "ProfileLogin",
+        "status": "Pending",
+        "started_at": "2026-03-08T12:27:12Z",
+        "finished_at": null,
+        "message": null,
+        "error_code": null,
+        "result": null
+      }
+    }
+  }
+}
 EOF
           fi
           ;;
         relay/tasks/cancel)
           printf '%s\n' 'rpc relay/tasks/cancel' >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"accepted":true}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "accepted": true
+  }
+}
 EOF
           if [ "$mode" = "login_task_updates" ]; then
             sleep 0.05
-            cat <<EOF
-{"jsonrpc":"2.0","method":"session/update","params":{"topic":"task.updated","seq":5,"timestamp":"2026-03-08T12:27:13Z","payload":{"task":{"task_id":"task-login-1","kind":"ProfileLogin","status":"Cancelled","started_at":"2026-03-08T12:27:12Z","finished_at":"2026-03-08T12:27:13Z","message":"cancelled by client","error_code":null,"result":null}}}}
+            emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "method": "session/update",
+  "params": {
+    "topic": "task.updated",
+    "seq": 5,
+    "timestamp": "2026-03-08T12:27:13Z",
+    "payload": {
+      "task": {
+        "task_id": "task-login-1",
+        "kind": "ProfileLogin",
+        "status": "Cancelled",
+        "started_at": "2026-03-08T12:27:12Z",
+        "finished_at": "2026-03-08T12:27:13Z",
+        "message": "cancelled by client",
+        "error_code": null,
+        "result": null
+      }
+    }
+  }
+}
 EOF
           fi
           ;;
         shutdown)
           printf '%s\n' 'rpc shutdown' >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{"accepted":true}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {
+    "accepted": true
+  }
+}
 EOF
           exit 0
           ;;
         *)
           printf '%s\n' "rpc $method" >> "$script_dir/commands.log"
-          cat <<EOF
-{"jsonrpc":"2.0","id":"$id","result":{}}
+          emit_json <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "$id",
+  "result": {}
+}
 EOF
           ;;
       esac
     done
     ;;
   *)
-    cat <<EOF
-{"success":false,"error_code":"BAD_COMMAND","message":"unexpected command: $*","data":null}
+    emit_json <<EOF
+{
+  "success": false,
+  "error_code": "BAD_COMMAND",
+  "message": "unexpected command: $*",
+  "data": null
+}
 EOF
     ;;
 esac
-"""
+"""#
