@@ -23,17 +23,16 @@ actor RelayDaemonClient {
     init(
         relayCLIPathOverride: String? = nil,
         requestTimeoutSeconds: TimeInterval? = nil,
-        environment: [String: String] = ProcessInfo.processInfo.environment
-    ) {
+        environment: [String: String] = ProcessInfo.processInfo.environment)
+    {
         self.relayCLIPathOverride = relayCLIPathOverride
         self.environment = environment
         self.requestTimeoutSeconds = Self.resolveRequestTimeoutSeconds(
             override: requestTimeoutSeconds,
-            environment: environment
-        )
+            environment: environment)
         let streamPair = AsyncStream.makeStream(of: RelaySessionUpdate.self)
-        self.stream = streamPair.stream
-        self.continuation = streamPair.continuation
+        stream = streamPair.stream
+        continuation = streamPair.continuation
     }
 
     nonisolated var notifications: AsyncStream<RelaySessionUpdate> {
@@ -103,13 +102,12 @@ actor RelayDaemonClient {
         }
 
         self.process = process
-        self.stdinPipe = stdin
+        stdinPipe = stdin
 
         let initial: RPCInitializeResult = try await sendRequest(
             method: "initialize",
             params: RPCInitializeParams(),
-            as: RPCInitializeResult.self
-        )
+            as: RPCInitializeResult.self)
         _ = try await sendRequest(
             method: "session/subscribe",
             params: RPCSubscribeParams(
@@ -125,11 +123,9 @@ actor RelayDaemonClient {
                     "switch.completed",
                     "switch.failed",
                     "task.updated",
-                    "health.updated",
-                ]
-            ),
-            as: RPCResponseAck.self
-        )
+                    "health.updated"
+                ]),
+            as: RPCResponseAck.self)
         initializedState = initial.initialState
         return initial.initialState
     }
@@ -165,8 +161,7 @@ actor RelayDaemonClient {
         let result = try await request(
             method: "relay/usage/refresh",
             params: RefreshUsageRPCParams(profileId: profileId, includeDisabled: false),
-            as: RPCUsageRefreshResult.self
-        )
+            as: RPCUsageRefreshResult.self)
         guard let snapshot = result.snapshots.first else {
             throw RelayClientError.invalidResponse("missing snapshot in refresh result")
         }
@@ -177,8 +172,7 @@ actor RelayDaemonClient {
         let result = try await request(
             method: "relay/usage/refresh",
             params: RefreshUsageRPCParams(profileId: nil, includeDisabled: false),
-            as: RPCUsageRefreshResult.self
-        )
+            as: RPCUsageRefreshResult.self)
         return result.snapshots
     }
 
@@ -186,8 +180,7 @@ actor RelayDaemonClient {
         let result = try await request(
             method: "relay/usage/refresh",
             params: RefreshUsageRPCParams(profileId: nil, includeDisabled: true),
-            as: RPCUsageRefreshResult.self
-        )
+            as: RPCUsageRefreshResult.self)
         return result.snapshots
     }
 
@@ -207,8 +200,7 @@ actor RelayDaemonClient {
         let result = try await request(
             method: "relay/settings/update",
             params: RPCSettingsUpdatePayload(app: nil, codex: draft),
-            as: RPCSettingsResult.self
-        )
+            as: RPCSettingsResult.self)
         return result.codex
     }
 
@@ -216,8 +208,7 @@ actor RelayDaemonClient {
         try await request(
             method: "relay/switch/activate",
             params: RPCProfileID(profileId: profileId),
-            as: SwitchReport.self
-        )
+            as: SwitchReport.self)
     }
 
     func switchToNextProfile() async throws -> SwitchReport {
@@ -228,57 +219,50 @@ actor RelayDaemonClient {
         try await request(
             method: "relay/profiles/edit",
             params: RPCEditProfileParams(profileId: profileId, draft: draft),
-            as: Profile.self
-        )
+            as: Profile.self)
     }
 
     func removeProfile(profileId: String) async throws -> Profile {
         try await request(
             method: "relay/profiles/remove",
             params: RPCProfileID(profileId: profileId),
-            as: Profile.self
-        )
+            as: Profile.self)
     }
 
     func importProfile(agent: AgentKind, nickname: String?, priority: Int) async throws -> Profile {
         try await request(
             method: "relay/profiles/import",
             params: RPCImportProfileParams(agent: agent, nickname: nickname, priority: priority),
-            as: Profile.self
-        )
+            as: Profile.self)
     }
 
     func startLoginProfile(
         agent: AgentKind,
         nickname: String?,
-        priority: Int
-    ) async throws -> TaskStartResult {
+        priority: Int) async throws -> TaskStartResult
+    {
         try await request(
             method: "relay/profiles/login/start",
             params: RPCLoginProfileParams(
                 agent: agent,
                 nickname: nickname,
                 priority: priority,
-                mode: .browser
-            ),
-            as: TaskStartResult.self
-        )
+                mode: .browser),
+            as: TaskStartResult.self)
     }
 
     func cancelTask(taskId: String) async throws -> TaskCancelResult {
         try await request(
             method: "relay/tasks/cancel",
             params: RPCTaskID(taskId: taskId),
-            as: TaskCancelResult.self
-        )
+            as: TaskCancelResult.self)
     }
 
     func setProfileEnabled(profileId: String, enabled: Bool) async throws -> Profile {
         try await request(
             method: "relay/profiles/set_enabled",
             params: RPCSetProfileEnabledParams(profileId: profileId, enabled: enabled),
-            as: Profile.self
-        )
+            as: Profile.self)
     }
 
     func setAutoSwitch(enabled: Bool) async throws -> AppSettings {
@@ -289,12 +273,9 @@ actor RelayDaemonClient {
                     autoSwitchEnabled: enabled,
                     cooldownSeconds: nil,
                     refreshIntervalSeconds: nil,
-                    networkQueryConcurrency: nil
-                ),
-                codex: nil
-            ),
-            as: RPCSettingsResult.self
-        )
+                    networkQueryConcurrency: nil),
+                codex: nil),
+            as: RPCSettingsResult.self)
         return result.app
     }
 
@@ -306,12 +287,9 @@ actor RelayDaemonClient {
                     autoSwitchEnabled: nil,
                     cooldownSeconds: nil,
                     refreshIntervalSeconds: seconds,
-                    networkQueryConcurrency: nil
-                ),
-                codex: nil
-            ),
-            as: RPCSettingsResult.self
-        )
+                    networkQueryConcurrency: nil),
+                codex: nil),
+            as: RPCSettingsResult.self)
         return result.app
     }
 
@@ -323,12 +301,9 @@ actor RelayDaemonClient {
                     autoSwitchEnabled: nil,
                     cooldownSeconds: nil,
                     refreshIntervalSeconds: nil,
-                    networkQueryConcurrency: value
-                ),
-                codex: nil
-            ),
-            as: RPCSettingsResult.self
-        )
+                    networkQueryConcurrency: value),
+                codex: nil),
+            as: RPCSettingsResult.self)
         return result.app
     }
 
@@ -338,25 +313,25 @@ actor RelayDaemonClient {
 
     private func request<Response: Decodable & Sendable>(
         method: String,
-        as type: Response.Type
-    ) async throws -> Response {
+        as type: Response.Type) async throws -> Response
+    {
         try await request(method: method, params: EmptyParams(), as: type)
     }
 
-    private func request<Params: Encodable & Sendable, Response: Decodable & Sendable>(
+    private func request<Response: Decodable & Sendable>(
         method: String,
-        params: Params,
-        as type: Response.Type
-    ) async throws -> Response {
+        params: some Encodable & Sendable,
+        as type: Response.Type) async throws -> Response
+    {
         _ = try await start()
         return try await sendRequest(method: method, params: params, as: type)
     }
 
-    private func sendRequest<Params: Encodable & Sendable, Response: Decodable & Sendable>(
+    private func sendRequest<Response: Decodable & Sendable>(
         method: String,
-        params: Params,
-        as type: Response.Type
-    ) async throws -> Response {
+        params: some Encodable & Sendable,
+        as type: Response.Type) async throws -> Response
+    {
         guard let stdinPipe else {
             throw RelayClientError.relayNotFound([])
         }
@@ -364,8 +339,7 @@ actor RelayDaemonClient {
         let requestID = nextID()
         let encoder = JSONEncoder.relayEncoder
         let payload = try encoder.encode(
-            RPCRequestEnvelope(id: requestID, method: method, params: params)
-        )
+            RPCRequestEnvelope(id: requestID, method: method, params: params))
 
         let line = payload + Data([0x0A])
         let responseData = try await withCheckedThrowingContinuation { continuation in
@@ -378,8 +352,7 @@ actor RelayDaemonClient {
         if let errorEnvelope = try? decoder.decode(RPCErrorEnvelope.self, from: responseData) {
             throw RelayClientError.commandFailed(
                 code: errorEnvelope.error.data?.relayErrorCode,
-                message: errorEnvelope.error.message
-            )
+                message: errorEnvelope.error.message)
         }
 
         let envelope = try decoder.decode(RPCResponseEnvelope<Response>.self, from: responseData)
@@ -447,74 +420,62 @@ actor RelayDaemonClient {
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: UsageUpdatedNotification.self
-            ).map(RelaySessionUpdate.usageUpdated)
+                as: UsageUpdatedNotification.self).map(RelaySessionUpdate.usageUpdated)
         case "query_state.updated":
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: QueryStateUpdatedNotification.self
-            ).map(RelaySessionUpdate.queryStateUpdated)
+                as: QueryStateUpdatedNotification.self).map(RelaySessionUpdate.queryStateUpdated)
         case "active_state.updated":
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: ActiveStateUpdatedNotification.self
-            ).map(RelaySessionUpdate.activeStateUpdated)
+                as: ActiveStateUpdatedNotification.self).map(RelaySessionUpdate.activeStateUpdated)
         case "settings.updated":
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: SettingsUpdatedNotification.self
-            ).map(RelaySessionUpdate.settingsUpdated)
+                as: SettingsUpdatedNotification.self).map(RelaySessionUpdate.settingsUpdated)
         case "profiles.updated":
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: ProfilesUpdatedNotification.self
-            ).map(RelaySessionUpdate.profilesUpdated)
+                as: ProfilesUpdatedNotification.self).map(RelaySessionUpdate.profilesUpdated)
         case "activity.events.updated":
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: ActivityEventsUpdatedNotification.self
-            ).map(RelaySessionUpdate.activityEventsUpdated)
+                as: ActivityEventsUpdatedNotification.self).map(RelaySessionUpdate.activityEventsUpdated)
         case "activity.logs.updated":
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: ActivityLogsUpdatedNotification.self
-            ).map(RelaySessionUpdate.activityLogsUpdated)
+                as: ActivityLogsUpdatedNotification.self).map(RelaySessionUpdate.activityLogsUpdated)
         case "doctor.updated":
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: DoctorUpdatedNotification.self
-            ).map(RelaySessionUpdate.doctorUpdated)
+                as: DoctorUpdatedNotification.self).map(RelaySessionUpdate.doctorUpdated)
         case "switch.completed":
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: SwitchCompletedNotification.self
-            ).map(RelaySessionUpdate.switchCompleted)
+                as: SwitchCompletedNotification.self).map(RelaySessionUpdate.switchCompleted)
         case "switch.failed":
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: SwitchFailedNotification.self
-            ).map(RelaySessionUpdate.switchFailed)
+                as: SwitchFailedNotification.self).map(RelaySessionUpdate.switchFailed)
         case "task.updated":
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: TaskUpdatedNotification.self
-            ).map(RelaySessionUpdate.taskUpdated)
+                as: TaskUpdatedNotification.self).map(RelaySessionUpdate.taskUpdated)
         case "health.updated":
             return decodeNotificationPayload(
                 topic: topic,
                 payloadData: payloadData,
-                as: HealthUpdatedNotification.self
-            ).map(RelaySessionUpdate.healthUpdated)
+                as: HealthUpdatedNotification.self).map(RelaySessionUpdate.healthUpdated)
         default:
             return nil
         }
@@ -523,16 +484,15 @@ actor RelayDaemonClient {
     private func decodeNotificationPayload<Payload: Decodable>(
         topic: String,
         payloadData: Data,
-        as type: Payload.Type
-    ) -> Payload? {
+        as type: Payload.Type) -> Payload?
+    {
         do {
             return try JSONDecoder.relayDecoder.decode(type, from: payloadData)
         } catch {
             let payload = String(data: payloadData, encoding: .utf8) ?? "<non-utf8 payload>"
             fputs(
                 "RelayDaemonClient failed to decode \(topic) notification: \(error)\npayload: \(payload)\n",
-                stderr
-            )
+                stderr)
             return nil
         }
     }
@@ -558,8 +518,7 @@ actor RelayDaemonClient {
         pendingTimeouts.removeValue(forKey: id)?.cancel()
         continuation.resume(throwing: RelayClientError.commandFailed(
             code: "RELAY_DAEMON_TIMEOUT",
-            message: "daemon request timed out after \(Self.formatTimeout(timeoutSeconds)) seconds"
-        ))
+            message: "daemon request timed out after \(Self.formatTimeout(timeoutSeconds)) seconds"))
     }
 
     private func cancelPendingTimeouts() {
@@ -577,8 +536,7 @@ actor RelayDaemonClient {
         }
         let error = RelayClientError.commandFailed(
             code: "RELAY_DAEMON_EXITED",
-            message: "daemon exited with status \(process.terminationStatus)"
-        )
+            message: "daemon exited with status \(process.terminationStatus)")
         for continuation in pending.values {
             continuation.resume(throwing: error)
         }
@@ -586,9 +544,7 @@ actor RelayDaemonClient {
         continuation.yield(.healthUpdated(
             HealthUpdatedNotification(
                 state: .degraded,
-                detail: "AgentRelay engine exited."
-            )
-        ))
+                detail: "AgentRelay engine exited.")))
         cleanupProcessState()
     }
 
@@ -665,8 +621,7 @@ actor RelayDaemonClient {
                 resourceURL
                     .appending(path: "bin", directoryHint: .isDirectory)
                     .appending(path: "agrelay")
-                    .path(percentEncoded: false)
-            )
+                    .path(percentEncoded: false))
         }
 
         if let executableURL = Bundle.main.executableURL {
@@ -677,8 +632,7 @@ actor RelayDaemonClient {
                     .appending(path: "Resources", directoryHint: .isDirectory)
                     .appending(path: "bin", directoryHint: .isDirectory)
                     .appending(path: "agrelay")
-                    .path(percentEncoded: false)
-            )
+                    .path(percentEncoded: false))
         }
 
         if Bundle.main.bundleURL.pathExtension == "app" {
@@ -688,8 +642,7 @@ actor RelayDaemonClient {
                     .appending(path: "Resources", directoryHint: .isDirectory)
                     .appending(path: "bin", directoryHint: .isDirectory)
                     .appending(path: "agrelay")
-                    .path(percentEncoded: false)
-            )
+                    .path(percentEncoded: false))
         }
 
         var seen = Set<String>()
@@ -698,8 +651,8 @@ actor RelayDaemonClient {
 
     private static func resolveRequestTimeoutSeconds(
         override: TimeInterval?,
-        environment: [String: String]
-    ) -> TimeInterval {
+        environment: [String: String]) -> TimeInterval
+    {
         if let override, override.isFinite {
             return max(override, minimumRequestTimeoutSeconds)
         }
@@ -721,31 +674,31 @@ actor RelayDaemonClient {
     }
 }
 
-private struct EmptyParams: Encodable, Sendable {}
+private struct EmptyParams: Encodable {}
 
-private struct RPCResponseAck: Decodable, Sendable {
+private struct RPCResponseAck: Decodable {
     let accepted: Bool?
 }
 
-private struct RPCProfileID: Encodable, Sendable {
+private struct RPCProfileID: Encodable {
     let profileId: String
 }
 
-private struct UsageGetParams: Encodable, Sendable {
+private struct UsageGetParams: Encodable {
     let profileId: String?
 }
 
-private struct RefreshUsageRPCParams: Encodable, Sendable {
+private struct RefreshUsageRPCParams: Encodable {
     let profileId: String?
     let includeDisabled: Bool
 }
 
-private struct RPCSetProfileEnabledParams: Encodable, Sendable {
+private struct RPCSetProfileEnabledParams: Encodable {
     let profileId: String
     let enabled: Bool
 }
 
-private struct RPCImportProfileParams: Encodable, Sendable {
+private struct RPCImportProfileParams: Encodable {
     let request: RPCImportProfileRequest
 
     init(agent: AgentKind, nickname: String?, priority: Int) {
@@ -753,13 +706,13 @@ private struct RPCImportProfileParams: Encodable, Sendable {
     }
 }
 
-private struct RPCImportProfileRequest: Encodable, Sendable {
+private struct RPCImportProfileRequest: Encodable {
     let agent: AgentKind
     let nickname: String?
     let priority: Int
 }
 
-private struct RPCLoginProfileParams: Encodable, Sendable {
+private struct RPCLoginProfileParams: Encodable {
     let request: RPCLoginProfileRequest
 
     init(agent: AgentKind, nickname: String?, priority: Int, mode: RPCLoginMode) {
@@ -767,34 +720,33 @@ private struct RPCLoginProfileParams: Encodable, Sendable {
             agent: agent,
             nickname: nickname,
             priority: priority,
-            mode: mode
-        )
+            mode: mode)
     }
 }
 
-private struct RPCLoginProfileRequest: Encodable, Sendable {
+private struct RPCLoginProfileRequest: Encodable {
     let agent: AgentKind
     let nickname: String?
     let priority: Int
     let mode: RPCLoginMode
 }
 
-private enum RPCLoginMode: String, Encodable, Sendable {
+private enum RPCLoginMode: String, Encodable {
     case browser = "Browser"
     case deviceAuth = "DeviceAuth"
 }
 
-private struct RPCEditProfileParams: Encodable, Sendable {
+private struct RPCEditProfileParams: Encodable {
     let profileId: String
     let request: RPCEditProfileRequest
 
     init(profileId: String, draft: ProfileDraft) {
         self.profileId = profileId
-        self.request = RPCEditProfileRequest(draft: draft)
+        request = RPCEditProfileRequest(draft: draft)
     }
 }
 
-private struct RPCEditProfileRequest: Encodable, Sendable {
+private struct RPCEditProfileRequest: Encodable {
     let nickname: String?
     let priority: Int?
     let configPath: String??

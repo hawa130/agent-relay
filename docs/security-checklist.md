@@ -28,11 +28,12 @@ Use this checklist before releases that change switching, storage, diagnostics, 
 - Confirm user-visible command failures map to stable `ErrorCode` values.
 - Confirm every external command path used by adapters is explicit and validated.
 - Confirm `--json` output remains parseable and backward-compatible for existing fields.
+- Confirm daemon and macOS control-plane integrations still rely on the documented stdio JSON-RPC boundary instead of ad hoc file mutation.
 
 ## Release Gate
 
-- Run `cargo fmt --all --check`
+- Run `just fmt-check`
+- Run `just test`
 - Run `cargo clippy --workspace --all-targets -- -D warnings`
-- Run `cargo test`
 - Smoke test `agrelay doctor --json`
 - Smoke test one successful switch and one rollback path with temp homes

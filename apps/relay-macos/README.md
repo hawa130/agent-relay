@@ -2,11 +2,15 @@
 
 `apps/relay-macos` is the native macOS control plane for AgentRelay.
 
-V1 rules:
+The app supervises a long-lived `agrelay daemon --stdio` session and speaks stdio JSON-RPC. Profile mutation, switching, validation, usage refresh, and diagnostics remain in the CLI/core runtime; the app does not mutate live Codex files directly.
 
-- The app is a control plane only.
-- All real profile, switch, validation, and diagnostics operations go through the long-lived `agrelay daemon --stdio` JSON-RPC session.
-- No UI code mutates Codex configuration files directly.
+Contributor tooling for the Swift code:
+
+```bash
+brew install swiftformat swiftlint
+```
+
+The repository uses `swiftformat` for formatting and `swiftlint` for Swift lint checks through the shared `just` workflow.
 
 ## Build
 
@@ -17,26 +21,28 @@ cd apps/relay-macos
 swift build
 ```
 
-Build a real `.app` bundle:
+Build a distributable `.app` bundle:
 
 ```bash
 cd apps/relay-macos
 ./scripts/build-app.sh
 ```
 
-Output:
+Output bundle:
 
 ```bash
 apps/relay-macos/dist/AgentRelay.app
 ```
 
-The bundle includes an embedded `agrelay` CLI at:
+Embedded CLI path:
 
 ```bash
 AgentRelay.app/Contents/Resources/bin/agrelay
 ```
 
-Run the menu bar app:
+## Run
+
+Run the menu bar app from source:
 
 ```bash
 cd apps/relay-macos
@@ -49,7 +55,7 @@ Override the embedded CLI if needed:
 AGRELAY_CLI_PATH=/absolute/path/to/agrelay swift run AgentRelay
 ```
 
-## Current Structure
+## Structure
 
 ```text
 RelayApp/
@@ -62,21 +68,9 @@ RelayApp/
   Resources/
 ```
 
-## Current Scope
-
-- `MenuBarExtra` entry point
-- daemon/RPC client via `Process`
-- status refresh and JSON-RPC decoding
-- profile list and manual switch actions
-- settings window with profile enable/disable and auto-switch control
-- activity window with events, logs, and diagnostics export
-- launch-at-login toggle wrapper
-- user notifications for switch success/failure
-
 ## Notes
 
-- `swift run` is useful for source-level iteration, but it is not the right final distribution shape for a menu bar app.
-- For reliable menu bar behavior, login item integration, and Finder launch, use the `.app` bundle built by `./scripts/build-app.sh`.
-- The app resolves `agrelay` in this order: `AGRELAY_CLI_PATH`, bundled `Contents/Resources/bin/agrelay`, then `PATH`.
-- `SMAppService` launch-at-login support requires running from a proper app bundle; the toggle is wired now but may report unsupported when running directly from `swift run`.
-- The app expects the AgentRelay daemon RPC contract to stay stable.
+- `swift run` is useful for source-level iteration, but the `.app` bundle is the supported distribution shape for reliable menu bar behavior and login-item integration
+- the app resolves `agrelay` in this order: `AGRELAY_CLI_PATH`, bundled `Contents/Resources/bin/agrelay`, then `PATH`
+- `SMAppService` launch-at-login support requires running from a proper app bundle; the toggle may report unsupported when launched directly from `swift run`
+- the app expects the AgentRelay daemon RPC contract to remain stable across compatible releases

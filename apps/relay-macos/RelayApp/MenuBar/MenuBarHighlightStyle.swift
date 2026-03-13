@@ -20,14 +20,14 @@ enum MenuBarHighlightStyle {
     static func severityIcon(_ highlighted: Bool, severity: UsageAlertSeverity) -> Color {
         switch severity {
         case .warning:
-            return highlighted ? selectionText : NativePreferencesTheme.Colors.statusIcon(.warning)
+            highlighted ? selectionText : NativePreferencesTheme.Colors.statusIcon(.warning)
         }
     }
 
     static func severityText(_ highlighted: Bool, severity: UsageAlertSeverity) -> Color {
         switch severity {
         case .warning:
-            return highlighted ? selectionText : NativePreferencesTheme.Colors.statusText(.warning)
+            highlighted ? selectionText : NativePreferencesTheme.Colors.statusText(.warning)
         }
     }
 
@@ -36,7 +36,7 @@ enum MenuBarHighlightStyle {
             return secondary(highlighted)
         }
 
-        return self.severityText(highlighted, severity: severity)
+        return severityText(highlighted, severity: severity)
     }
 
     static func progressTrack(_ highlighted: Bool) -> Color {

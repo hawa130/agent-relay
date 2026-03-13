@@ -1,35 +1,42 @@
 # Install and Usage
 
+## Prerequisites
+
+Install AgentRelay from this repository when you have:
+
+- a Rust toolchain with `cargo`
+- a local `codex` CLI installation for live-home discovery and real profile switching
+- Homebrew available for installing contributor tooling such as `swiftformat` and `swiftlint` on macOS
+
+Contributor tooling for the macOS app:
+
+```bash
+brew install swiftformat swiftlint
+```
+
 ## Install
 
-Install the local CLI from this repository:
+Install the CLI from the workspace:
 
 ```bash
 cargo install --path apps/relay-cli
 ```
 
-Expected executable:
+Confirm the binary is available:
 
 ```bash
 agrelay --help
 ```
 
-If the shell cannot find `agrelay`, add Cargo's bin directory:
+If your shell cannot find `agrelay`, add Cargo's bin directory:
 
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 ```
 
-## Isolated Testing
+## Runtime Paths
 
-Use a temporary AgentRelay home while testing:
-
-```bash
-export AGRELAY_HOME=/tmp/agrelay-demo
-agrelay status --json
-```
-
-AgentRelay stores its own data under `AGRELAY_HOME` or `~/.agrelay`:
+AgentRelay stores its own state under `AGRELAY_HOME` or `~/.agrelay`:
 
 - `relay.db`
 - `state.json`
@@ -38,35 +45,43 @@ AgentRelay stores its own data under `AGRELAY_HOME` or `~/.agrelay`:
 - `snapshots/`
 - `exports/`
 
-## Common Commands
+Use a temporary home for isolated testing:
 
-Environment and discovery:
+```bash
+export AGRELAY_HOME=/tmp/agrelay-demo
+agrelay status --json
+```
+
+## Common Workflows
+
+### Environment And Discovery
 
 ```bash
 agrelay doctor --json
 agrelay status --json
 ```
 
-Settings:
+### Settings
 
 ```bash
 agrelay settings show --json
 agrelay settings set --json --input-json app-settings.json
 agrelay codex settings show --json
-agrelay codex settings set --json --input-json settings.json
+agrelay codex settings set --json --input-json codex-settings.json
 ```
 
-Profile management:
+### Profile Management
 
 ```bash
 agrelay list --json
-agrelay show --json
 agrelay show <id> --json
 agrelay edit <id> --json --input-json profile.json
 agrelay enable <id> --json
 agrelay disable <id> --json
 agrelay remove <id> --json
+```
 
+```bash
 agrelay codex add --json --input-json codex-profile.json
 agrelay codex import --nickname imported-live --json
 agrelay codex login --nickname work --json
@@ -74,7 +89,7 @@ agrelay codex recover --json
 agrelay codex relink <id> --json
 ```
 
-Switching and usage:
+### Switching And Refresh
 
 ```bash
 agrelay switch --json
@@ -82,28 +97,29 @@ agrelay switch <id> --json
 agrelay refresh --json
 agrelay refresh <id> --json
 agrelay refresh --all --json
-
 agrelay autoswitch show --json
 agrelay autoswitch enable --json
 agrelay autoswitch disable --json
 agrelay autoswitch set --json --input-json autoswitch.json
 ```
 
-Programmatic daemon transport:
-
-```bash
-agrelay daemon --stdio
-```
-
-`agrelay daemon --stdio` exposes a single-client stdio JSON-RPC session intended for host programs such as the macOS menu bar app. The macOS app keeps this process alive, consumes push updates, and supervises restarts when needed.
-
-Observability:
+### Diagnostics
 
 ```bash
 agrelay activity events list --limit 20 --json
 agrelay activity logs tail --lines 50 --json
 agrelay activity diagnostics export --json
 ```
+
+## Daemon Usage
+
+Host programs can start a persistent daemon session with:
+
+```bash
+agrelay daemon --stdio
+```
+
+This transport is intended for programmatic clients such as the macOS menu bar app. The client keeps the daemon process alive, consumes push notifications, and supervises restarts when needed.
 
 ## Troubleshooting
 
@@ -118,17 +134,18 @@ If switching fails:
 - inspect `agrelay activity events list --json`
 - export a bundle with `agrelay activity diagnostics export --json`
 
-If you want deterministic test runs:
+If you want deterministic test or smoke runs:
 
 - set both `AGRELAY_HOME` and `CODEX_HOME` to temp directories
 
-If `relay.db` is lost but `profiles/` still contains saved Codex homes:
+If `relay.db` is lost but `profiles/` still contains saved AgentRelay-managed profile directories:
 
-- run `agrelay codex recover --json` to rebuild database profile records from those snapshots
+- run `agrelay codex recover --json` to rebuild database profile records from those saved profiles
 
-## Additional References
+## Related Docs
 
-- Development workflow: `docs/development.md`
+- Architecture reference: `docs/architecture.md`
+- Contributor workflow: `docs/development.md`
 - SQLite schema workflow: `docs/sqlite-schema.md`
-- Linux support matrix: `docs/linux-support.md`
+- Linux support reference: `docs/linux-support.md`
 - Security release checklist: `docs/security-checklist.md`

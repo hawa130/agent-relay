@@ -24,8 +24,8 @@ struct MenuBarUsageProgressBar: View {
             .transaction { transaction in
                 transaction.animation = nil
             }
-        .accessibilityLabel(accessibilityLabel)
-        .accessibilityValue("\(Int(clampedPercent)) percent")
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityValue("\(Int(clampedPercent)) percent")
     }
 
     private func fillWidth(for totalWidth: CGFloat) -> CGFloat {

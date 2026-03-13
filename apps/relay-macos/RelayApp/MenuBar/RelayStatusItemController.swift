@@ -20,17 +20,17 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     public init(
         model: RelayAppModel,
         openWindow: @escaping (RelayWindowID) -> Void,
-        statusBar: NSStatusBar = .system
-    ) {
+        statusBar: NSStatusBar = .system)
+    {
         self.model = model
         self.openWindow = openWindow
-        self.statusItem = statusBar.statusItem(withLength: NSStatusItem.squareLength)
-        self.menu = NSMenu()
+        statusItem = statusBar.statusItem(withLength: NSStatusItem.squareLength)
+        menu = NSMenu()
         super.init()
 
-        self.menu.autoenablesItems = false
-        self.menu.delegate = self
-        self.statusItem.menu = self.menu
+        menu.autoenablesItems = false
+        menu.delegate = self
+        statusItem.menu = menu
 
         configureStatusButton()
         configureMenu()
@@ -78,8 +78,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         Publishers.MergeMany(
             model.$usage.map { _ in () }.eraseToAnyPublisher(),
             model.$profiles.map { _ in () }.eraseToAnyPublisher(),
-            model.$status.map { _ in () }.eraseToAnyPublisher()
-        )
+            model.$status.map { _ in () }.eraseToAnyPublisher())
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.updateStatusButton()
@@ -90,25 +89,23 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
             model.$status.map { _ in () }.eraseToAnyPublisher(),
             model.$usage.map { _ in () }.eraseToAnyPublisher(),
             model.$lastRefresh.map { _ in () }.eraseToAnyPublisher(),
-            model.$isRefreshingUsageList.map { _ in () }.eraseToAnyPublisher()
-        )
-        .receive(on: RunLoop.main)
-        .sink { [weak self] _ in
-            self?.rebuildCurrentCardItem()
-        }
-        .store(in: &cancellables)
+            model.$isRefreshingUsageList.map { _ in () }.eraseToAnyPublisher())
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.rebuildCurrentCardItem()
+            }
+            .store(in: &cancellables)
 
         Publishers.MergeMany(
             model.$profiles.map { _ in () }.eraseToAnyPublisher(),
             model.$usageSnapshots.map { _ in () }.eraseToAnyPublisher(),
             model.$status.map { _ in () }.eraseToAnyPublisher(),
-            model.$isSwitching.map { _ in () }.eraseToAnyPublisher()
-        )
-        .receive(on: RunLoop.main)
-        .sink { [weak self] _ in
-            self?.rebuildProfilesSubmenu()
-        }
-        .store(in: &cancellables)
+            model.$isSwitching.map { _ in () }.eraseToAnyPublisher())
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.rebuildProfilesSubmenu()
+            }
+            .store(in: &cancellables)
     }
 
     private func updateStatusButton() {
@@ -142,8 +139,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     private func rebuildCurrentCardItem() {
         currentCardItem.view = makeHostingView(
             for: MenuBarCurrentProfileCard(session: model),
-            width: Metrics.contentWidth
-        )
+            width: Metrics.contentWidth)
     }
 
     private func addProfilesSection(to menu: NSMenu) {
@@ -151,8 +147,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(makeActionItem(
             title: "Manage...",
             systemImage: RelayWindowID.profiles.symbol,
-            action: #selector(showProfiles)
-        ))
+            action: #selector(showProfiles)))
 
         switchItem.image = menuSymbol("arrow.left.arrow.right")
         switchSubmenu.autoenablesItems = false
@@ -180,14 +175,12 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         menu.addItem(makeActionItem(
             title: "Settings...",
             systemImage: RelayWindowID.settings.symbol,
-            action: #selector(showSettings)
-        ))
+            action: #selector(showSettings)))
 
         let quit = makeActionItem(
             title: "Quit",
             systemImage: "power",
-            action: #selector(quitApp)
-        )
+            action: #selector(quitApp))
         quit.keyEquivalent = "q"
         menu.addItem(quit)
     }
@@ -206,8 +199,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
             attributes: [
                 .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize - 1, weight: .semibold),
                 .foregroundColor: NSColor.secondaryLabelColor
-            ]
-        )
+            ])
         item.isEnabled = false
         return item
     }
@@ -243,8 +235,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
             highlightState: highlightState,
             onClick: canSelect ? { [weak self] in
                 self?.selectProfile(id: profileID)
-            } : nil
-        )
+            } : nil)
         let width: CGFloat = Metrics.contentWidth
         let measuredHeight = hostingView.measuredHeight(width: width)
         hostingView.frame = NSRect(x: 0, y: 0, width: width, height: measuredHeight)
@@ -306,9 +297,9 @@ private struct RelayMenuItemContainerView<Content: View>: View {
 
     init(
         highlightState: RelayMenuItemHighlightState,
-        @ViewBuilder content: () -> Content
-    ) {
-        self._highlightState = ObservedObject(wrappedValue: highlightState)
+        @ViewBuilder content: () -> Content)
+    {
+        _highlightState = ObservedObject(wrappedValue: highlightState)
         self.content = content()
     }
 
@@ -346,8 +337,8 @@ private final class RelayInteractiveMenuHostingView<Content: View>: NSHostingVie
     init(
         rootView: Content,
         highlightState: RelayMenuItemHighlightState,
-        onClick: (() -> Void)? = nil
-    ) {
+        onClick: (() -> Void)? = nil)
+    {
         self.highlightState = highlightState
         self.onClick = onClick
         super.init(rootView: rootView)

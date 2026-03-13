@@ -1,85 +1,100 @@
 # AgentRelay Engineering Architecture
 
-## Goals
+## Purpose
 
-- Keep the CLI as the only execution engine for profile management, switching, validation, usage refresh, and diagnostics.
-- Support additional agent providers without rewriting storage, protocol, or UI integration boundaries.
-- Make every live-state mutation explicit, testable, and recoverable.
+This document describes the durable runtime boundaries, repository shape, and data flow for AgentRelay. It is a current architecture reference, not a project status board.
 
 ## Repository Layout
 
 ```text
 apps/
-  relay-cli/        # User-facing CLI entrypoint
-  relay-macos/      # Native macOS control plane that supervises relay daemon sessions
+  relay-cli/        # User-facing CLI entrypoint and daemon host
+  relay-macos/      # Native macOS control plane over the daemon session
 crates/
-  relay-core/       # Core library with models, services, store, adapters, and platform modules
+  relay-core/       # Core library with models, services, store, platform, and adapters
 docs/
   architecture.md
   install.md
   development.md
 ```
 
+The Rust workspace intentionally stays at two package levels:
+
+- `apps/relay-cli`
+- `crates/relay-core`
+
+The native macOS control plane lives in `apps/relay-macos`.
+
 ## Layering Rules
 
 1. `apps/*` can depend on `relay-core`.
-2. `relay-core` stays modular inside one crate; do not split it into tiny crates without a real packaging boundary.
-3. `relay-core::adapters` owns provider-specific behavior only. It must not know about CLI parsing or Swift UI concerns.
-4. `relay-core::store` owns persistence details and exposes repository-style interfaces, not business policy.
-5. `relay-core::models` owns shared contracts, stable error codes, and JSON protocol types.
+2. `relay-core` stays modular inside one crate; prefer extending modules over adding new crates.
+3. `relay-core::models` owns shared domain types, stable error codes, and JSON/RPC contracts.
+4. `relay-core::services` owns use-case orchestration and business policy.
+5. `relay-core::store` owns SQLite and file-backed persistence details.
+6. `relay-core::platform` owns path resolution and platform-specific helpers.
+7. `relay-core::adapters` owns provider-specific behavior only and must stay isolated from CLI parsing and Swift UI concerns.
 
 ## Runtime Boundaries
 
 ### CLI
 
-- Parse commands and JSON input with `clap` and request models.
-- Produce human-readable output and stable `--json` output.
-- Convert internal failures into stable project error codes.
-- Host the stdio JSON-RPC daemon transport used by native control planes.
+The CLI is the only execution layer for profile management, switching, validation, usage refresh, diagnostics, and daemon hosting.
 
-The command surface is intentionally shallow:
+Its responsibilities are to:
 
-- top-level runtime commands: `doctor`, `status`, `list`, `show`, `edit`, `remove`, `enable`, `disable`, `switch`, `refresh`
-- grouped commands: `settings`, `autoswitch`, `activity`, `codex`
-- programmatic daemon transport: `agrelay daemon --stdio`
+- parse commands and JSON input
+- render human-readable output and stable `--json` output
+- convert failures into stable project error codes
+- host the stdio JSON-RPC daemon transport used by native control planes
+
+The command surface stays intentionally shallow:
+
+- top-level commands such as `doctor`, `status`, `list`, `show`, `switch`, and `refresh`
+- grouped commands such as `settings`, `autoswitch`, `activity`, and `codex`
+- programmatic transport via `agrelay daemon --stdio`
 
 ### Daemon Session
 
-- `agrelay daemon --stdio` exposes a single-client stdio JSON-RPC 2.0 session.
-- The daemon owns background refresh, auto-switch evaluation, switch execution, and state-change notifications.
-- The transport is newline-delimited UTF-8 JSON on `stdin` and `stdout`.
-- `stdout` is reserved for protocol messages only. Logs and diagnostics go to `stderr`.
-- The current model is single-session and host-owned. It is not a detached system service and does not support multiple concurrent clients.
+`agrelay daemon --stdio` exposes a single-client stdio JSON-RPC 2.0 session.
+
+- transport is newline-delimited UTF-8 JSON on `stdin` and `stdout`
+- `stdout` is reserved for protocol messages
+- logs and diagnostics go to `stderr`
+- the daemon owns background refresh, auto-switch evaluation, switch execution, and state-change notifications
+- the session is host-owned and long-lived; it is not a detached system service and does not support multiple concurrent clients
 
 ### Core Services
 
-- `doctor_service`: environment checks, adapter discovery, config-path inspection
-- `profile_service`: CRUD, validation, enable/disable, profile summaries
-- `status_service`: current cached state and runtime health summaries
-- `usage_service`: usage refresh, source selection, fallback behavior, snapshot caching
-- `switch_service`: transactional activation, validation, rollback, checkpoint handling
-- `policy_service`: next-profile selection, cooldown, autoswitch policy
-- `diagnostics_service`: logs, exports, redacted environment snapshots
+`relay-core::services` contains the main orchestration layer:
 
-### Store
+- `doctor_service` for environment checks and discovery
+- `profile_service` for profile CRUD, validation, and summaries
+- `status_service` for cached runtime state and health reporting
+- `usage_service` for usage refresh, source selection, fallback behavior, and snapshot caching
+- `switch_service` for transactional activation, validation, rollback, and checkpoint handling
+- `policy_service` for auto-switch candidate selection and cooldown logic
+- `diagnostics_service` for logs, exports, and redacted runtime snapshots
 
-- SQLite stores durable relational state such as profiles, settings, switch history, failure events, and linked provider identities.
-- `relay-core::store` owns hand-written SeaORM entities and uses SeaORM 2.x schema sync during write bootstrap.
-- The entities are the schema source of truth; AgentRelay no longer treats versioned migrations as the primary workflow.
-- File-backed caches store active state and usage snapshots for low-latency reads and reduced migration overhead.
-- Snapshot directories store rollback assets for switch transactions.
+### Store And Platform
 
-### Platform
+`relay-core::store` owns durable and cached state:
 
-- Resolve `AGRELAY_HOME`, default runtime paths, and platform-specific filesystem locations.
-- Provide atomic-write and process-execution helpers.
-- Keep macOS/Linux-specific details isolated behind small modules.
+- SQLite stores profiles, settings, switch history, failure events, and linked provider identities
+- SeaORM 2.x entity definitions are the schema source of truth
+- file-backed caches store active state and usage snapshots for fast local reads
+- snapshot directories hold rollback artifacts and operational exports
+
+`relay-core::platform` resolves `AGRELAY_HOME`, default runtime paths, and platform-specific filesystem behavior. It also provides atomic-write and process-execution helpers.
 
 ### macOS Control Plane
 
-- The SwiftUI app is a long-lived menu bar host that starts and supervises `agrelay daemon --stdio`.
-- It sends JSON-RPC requests, subscribes to daemon notifications, and decodes stable protocol models from `relay-core::models`.
-- It is a control plane only. It must not directly mutate Codex files or duplicate switch logic.
+The SwiftUI app in `apps/relay-macos` is a control plane over the daemon session.
+
+- it launches and supervises `agrelay daemon --stdio`
+- it sends JSON-RPC requests and subscribes to notifications
+- it decodes stable protocol models shared from `relay-core::models`
+- it must not duplicate switch logic or mutate live Codex files directly
 
 ## State Model
 
@@ -95,57 +110,58 @@ The command surface is intentionally shallow:
 
 - active profile cache
 - usage snapshot cache
-- rollback checkpoints and exports
+- rollback checkpoints
+- diagnostics exports
 
-Use SQLite for durable truth and keep file-backed state limited to caches or operational artifacts that benefit from simple local reads.
+SQLite is the durable source of truth. File-backed state is limited to caches and operational artifacts that benefit from simple local reads.
 
 ## Service Flows
 
 ### Boot
 
-1. Resolve paths from environment or home directory.
-2. Ensure the AgentRelay home layout exists.
-3. Open stores, reject incompatible legacy schemas, and run SeaORM schema sync for write mode.
-4. Execute the requested use-case.
+1. resolve runtime paths from environment or the user home directory
+2. ensure the AgentRelay home layout exists
+3. open stores, reject incompatible legacy schemas, and run SeaORM schema sync for write mode
+4. execute the requested use case
 
 ### Daemon Boot
 
-1. The host program starts `agrelay daemon --stdio`.
-2. AgentRelay boots the same core stores and services as synchronous CLI commands.
-3. The client sends `initialize` and optional subscription requests.
-4. The daemon returns initial state, performs startup refresh work, and begins interval-driven policy evaluation.
+1. a host program starts `agrelay daemon --stdio`
+2. AgentRelay boots the same core stores and services used by synchronous CLI commands
+3. the client sends `initialize` and optional subscription requests
+4. the daemon returns initial state, performs startup refresh work, and begins interval-driven policy evaluation
 
 ### Profile Mutation
 
-1. Validate request input.
-2. Persist the change in one SQLite transaction.
-3. Update related caches only when required by the use-case.
-4. Return a stable response envelope or human summary.
+1. validate request input
+2. persist the change in one SQLite transaction
+3. update related caches only when the use case requires it
+4. return a stable response envelope or human summary
 
 ### Switch Transaction
 
-1. Load the target profile and validate prerequisites.
-2. Create a checkpoint of the live managed file set.
-3. Write candidate files through temp paths.
-4. Atomically replace the live managed files.
-5. Run post-switch validation.
-6. Commit state on success or rollback and emit failure state on error.
+1. load the target profile and validate prerequisites
+2. create a checkpoint of the managed live file set
+3. write candidate files through temporary paths
+4. atomically replace the managed live files
+5. run post-switch validation
+6. commit state on success or roll back and emit failure state on error
 
-## Engineering Conventions
+## Engineering Invariants
 
-- Every user-visible command supports `--json`.
-- Parameterized integrations should prefer JSON request payloads instead of ad hoc flag assembly.
-- Every user-visible failure maps to a stable `ErrorCode`.
-- Daemon RPC contracts live in `relay-core::models` and must remain backward-compatible for the macOS control plane.
-- No adapter is allowed to mutate project-local `.codex/`.
-- File writes that affect live agent config must be atomic and recoverable.
-- Shared infrastructure should stay agent-neutral where practical; provider-specific auth and usage semantics belong in adapters.
-- Tests should use temp directories and deterministic fixtures.
+- every user-visible command supports `--json`
+- programmatic integrations should prefer structured params or JSON input over ad hoc flag assembly
+- user-visible failures map to stable `ErrorCode` values
+- daemon RPC contracts in `relay-core::models` stay backward-compatible for the macOS control plane
+- read-only flows should avoid unnecessary filesystem or database writes when practical
+- no adapter mutates project-local `.codex/`
+- live config writes are atomic and recoverable
+- shared infrastructure stays agent-neutral where practical; provider-specific auth and usage semantics stay at the adapter edge
 
 ## Testing Strategy
 
 - `relay-core::models`: serde round-trip and protocol tests
 - `relay-core::store`: SeaORM entity/store tests and state-file tests
-- `relay-core::services`: service-level tests with temp stores and fake adapters
-- `relay-cli`: command parsing, JSON contract, and integration smoke tests
+- `relay-core::services`: service tests with temp stores and fake adapters
+- `relay-cli`: command parsing, JSON contract, and integration tests
 - `relay-macos`: Swift decoding, daemon client, and supervisor integration tests

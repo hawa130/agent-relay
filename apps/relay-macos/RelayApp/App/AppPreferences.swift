@@ -8,61 +8,65 @@ public enum RelayWindowID: String, CaseIterable, Identifiable, Sendable {
     case settings
     case profiles
 
-    public var id: String { rawValue }
+    public var id: String {
+        rawValue
+    }
 
     public var title: String {
         switch self {
         case .settings:
-            return "Settings"
+            "Settings"
         case .profiles:
-            return "Profiles"
+            "Profiles"
         }
     }
 
     public var symbol: String {
         switch self {
         case .settings:
-            return "gearshape"
+            "gearshape"
         case .profiles:
-            return "square.grid.2x2"
+            "square.grid.2x2"
         }
     }
 }
 
-enum SettingsSidebarSelection: Hashable, Identifiable, Sendable {
+enum SettingsSidebarSelection: Hashable, Identifiable {
     case general
     case agent(AgentKind)
     var id: String {
         switch self {
         case .general:
-            return "general"
+            "general"
         case let .agent(agent):
-            return "agent:\(agent.cliArgument)"
+            "agent:\(agent.cliArgument)"
         }
     }
 }
 
-enum ProfilesSidebarFilter: String, CaseIterable, Hashable, Identifiable, Sendable {
+enum ProfilesSidebarFilter: String, CaseIterable, Hashable, Identifiable {
     case all
     case codex
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var title: String {
         switch self {
         case .all:
-            return "All"
+            "All"
         case .codex:
-            return "Codex"
+            "Codex"
         }
     }
 
     var emptyStateDescription: String {
         switch self {
         case .all:
-            return "Add an account from the toolbar to create your first profile."
+            "Add an account from the toolbar to create your first profile."
         case .codex:
-            return "No Codex profiles are available in this view yet."
+            "No Codex profiles are available in this view yet."
         }
     }
 }

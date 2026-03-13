@@ -177,8 +177,7 @@ public final class RelayAppModel: ObservableObject {
             if notifyOnFailure {
                 await notificationService.post(
                     title: "Refresh failed",
-                    body: error.localizedDescription
-                )
+                    body: error.localizedDescription)
             }
         }
     }
@@ -199,13 +198,11 @@ public final class RelayAppModel: ObservableObject {
             selectProfile(profileId)
             await notificationService.post(
                 title: "Profile switched",
-                body: report.message
-            )
+                body: report.message)
         } catch {
             await notificationService.post(
                 title: "Switch failed",
-                body: error.localizedDescription
-            )
+                body: error.localizedDescription)
         }
     }
 
@@ -221,12 +218,10 @@ public final class RelayAppModel: ObservableObject {
         } catch {
             rollbackSettingsIfNeeded(
                 previousStatus: previousStatus,
-                previousCodexSettings: previousCodexSettings
-            )
+                previousCodexSettings: previousCodexSettings)
             await notificationService.post(
                 title: "Settings update failed",
-                body: error.localizedDescription
-            )
+                body: error.localizedDescription)
         }
     }
 
@@ -242,12 +237,10 @@ public final class RelayAppModel: ObservableObject {
         } catch {
             rollbackSettingsIfNeeded(
                 previousStatus: previousStatus,
-                previousCodexSettings: previousCodexSettings
-            )
+                previousCodexSettings: previousCodexSettings)
             await notificationService.post(
                 title: "Settings update failed",
-                body: error.localizedDescription
-            )
+                body: error.localizedDescription)
         }
     }
 
@@ -263,12 +256,10 @@ public final class RelayAppModel: ObservableObject {
         } catch {
             rollbackSettingsIfNeeded(
                 previousStatus: previousStatus,
-                previousCodexSettings: previousCodexSettings
-            )
+                previousCodexSettings: previousCodexSettings)
             await notificationService.post(
                 title: "Settings update failed",
-                body: error.localizedDescription
-            )
+                body: error.localizedDescription)
         }
     }
 
@@ -325,8 +316,7 @@ public final class RelayAppModel: ObservableObject {
         await performProfileMutation { [daemonClient] in
             _ = try await daemonClient.setProfileEnabled(
                 profileId: profileId,
-                enabled: enabled
-            )
+                enabled: enabled)
         }
     }
 
@@ -347,8 +337,7 @@ public final class RelayAppModel: ObservableObject {
             let profile = try await daemonClient.importProfile(
                 agent: agent,
                 nickname: nickname,
-                priority: priority
-            )
+                priority: priority)
             await MainActor.run {
                 self.selectProfile(profile.id)
             }
@@ -376,8 +365,7 @@ public final class RelayAppModel: ObservableObject {
                 let start = try await daemonClient.startLoginProfile(
                     agent: agent,
                     nickname: nickname,
-                    priority: priority
-                )
+                    priority: priority)
                 let shouldCancel = taskIDBox.set(start.taskId)
                 currentLoginTaskID = start.taskId
                 if loginCancellationRequested {
@@ -434,8 +422,7 @@ public final class RelayAppModel: ObservableObject {
         } catch {
             await notificationService.post(
                 title: "Diagnostics export failed",
-                body: error.localizedDescription
-            )
+                body: error.localizedDescription)
         }
     }
 
@@ -457,14 +444,13 @@ public final class RelayAppModel: ObservableObject {
             engineConnectionState = .degraded
             await notificationService.post(
                 title: "Engine restart failed",
-                body: error.localizedDescription
-            )
+                body: error.localizedDescription)
         }
     }
 
     private func performProfileMutation(
-        _ operation: @escaping @Sendable () async throws -> Void
-    ) async {
+        _ operation: @escaping @Sendable () async throws -> Void) async
+    {
         guard !mutationPending.contains(.profileMutation) else {
             return
         }
@@ -480,8 +466,7 @@ public final class RelayAppModel: ObservableObject {
         } catch {
             await notificationService.post(
                 title: "Profile update failed",
-                body: error.localizedDescription
-            )
+                body: error.localizedDescription)
         }
     }
 
@@ -499,12 +484,10 @@ public final class RelayAppModel: ObservableObject {
         } catch {
             rollbackSettingsIfNeeded(
                 previousStatus: previousStatus,
-                previousCodexSettings: previousCodexSettings
-            )
+                previousCodexSettings: previousCodexSettings)
             await notificationService.post(
                 title: "Codex settings update failed",
-                body: error.localizedDescription
-            )
+                body: error.localizedDescription)
         }
     }
 
@@ -590,8 +573,7 @@ public final class RelayAppModel: ObservableObject {
                 Task {
                     await notificationService.post(
                         title: "Profile auto-switched",
-                        body: payload.report.message
-                    )
+                        body: payload.report.message)
                 }
             }
         case let .switchFailed(payload):
@@ -600,8 +582,7 @@ public final class RelayAppModel: ObservableObject {
                 Task {
                     await notificationService.post(
                         title: "Auto-switch failed",
-                        body: payload.message
-                    )
+                        body: payload.message)
                 }
             }
         case let .taskUpdated(payload):
@@ -648,8 +629,8 @@ public final class RelayAppModel: ObservableObject {
     }
 
     private func waitForCurrentLoginTaskID(
-        timeoutNanoseconds: UInt64 = 2_000_000_000
-    ) async -> String? {
+        timeoutNanoseconds: UInt64 = 2_000_000_000) async -> String?
+    {
         if let currentLoginTaskID {
             return currentLoginTaskID
         }
@@ -669,8 +650,8 @@ public final class RelayAppModel: ObservableObject {
 
     private func handleLoginTaskUpdate(
         _ task: RelayTaskUpdate,
-        agent: AgentKind
-    ) -> AddAccountResult {
+        agent: AgentKind) -> AddAccountResult
+    {
         switch task.status {
         case .pending:
             return .failed(detail: "Login task did not complete.")
@@ -685,7 +666,7 @@ public final class RelayAppModel: ObservableObject {
         case .failed:
             let detail =
                 task.message
-                ?? "\(task.errorCode ?? "RELAY_INTERNAL"): login failed"
+                    ?? "\(task.errorCode ?? "RELAY_INTERNAL"): login failed"
             if let errorCode = task.errorCode {
                 return .failed(detail: "\(errorCode): \(detail)")
             }
@@ -704,8 +685,8 @@ public final class RelayAppModel: ObservableObject {
     private func triggerRefreshActivity(notifyOnFailure: Bool) {
         triggerBackgroundQuery(
             [.activityEvents, .activityLogs],
-            failureTitle: notifyOnFailure ? "Activity refresh failed" : nil
-        ) { [daemonClient] in
+            failureTitle: notifyOnFailure ? "Activity refresh failed" : nil)
+        { [daemonClient] in
             _ = try await daemonClient.refreshActivity()
         }
     }
@@ -713,8 +694,8 @@ public final class RelayAppModel: ObservableObject {
     private func triggerRefreshDoctor(notifyOnFailure: Bool) {
         triggerBackgroundQuery(
             [.doctor],
-            failureTitle: notifyOnFailure ? "Diagnostics refresh failed" : nil
-        ) { [daemonClient] in
+            failureTitle: notifyOnFailure ? "Diagnostics refresh failed" : nil)
+        { [daemonClient] in
             _ = try await daemonClient.refreshDoctor()
         }
     }
@@ -722,8 +703,8 @@ public final class RelayAppModel: ObservableObject {
     private func triggerBackgroundQuery(
         _ keys: Set<QueryPendingKey>,
         failureTitle: String?,
-        operation: @escaping @Sendable () async throws -> Void
-    ) {
+        operation: @escaping @Sendable () async throws -> Void)
+    {
         guard queryPending.isDisjoint(with: keys) else {
             return
         }
@@ -739,8 +720,7 @@ public final class RelayAppModel: ObservableObject {
                 if let failureTitle {
                     await self?.notificationService.post(
                         title: failureTitle,
-                        body: error.localizedDescription
-                    )
+                        body: error.localizedDescription)
                 }
             }
         }
@@ -782,8 +762,7 @@ public final class RelayAppModel: ObservableObject {
                     return nil
                 }
                 return item.key.profileId
-            }
-        )
+            })
         if bulkUsageRefreshRequested {
             let bulkRefreshActive = queryPending.contains(.usageAll) || !fetchingUsageProfileIds.isEmpty
             isRefreshingUsageList = bulkRefreshActive
@@ -824,8 +803,7 @@ public final class RelayAppModel: ObservableObject {
         case let .failed(detail):
             await notificationService.post(
                 title: "Profile update failed",
-                body: detail
-            )
+                body: detail)
         }
     }
 
@@ -855,15 +833,14 @@ public final class RelayAppModel: ObservableObject {
             liveAgentHome: status.liveAgentHome,
             profileCount: status.profileCount,
             activeState: status.activeState,
-            settings: result.app
-        )
+            settings: result.app)
     }
 
     private func applyAppSettingsOptimistic(
         autoSwitchEnabled: Bool? = nil,
         refreshIntervalSeconds: Int? = nil,
-        networkQueryConcurrency: Int? = nil
-    ) {
+        networkQueryConcurrency: Int? = nil)
+    {
         guard let status else {
             return
         }
@@ -873,29 +850,26 @@ public final class RelayAppModel: ObservableObject {
             autoSwitchEnabled: autoSwitchEnabled ?? currentSettings.autoSwitchEnabled,
             cooldownSeconds: currentSettings.cooldownSeconds,
             refreshIntervalSeconds: refreshIntervalSeconds ?? currentSettings.refreshIntervalSeconds,
-            networkQueryConcurrency: networkQueryConcurrency ?? currentSettings.networkQueryConcurrency
-        )
+            networkQueryConcurrency: networkQueryConcurrency ?? currentSettings.networkQueryConcurrency)
         let nextActiveState = ActiveState(
             activeProfileId: status.activeState.activeProfileId,
             lastSwitchAt: status.activeState.lastSwitchAt,
             lastSwitchResult: status.activeState.lastSwitchResult,
-            autoSwitchEnabled: autoSwitchEnabled ?? status.activeState.autoSwitchEnabled
-        )
+            autoSwitchEnabled: autoSwitchEnabled ?? status.activeState.autoSwitchEnabled)
 
         self.status = StatusReport(
             relayHome: status.relayHome,
             liveAgentHome: status.liveAgentHome,
             profileCount: status.profileCount,
             activeState: nextActiveState,
-            settings: nextSettings
-        )
+            settings: nextSettings)
         finalizeStateUpdate()
     }
 
     private func rollbackSettingsIfNeeded(
         previousStatus: StatusReport?,
-        previousCodexSettings: CodexSettings?
-    ) {
+        previousCodexSettings: CodexSettings?)
+    {
         if let previousStatus {
             status = previousStatus
         }
@@ -911,8 +885,7 @@ public final class RelayAppModel: ObservableObject {
         currentFailureEventsByProfile = Dictionary(
             uniqueKeysWithValues: items.map { item in
                 (item.profile.id, item.currentFailureEvents)
-            }
-        )
+            })
         normalizeSelection()
         synchronizeActiveUsage()
         if let status {
@@ -921,8 +894,7 @@ public final class RelayAppModel: ObservableObject {
                 liveAgentHome: status.liveAgentHome,
                 profileCount: profiles.count,
                 activeState: status.activeState,
-                settings: status.settings
-            )
+                settings: status.settings)
         }
     }
 
@@ -945,7 +917,7 @@ public final class RelayAppModel: ObservableObject {
 
     private func mergeUsageSnapshot(_ snapshot: UsageSnapshot) {
         if let profileId = snapshot.profileId,
-            let index = usageSnapshots.firstIndex(where: { $0.profileId == profileId })
+           let index = usageSnapshots.firstIndex(where: { $0.profileId == profileId })
         {
             usageSnapshots[index] = snapshot
         } else {
@@ -984,12 +956,11 @@ public final class RelayAppModel: ObservableObject {
             queryPending.filter { key in
                 switch key {
                 case .usageAll, .usageProfile:
-                    return false
+                    false
                 default:
-                    return true
+                    true
                 }
-            }
-        )
+            })
     }
 
     private func applySwitchCompleted(_ report: SwitchReport) {
@@ -1004,10 +975,8 @@ public final class RelayAppModel: ObservableObject {
                 activeProfileId: report.profileId,
                 lastSwitchAt: report.switchedAt,
                 lastSwitchResult: .success,
-                autoSwitchEnabled: status.activeState.autoSwitchEnabled
-            ),
-            settings: status.settings
-        )
+                autoSwitchEnabled: status.activeState.autoSwitchEnabled),
+            settings: status.settings)
         normalizeSelection()
         synchronizeActiveUsage()
     }
@@ -1024,9 +993,7 @@ public final class RelayAppModel: ObservableObject {
                 activeProfileId: status.activeState.activeProfileId,
                 lastSwitchAt: status.activeState.lastSwitchAt,
                 lastSwitchResult: .failed,
-                autoSwitchEnabled: status.activeState.autoSwitchEnabled
-            ),
-            settings: status.settings
-        )
+                autoSwitchEnabled: status.activeState.autoSwitchEnabled),
+            settings: status.settings)
     }
 }

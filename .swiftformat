@@ -1,0 +1,14 @@
+--swiftversion 6
+--indent 4
+--linebreaks lf
+--trimwhitespace always
+--commas inline
+--ifdef no-indent
+--wraparguments preserve
+--wrapcollections preserve
+--wrapconditions preserve
+--closingparen same-line
+--stripunusedargs closure-only
+--self remove
+--header ignore
+--exclude .build,.swiftpm,.swift-cache,dist

@@ -13,8 +13,7 @@ struct MenuBarMetricRow: View {
             MenuBarUsageProgressBar(
                 percent: model.percent,
                 tint: model.tint,
-                accessibilityLabel: model.title
-            )
+                accessibilityLabel: model.title)
 
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline) {

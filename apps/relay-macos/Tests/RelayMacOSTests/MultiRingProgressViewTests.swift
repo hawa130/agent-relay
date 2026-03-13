@@ -1,48 +1,41 @@
-import XCTest
 @testable import RelayMacOSUI
+import XCTest
 
 final class MultiRingProgressViewTests: XCTestCase {
     func testRingLayoutUsesExpectedDiametersForRegularSize() {
         XCTAssertEqual(
             RingProgressLayout.ringDiameter(size: .regular, ringIndex: 0),
             112,
-            accuracy: 0.001
-        )
+            accuracy: 0.001)
         XCTAssertEqual(
             RingProgressLayout.ringDiameter(size: .regular, ringIndex: 1),
             80,
-            accuracy: 0.001
-        )
+            accuracy: 0.001)
         XCTAssertEqual(
             RingProgressLayout.ringDiameter(size: .regular, ringIndex: 2),
             48,
-            accuracy: 0.001
-        )
+            accuracy: 0.001)
         XCTAssertEqual(
             RingProgressLayout.centerDiameter(size: .regular, ringCount: 2),
             50,
-            accuracy: 0.001
-        )
+            accuracy: 0.001)
     }
 
     func testFocusedItemFallsBackToFirstRing() {
         let items = [
             RingProgressItem(id: "session", label: "Session", shortLabel: "S", progress: 0.54, tone: .positive),
-            RingProgressItem(id: "weekly", label: "Weekly", shortLabel: "W", progress: 0.92, tone: .warning),
+            RingProgressItem(id: "weekly", label: "Weekly", shortLabel: "W", progress: 0.92, tone: .warning)
         ]
 
         XCTAssertEqual(
             RingProgressLayout.focusedItem(in: items, focusedRingID: nil)?.id,
-            "session"
-        )
+            "session")
         XCTAssertEqual(
             RingProgressLayout.focusedItem(in: items, focusedRingID: "weekly")?.id,
-            "weekly"
-        )
+            "weekly")
         XCTAssertEqual(
             RingProgressLayout.focusedItem(in: items, focusedRingID: "missing")?.id,
-            "session"
-        )
+            "session")
     }
 
     func testUsageSnapshotMapsToRingItems() {
@@ -59,20 +52,17 @@ final class MultiRingProgressViewTests: XCTestCase {
                 windowMinutes: 300,
                 resetAt: Date(timeIntervalSince1970: 200),
                 status: .healthy,
-                exact: true
-            ),
+                exact: true),
             weekly: UsageWindow(
                 usedPercent: nil,
                 windowMinutes: nil,
                 resetAt: nil,
                 status: .unknown,
-                exact: false
-            ),
+                exact: false),
             autoSwitchReason: nil,
             canAutoSwitch: true,
             message: nil,
-            remoteError: nil
-        )
+            remoteError: nil)
 
         let items = snapshot.ringProgressItems
 
