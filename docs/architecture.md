@@ -145,7 +145,7 @@ Use SQLite for durable truth and keep file-backed state limited to caches or ope
 ## Testing Strategy
 
 - `relay-core::models`: serde round-trip and protocol tests
-- `relay-core::store`: SeaORM migration/repository tests and state-file tests
+- `relay-core::store`: SeaORM entity/store tests and state-file tests
 - `relay-core::services`: service-level tests with temp stores and fake adapters
 - `relay-cli`: command parsing, JSON contract, and integration smoke tests
 - `relay-macos`: Swift decoding, daemon client, and supervisor integration tests

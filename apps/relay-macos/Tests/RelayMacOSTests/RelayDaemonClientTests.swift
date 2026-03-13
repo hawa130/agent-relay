@@ -36,13 +36,9 @@ final class RelayDaemonClientTests: XCTestCase {
         )
 
         async let status = client.fetchStatus()
-        async let usage = client.fetchCurrentUsage()
-
         let resolvedStatus = try await status
-        let resolvedUsage = try await usage
 
         XCTAssertEqual(resolvedStatus.activeState.activeProfileId, "p_active_1")
-        XCTAssertEqual(resolvedUsage.profileId, "p_active_1")
 
         await client.stop()
     }
@@ -265,8 +261,8 @@ final class RelayDaemonClientTests: XCTestCase {
             XCTFail("unexpected error: \(error)")
         }
 
-        let usage = try await client.fetchCurrentUsage()
-        XCTAssertEqual(usage.profileId?.hasPrefix("p_active_"), true)
+        let restarted = try await client.restart()
+        XCTAssertEqual(restarted.status.activeState.activeProfileId?.hasPrefix("p_active_"), true)
 
         await client.stop()
     }

@@ -161,28 +161,6 @@ actor RelayDaemonClient {
         try await request(method: "relay/status/get", as: StatusReport.self)
     }
 
-    func fetchProfileList() async throws -> [ProfileListItem] {
-        try await request(method: "relay/profiles/list", as: [ProfileListItem].self)
-    }
-
-    func fetchCurrentUsage() async throws -> UsageSnapshot {
-        let result = try await request(
-            method: "relay/usage/get",
-            params: UsageGetParams(profileId: nil),
-            as: UsageResult.self
-        )
-        return result.snapshot
-    }
-
-    func fetchUsage(profileId: String) async throws -> UsageSnapshot {
-        let result = try await request(
-            method: "relay/usage/get",
-            params: UsageGetParams(profileId: profileId),
-            as: UsageResult.self
-        )
-        return result.snapshot
-    }
-
     func refreshUsage(profileId: String) async throws -> UsageSnapshot {
         let result = try await request(
             method: "relay/usage/refresh",
@@ -352,24 +330,6 @@ actor RelayDaemonClient {
             as: RPCSettingsResult.self
         )
         return result.app
-    }
-
-    func fetchEvents(limit: Int) async throws -> [FailureEvent] {
-        let result = try await request(
-            method: "relay/activity/events/list",
-            params: EventsListPayload(limit: limit),
-            as: RPCEventsResult.self
-        )
-        return result.events
-    }
-
-    func fetchLogs(lines: Int) async throws -> LogTail {
-        let result = try await request(
-            method: "relay/activity/logs/tail",
-            params: LogsTailPayload(lines: lines),
-            as: RPCLogsResult.self
-        )
-        return result.logs
     }
 
     func exportDiagnostics() async throws -> DiagnosticsExport {
