@@ -5,27 +5,22 @@ struct ProfileInfoBadge: View {
     let value: String
 
     var body: some View {
-        HStack(spacing: 0) {
-            Text(title)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(NativePreferencesTheme.Badge.text(.neutral))
-                .padding(.leading, 6)
-                .padding(.trailing, 5)
-                .padding(.vertical, 2)
+        NativeBadgeSurface(kind: .neutral) {
+            HStack(spacing: 0) {
+                Text(title)
+                    .font(NativePreferencesTheme.Typography.badge)
+                    .foregroundStyle(NativePreferencesTheme.Badge.text(.neutral))
 
-            Rectangle()
-                .fill(NativePreferencesTheme.Badge.text(.neutral).opacity(0.22))
-                .frame(width: 1)
-                .padding(.vertical, 2)
+                Rectangle()
+                    .fill(NativePreferencesTheme.Badge.text(.neutral).opacity(0.22))
+                    .frame(width: 1)
+                    .padding(.vertical, 2)
+                    .padding(.horizontal, 5)
 
-            Text(value)
-                .font(.system(size: 10, weight: .regular))
-                .foregroundStyle(NativePreferencesTheme.Badge.text(.neutral))
-                .padding(.leading, 5)
-                .padding(.trailing, 6)
-                .padding(.vertical, 2)
+                Text(value)
+                    .font(NativePreferencesTheme.Typography.badgeValue)
+                    .foregroundStyle(NativePreferencesTheme.Badge.text(.neutral))
+            }
         }
-        .background(NativePreferencesTheme.Badge.fill(.neutral), in: Capsule())
-        .fixedSize()
     }
 }

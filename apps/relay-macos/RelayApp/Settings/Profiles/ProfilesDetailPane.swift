@@ -61,23 +61,18 @@ struct ProfilesDetailPane: View {
             }
 
             ToolbarItemGroup(placement: .confirmationAction) {
-                Button {
-                    onEditProfile()
-                } label: {
-                    Label("Edit Profile", systemImage: "square.and.pencil")
-                }
-                .accessibilityLabel("Edit Profile")
-                .help("Edit Profile")
-                .disabled(selectedProfile == nil || isMutatingProfiles)
+                NativeToolbarSymbolButton(
+                    "Edit Profile",
+                    systemImage: "square.and.pencil",
+                    isEnabled: selectedProfile != nil && !isMutatingProfiles,
+                    action: onEditProfile)
 
-                Button(role: .destructive) {
-                    onDeleteProfile()
-                } label: {
-                    Label("Delete Profile", systemImage: "trash")
-                }
-                .accessibilityLabel("Delete Profile")
-                .help("Delete Profile")
-                .disabled(selectedProfile == nil || isMutatingProfiles)
+                NativeToolbarSymbolButton(
+                    "Delete Profile",
+                    systemImage: "trash",
+                    role: .destructive,
+                    isEnabled: selectedProfile != nil && !isMutatingProfiles,
+                    action: onDeleteProfile)
             }
         }
     }

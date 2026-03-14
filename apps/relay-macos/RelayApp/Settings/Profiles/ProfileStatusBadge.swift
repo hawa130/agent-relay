@@ -5,18 +5,16 @@ struct ProfileStatusBadge: View {
     let dotColor: Color
 
     var body: some View {
-        HStack(spacing: 5) {
-            Circle()
-                .fill(dotColor)
-                .frame(width: 5, height: 5)
+        NativeBadgeSurface(kind: .neutral) {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(dotColor)
+                    .frame(width: 5, height: 5)
 
-            Text(title)
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(NativePreferencesTheme.Badge.text(.neutral))
+                Text(title)
+                    .font(NativePreferencesTheme.Typography.badge)
+                    .foregroundStyle(NativePreferencesTheme.Badge.text(.neutral))
+            }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(NativePreferencesTheme.Badge.fill(.neutral), in: Capsule())
-        .fixedSize()
     }
 }

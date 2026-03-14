@@ -44,15 +44,15 @@ struct ProfileListRowStatusIndicator: View {
                 ProgressView()
                     .controlSize(.mini)
             case let .warning(message):
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(NativePreferencesTheme.Colors.statusIcon(.warning))
-                    .help(message)
+                NativeStatusSymbol(
+                    systemName: "exclamationmark.triangle.fill",
+                    color: NativePreferencesTheme.Colors.statusIcon(.warning),
+                    accessibilityLabel: message)
             case .stale:
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .help("Usage data may be stale")
+                NativeStatusSymbol(
+                    systemName: "exclamationmark.triangle",
+                    color: .secondary,
+                    accessibilityLabel: "Usage data may be stale")
             }
         }
         .frame(width: 12, height: 12)

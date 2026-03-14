@@ -55,23 +55,16 @@ struct ProfilesContentColumn: View {
                         .frame(width: 28, height: 28)
                         .help("Refreshing usage")
                 } else {
-                    Button {
-                        onRefreshUsage()
-                    } label: {
-                        Label("Refresh Usage", systemImage: "arrow.clockwise")
-                    }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.bordered)
-                    .help("Refresh Usage For Enabled Profiles. Option-click to refresh all profiles.")
+                    NativeToolbarSymbolButton(
+                        "Refresh Usage",
+                        systemImage: "arrow.clockwise",
+                        helpText: "Refresh Usage For Enabled Profiles. Option-click to refresh all profiles.",
+                        action: onRefreshUsage)
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.bordered)
                 }
 
-                Button {
-                    onAddProfile()
-                } label: {
-                    Label("Add Profile", systemImage: "plus")
-                }
-                .accessibilityLabel("Add Profile")
-                .help("Add Profile")
+                NativeToolbarSymbolButton("Add Profile", systemImage: "plus", action: onAddProfile)
             }
         }
     }
