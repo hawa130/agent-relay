@@ -448,6 +448,62 @@ fn daemon_help_works_without_dispatch_error() {
 }
 
 #[test]
+fn daemon_exits_when_stdio_input_closes() {
+    let temp = tempdir().expect("tempdir");
+    let relay_home = temp.path().join("relay");
+    let live_codex_home = temp.path().join("live-codex");
+    make_codex_home(&live_codex_home, "live");
+
+    let mut child = Command::new(relay_bin())
+        .args(["daemon", "--stdio"])
+        .env("AGRELAY_HOME", &relay_home)
+        .env("CODEX_HOME", &live_codex_home)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn daemon");
+
+    let mut stdin = child.stdin.take().expect("daemon stdin");
+    stdin
+        .write_all(
+            serde_json::json!({
+                "jsonrpc": "2.0",
+                "id": "init",
+                "method": "initialize",
+                "params": {
+                    "protocol_version": "1",
+                    "client_info": { "name": "relay-cli-test", "version": "1.0.0" },
+                    "capabilities": {
+                        "supports_subscriptions": true,
+                        "supports_health_updates": true
+                    }
+                }
+            })
+            .to_string()
+            .as_bytes(),
+        )
+        .expect("write initialize");
+    stdin.write_all(b"\n").expect("write newline");
+    stdin.flush().expect("flush stdin");
+
+    drop(stdin);
+
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        if let Some(status) = child.try_wait().expect("poll daemon exit") {
+            assert!(status.success(), "daemon exit status: {status}");
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "timed out waiting for daemon exit after stdin closed"
+        );
+        thread::sleep(Duration::from_millis(50));
+    }
+}
+
+#[test]
 fn import_switch_events_logs_and_diagnostics_work() {
     let temp = tempdir().expect("tempdir");
     let relay_home = temp.path().join("relay");

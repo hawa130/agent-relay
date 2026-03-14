@@ -24,6 +24,7 @@ const DISABLED_REFRESH_DEADLINE: Duration = Duration::from_secs(60 * 60 * 24 * 3
 #[derive(Default)]
 struct RuntimeSignals {
     startup_refresh_armed: AtomicBool,
+    shutdown_requested: AtomicBool,
     startup_refresh_notify: Notify,
     interval_reset_notify: Notify,
     shutdown_notify: Notify,
@@ -41,9 +42,14 @@ impl RuntimeSignals {
     }
 
     fn request_shutdown(&self) {
+        self.shutdown_requested.store(true, Ordering::SeqCst);
         self.shutdown_notify.notify_waiters();
         self.startup_refresh_notify.notify_waiters();
         self.interval_reset_notify.notify_waiters();
+    }
+
+    fn shutdown_requested(&self) -> bool {
+        self.shutdown_requested.load(Ordering::SeqCst)
     }
 }
 
@@ -97,6 +103,7 @@ async fn run_local() -> Result<(), RelayError> {
             maybe_line = request_rx.recv(), if !stop_accepting_requests => {
                 let Some(line) = maybe_line else {
                     stop_accepting_requests = true;
+                    runtime_signals.request_shutdown();
                     continue;
                 };
 
@@ -175,16 +182,19 @@ async fn run_local() -> Result<(), RelayError> {
 }
 
 async fn run_refresh_scheduler(service: DaemonService, runtime_signals: Arc<RuntimeSignals>) {
-    if service.shutdown_requested() {
+    if service.shutdown_requested() || runtime_signals.shutdown_requested() {
         return;
     }
 
     while !runtime_signals.startup_refresh_armed.load(Ordering::SeqCst) {
+        if runtime_signals.shutdown_requested() {
+            return;
+        }
         tokio::select! {
             _ = runtime_signals.startup_refresh_notify.notified() => {}
             _ = runtime_signals.shutdown_notify.notified() => return,
         }
-        if service.shutdown_requested() {
+        if service.shutdown_requested() || runtime_signals.shutdown_requested() {
             return;
         }
     }
@@ -194,14 +204,14 @@ async fn run_refresh_scheduler(service: DaemonService, runtime_signals: Arc<Runt
     }
 
     loop {
-        if service.shutdown_requested() {
+        if service.shutdown_requested() || runtime_signals.shutdown_requested() {
             break;
         }
 
         let next_refresh_at = schedule_next_refresh_at(&service).await;
         tokio::select! {
             _ = sleep_until(next_refresh_at) => {
-                if service.shutdown_requested() {
+                if service.shutdown_requested() || runtime_signals.shutdown_requested() {
                     break;
                 }
                 if automatic_refresh_enabled(&service).await {

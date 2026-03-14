@@ -156,6 +156,13 @@ public final class RelayAppModel: ObservableObject {
         }
     }
 
+    public func stop() async {
+        daemonNotificationsTask?.cancel()
+        daemonNotificationsTask = nil
+        await daemonClient.stop()
+        hasStarted = false
+    }
+
     func refreshIfStale(maxAge seconds: TimeInterval) async {
         guard let lastRefresh else {
             await refresh()

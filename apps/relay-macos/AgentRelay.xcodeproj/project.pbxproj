@@ -16,6 +16,7 @@
 		0E75C901BEE38BD232FF7257 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 69C368E68E2FB421511D27EA /* AppIcon.icon */; };
 		0ECBBDC00C250B4F48C8E51C /* ProfileHeroAgentIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43953E9AA83667DE47187E2 /* ProfileHeroAgentIcon.swift */; };
 		1085C10EACF72C8F550FF85F /* RelayAppModelDaemonNotificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F21A90CF12B38BA46952C31 /* RelayAppModelDaemonNotificationTests.swift */; };
+		10D0906FEE3CCFF9ACBA0EDB /* RelayAppModelLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 676F54AECF92390259EF8C0D /* RelayAppModelLifecycleTests.swift */; };
 		11743C4ABFBDEEDC503E6D23 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 880F54A8F624D78BDB90461F /* Defaults */; };
 		11A40985AC66DA0C28C16696 /* MenuBarProfilePickerItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944F8EC81F8288FCBF694592 /* MenuBarProfilePickerItem.swift */; };
 		18AB8E53BBB45ED74A05E929 /* ProfilesSidebarItemLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B17D6784EAAC8B9B5B0E11B7 /* ProfilesSidebarItemLabel.swift */; };
@@ -194,6 +195,7 @@
 		58727AA533856163A444174F /* MenuBarUsageCardSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarUsageCardSectionView.swift; sourceTree = "<group>"; };
 		6527ADD23DC7EB1E50B45172 /* ProfileListRowStatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileListRowStatusIndicator.swift; sourceTree = "<group>"; };
 		661BECF181F3A9E846E646B1 /* RelayAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayAppModel.swift; sourceTree = "<group>"; };
+		676F54AECF92390259EF8C0D /* RelayAppModelLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayAppModelLifecycleTests.swift; sourceTree = "<group>"; };
 		6770450830E405BF3CFF9F76 /* ProfilesContentColumn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesContentColumn.swift; sourceTree = "<group>"; };
 		69C368E68E2FB421511D27EA /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		6AB3977FA134C8C4FE36C749 /* SettingsNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsNavigationTests.swift; sourceTree = "<group>"; };
@@ -368,6 +370,7 @@
 				9695540A5E1D317A8356BEBB /* ProfilesNavigationTests.swift */,
 				8FF332BED55371BDD76A4111 /* ProfilesViewSemanticsTests.swift */,
 				7F21A90CF12B38BA46952C31 /* RelayAppModelDaemonNotificationTests.swift */,
+				676F54AECF92390259EF8C0D /* RelayAppModelLifecycleTests.swift */,
 				FFE8A5822499589EEE63DD6E /* RelayAppModelTests.swift */,
 				B0C322786D287CA13AFA4991 /* RelayDaemonClientTests.swift */,
 				6AB3977FA134C8C4FE36C749 /* SettingsNavigationTests.swift */,
@@ -703,6 +706,7 @@
 				203FE1102C6331E5BE81F7A9 /* ProfilesNavigationTests.swift in Sources */,
 				909BDD4022E96766094DD789 /* ProfilesViewSemanticsTests.swift in Sources */,
 				1085C10EACF72C8F550FF85F /* RelayAppModelDaemonNotificationTests.swift in Sources */,
+				10D0906FEE3CCFF9ACBA0EDB /* RelayAppModelLifecycleTests.swift in Sources */,
 				1B5DF85B7392A78242EA715B /* RelayAppModelTests.swift in Sources */,
 				6CD4639B323D7DC86D59919E /* RelayDaemonClientTests.swift in Sources */,
 				FB6D53D8FD196C2C10F4AC79 /* SettingsNavigationTests.swift in Sources */,
