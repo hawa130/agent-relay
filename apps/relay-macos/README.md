@@ -7,7 +7,7 @@ The app supervises a long-lived `agrelay daemon --stdio` session and speaks stdi
 Contributor tooling for the Swift code:
 
 ```bash
-brew install swiftformat swiftlint
+brew install swiftformat swiftlint xcodegen
 ```
 
 The repository uses `swiftformat` for formatting and `swiftlint` for Swift lint checks through the shared `just` workflow.
@@ -26,6 +26,27 @@ Build a distributable `.app` bundle:
 ```bash
 cd apps/relay-macos
 ./scripts/build-app.sh
+```
+
+Generate an Xcode project for local app development:
+
+```bash
+cd apps/relay-macos
+./scripts/generate-xcodeproj.sh
+open AgentRelay.xcodeproj
+```
+
+Verify the generated Xcode project from the CLI without re-resolving packages:
+
+```bash
+cd apps/relay-macos
+xcodebuild -project AgentRelay.xcodeproj \
+  -scheme AgentRelay \
+  -destination 'platform=macOS' \
+  -clonedSourcePackagesDirPath .build \
+  -disableAutomaticPackageResolution \
+  -onlyUsePackageVersionsFromResolvedFile \
+  build
 ```
 
 Output bundle:
@@ -71,6 +92,8 @@ RelayApp/
 ## Notes
 
 - `swift run` is useful for source-level iteration, but the `.app` bundle is the supported distribution shape for reliable menu bar behavior and login-item integration
+- Xcode project files are generated from `apps/relay-macos/project.yml` via XcodeGen; regenerate after changing target structure or package references
+- the generated Xcode project mirrors the SwiftPM layout with a separate `RelayMacOSUI` module, so source-level imports and tests stay aligned across `swift test` and Xcode
 - the app resolves `agrelay` in this order: `AGRELAY_CLI_PATH`, bundled `Contents/Resources/bin/agrelay`, then `PATH`
 - `SMAppService` launch-at-login support requires running from a proper app bundle; the toggle may report unsupported when launched directly from `swift run`
 - the app expects the AgentRelay daemon RPC contract to remain stable across compatible releases

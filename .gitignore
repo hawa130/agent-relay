@@ -11,4 +11,5 @@
 .build/
 .swift-cache/
 apps/relay-macos/dist/
+apps/relay-macos/.xcode-build/
 .env

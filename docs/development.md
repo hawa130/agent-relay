@@ -46,10 +46,32 @@ just build-app
 Swift tooling is managed with third-party tools installed through Homebrew:
 
 ```bash
-brew install swiftformat swiftlint
+brew install swiftformat swiftlint xcodegen
 ```
 
 `just fmt` and `just fmt-check` include `swiftformat` for the macOS app source tree. `just lint` runs both `cargo clippy --workspace --all-targets -- -D warnings` and `swiftlint lint --config .swiftlint.yml`. `just check` runs formatting verification, linting, and tests together.
+
+For the macOS app's Xcode workflow:
+
+```bash
+cd apps/relay-macos
+./scripts/generate-xcodeproj.sh
+open AgentRelay.xcodeproj
+```
+
+Use the generated project with the local SwiftPM checkout cache when verifying from the CLI:
+
+```bash
+xcodebuild -project apps/relay-macos/AgentRelay.xcodeproj \
+  -scheme AgentRelay \
+  -destination 'platform=macOS' \
+  -clonedSourcePackagesDirPath apps/relay-macos/.build \
+  -disableAutomaticPackageResolution \
+  -onlyUsePackageVersionsFromResolvedFile \
+  build
+```
+
+The generated project preserves the same target split as `Package.swift`: `RelayMacOSUI` contains the SwiftUI sources and resources, `AgentRelay` wraps the executable entrypoint, and `RelayMacOSTests` continues to test `RelayMacOSUI` directly.
 
 ## Local Iteration
 

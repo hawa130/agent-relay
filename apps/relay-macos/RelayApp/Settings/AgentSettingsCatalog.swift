@@ -1,6 +1,34 @@
 import AppKit
 import SwiftUI
 
+#if SWIFT_PACKAGE
+private let relayMacOSUIResourceBundle = Bundle.module
+#else
+private let relayMacOSUIResourceBundle: Bundle = {
+    let bundleName = "RelayMacOSUI_RelayMacOSUI"
+    let bundleCandidates: [URL?] = [
+        Bundle.main.resourceURL,
+        Bundle(for: BundleLocator.self).resourceURL,
+        Bundle(for: BundleLocator.self).bundleURL.deletingLastPathComponent(),
+        Bundle.main.bundleURL
+    ]
+
+    for candidate in bundleCandidates {
+        guard let bundleURL = candidate?.appendingPathComponent("\(bundleName).bundle") else {
+            continue
+        }
+
+        if let bundle = Bundle(url: bundleURL) {
+            return bundle
+        }
+    }
+
+    return Bundle(for: BundleLocator.self)
+}()
+
+private final class BundleLocator {}
+#endif
+
 struct AgentSettingsDescriptor: Identifiable {
     let agent: AgentKind
     let title: String
@@ -15,7 +43,7 @@ struct AgentSettingsDescriptor: Identifiable {
     }
 
     func iconImage(template: Bool = true) -> NSImage? {
-        guard let url = Bundle.module.url(forResource: iconResourceName, withExtension: "svg"),
+        guard let url = relayMacOSUIResourceBundle.url(forResource: iconResourceName, withExtension: "svg"),
               let image = NSImage(contentsOf: url)
         else {
             return nil
