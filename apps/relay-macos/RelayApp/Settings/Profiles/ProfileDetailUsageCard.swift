@@ -10,7 +10,7 @@ struct ProfileDetailUsageCard: View {
         SectionSurfaceCard(
             "Usage",
             headerAccessory: {
-                UsageRefreshButton(isRefreshing: isFetchingUsage, action: onRefresh)
+                UsageRefreshButton(isRefreshing: isFetchingUsage, variant: .card, action: onRefresh)
             },
             content: {
                 Group {
