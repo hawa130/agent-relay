@@ -25,10 +25,12 @@ targets:
     sources:
       - path: RelayApp
         excludes:
+          - Resources/Assets.xcassets
           - Resources/README.md
     resources:
       - path: RelayApp/Resources
         excludes:
+          - Assets.xcassets
           - README.md
     dependencies:
       - package: Defaults
@@ -45,6 +47,10 @@ targets:
     platform: macOS
     sources:
       - path: RelayAppExecutable
+    resources:
+      - path: RelayApp/Resources
+        includes:
+          - Assets.xcassets
     postBuildScripts:
       - path: scripts/package-agrelay.sh
         name: Package agrelay CLI
