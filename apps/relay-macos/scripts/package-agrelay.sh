@@ -17,11 +17,9 @@ fi
 case "$BUILD_CONFIGURATION" in
   [Dd]ebug)
     RUST_PROFILE="debug"
-    CARGO_ARGS=()
     ;;
   *)
     RUST_PROFILE="release"
-    CARGO_ARGS=(--release)
     ;;
 esac
 
@@ -48,7 +46,11 @@ if ! command -v cargo >/dev/null 2>&1; then
 fi
 
 cd "$WORKSPACE_ROOT"
-cargo build -p agrelay-cli --bin agrelay "${CARGO_ARGS[@]}"
+if [[ "$RUST_PROFILE" == "debug" ]]; then
+  cargo build -p agrelay-cli --bin agrelay
+else
+  cargo build -p agrelay-cli --bin agrelay --release
+fi
 
 RELAY_BINARY_PATH="$WORKSPACE_ROOT/target/$RUST_PROFILE/agrelay"
 DESTINATION_DIR="$APP_CONTENTS_PATH/Helpers"
