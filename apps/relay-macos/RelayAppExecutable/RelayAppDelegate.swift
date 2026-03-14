@@ -1,5 +1,5 @@
-import AppKit
 import AgentRelayUI
+import AppKit
 
 @MainActor
 final class RelayAppDelegate: NSObject, NSApplicationDelegate {
@@ -22,6 +22,13 @@ final class RelayAppDelegate: NSObject, NSApplicationDelegate {
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         _ = sender
         return false
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        _ = notification
+        Task {
+            await model.stop()
+        }
     }
 
     private func openWindow(_ windowID: RelayWindowID) {
