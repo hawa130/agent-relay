@@ -613,6 +613,14 @@ actor RelayDaemonClient {
     private func bundledRelayCandidates() -> [String] {
         var candidates: [String] = []
 
+        if let builtInPlugInsPath = Bundle.main.builtInPlugInsPath {
+            candidates.append((builtInPlugInsPath as NSString).appendingPathComponent("agrelay"))
+        }
+
+        if let sharedSupportPath = Bundle.main.sharedSupportPath {
+            candidates.append((sharedSupportPath as NSString).appendingPathComponent("agrelay"))
+        }
+
         if let resourcePath = Bundle.main.path(forResource: "agrelay", ofType: nil, inDirectory: "bin") {
             candidates.append(resourcePath)
         }
@@ -630,6 +638,11 @@ actor RelayDaemonClient {
             let contentsDir = executableDir.deletingLastPathComponent()
             candidates.append(
                 contentsDir
+                    .appending(path: "Helpers", directoryHint: .isDirectory)
+                    .appending(path: "agrelay")
+                    .path(percentEncoded: false))
+            candidates.append(
+                contentsDir
                     .appending(path: "Resources", directoryHint: .isDirectory)
                     .appending(path: "bin", directoryHint: .isDirectory)
                     .appending(path: "agrelay")
@@ -637,6 +650,12 @@ actor RelayDaemonClient {
         }
 
         if Bundle.main.bundleURL.pathExtension == "app" {
+            candidates.append(
+                Bundle.main.bundleURL
+                    .appending(path: "Contents", directoryHint: .isDirectory)
+                    .appending(path: "Helpers", directoryHint: .isDirectory)
+                    .appending(path: "agrelay")
+                    .path(percentEncoded: false))
             candidates.append(
                 Bundle.main.bundleURL
                     .appending(path: "Contents", directoryHint: .isDirectory)

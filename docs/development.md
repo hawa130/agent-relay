@@ -71,6 +71,10 @@ xcodebuild -project apps/relay-macos/AgentRelay.xcodeproj \
   build
 ```
 
+The shared Xcode workspace lockfile lives at `apps/relay-macos/AgentRelay.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`. Commit that file, but ignore `xcuserdata` entries under the generated project.
+
+The generated `AgentRelay` target also runs `apps/relay-macos/scripts/package-agrelay.sh` as a post-build phase. That script builds `agrelay` with Cargo and copies it into `AgentRelay.app/Contents/Helpers/agrelay`, so Xcode builds and CLI-driven `xcodebuild` runs produce a usable app bundle without the outer packaging script having to patch the bundle afterward.
+
 The generated project preserves the same target split as `Package.swift`: `RelayMacOSUI` contains the SwiftUI sources and resources, `AgentRelay` wraps the executable entrypoint, and `RelayMacOSTests` continues to test `RelayMacOSUI` directly.
 
 ## Local Iteration
