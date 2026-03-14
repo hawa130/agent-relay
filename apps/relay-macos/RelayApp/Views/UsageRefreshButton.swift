@@ -13,6 +13,15 @@ struct UsageRefreshButton: View {
                 14
             }
         }
+
+        var usesIconOnlyLabel: Bool {
+            switch self {
+            case .toolbar:
+                false
+            case .card:
+                true
+            }
+        }
     }
 
     let isRefreshing: Bool
@@ -33,22 +42,7 @@ struct UsageRefreshButton: View {
     }
 
     var body: some View {
-        Button(action: action) {
-            Group {
-                if isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Image(systemName: "arrow.clockwise")
-                }
-            }
-            .frame(width: variant.iconFrameWidth, height: 14)
-        }
-        .buttonStyle(.bordered)
-        .disabled(isRefreshing)
-        .help(helpTextValue)
-        .accessibilityLabel(Self.accessibilityLabel(isRefreshing: isRefreshing))
-        .labelStyle(.iconOnly)
+        configuredButton
     }
 
     private var helpTextValue: String {
@@ -57,5 +51,31 @@ struct UsageRefreshButton: View {
 
     nonisolated static func accessibilityLabel(isRefreshing: Bool) -> String {
         isRefreshing ? "Refreshing usage" : "Refresh Usage"
+    }
+
+    @ViewBuilder
+    private var configuredButton: some View {
+        if variant.usesIconOnlyLabel {
+            button.labelStyle(.iconOnly)
+        } else {
+            button.labelStyle(DefaultLabelStyle())
+        }
+    }
+
+    private var button: some View {
+        Button(action: action) {
+            Label(Self.accessibilityLabel(isRefreshing: isRefreshing), systemImage: "arrow.clockwise")
+                .overlay {
+                    if isRefreshing {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+                .frame(width: variant.iconFrameWidth, height: 14)
+        }
+        .buttonStyle(.bordered)
+        .disabled(isRefreshing)
+        .help(helpTextValue)
+        .accessibilityLabel(Self.accessibilityLabel(isRefreshing: isRefreshing))
     }
 }

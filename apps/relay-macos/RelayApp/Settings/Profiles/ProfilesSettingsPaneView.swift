@@ -93,8 +93,8 @@ public struct ProfilesSettingsPaneView: View {
                 await model.editProfile(profileId: profile.id, draft: draft)
             }
         }
-        .alert("Remove Profile?", isPresented: presentationState.deletingProfileAlertIsPresented, presenting: deletingProfile) { profile in
-            Button("Remove", role: .destructive) {
+        .alert("Delete Profile?", isPresented: presentationState.deletingProfileAlertIsPresented, presenting: deletingProfile) { profile in
+            Button("Delete", role: .destructive) {
                 Task {
                     await model.removeProfile(profile.id)
                     deletingProfile = nil
@@ -104,7 +104,7 @@ public struct ProfilesSettingsPaneView: View {
                 deletingProfile = nil
             }
         } message: { profile in
-            Text("Remove profile \"\(profile.nickname)\" from AgentRelay?")
+            Text("Delete profile \"\(profile.nickname)\" from AgentRelay?")
         }
     }
 
