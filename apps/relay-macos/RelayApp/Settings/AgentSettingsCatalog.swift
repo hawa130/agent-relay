@@ -5,7 +5,7 @@ import SwiftUI
 private let relayMacOSUIResourceBundle = Bundle.module
 #else
 private let relayMacOSUIResourceBundle: Bundle = {
-    let bundleName = "RelayMacOSUI_RelayMacOSUI"
+    let bundleName = "AgentRelayUI_AgentRelayUI"
     let bundleCandidates: [URL?] = [
         Bundle.main.resourceURL,
         Bundle(for: BundleLocator.self).resourceURL,

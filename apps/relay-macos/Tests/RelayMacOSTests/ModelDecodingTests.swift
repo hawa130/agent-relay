@@ -1,5 +1,5 @@
 import Foundation
-@testable import RelayMacOSUI
+@testable import AgentRelayUI
 import XCTest
 
 private func utf8Data(_ string: String) -> Data {

@@ -8,8 +8,8 @@ let package = Package(
     ],
     products: [
         .library(
-            name: "RelayMacOSUI",
-            targets: ["RelayMacOSUI"]),
+            name: "AgentRelayUI",
+            targets: ["AgentRelayUI"]),
         .executable(
             name: "AgentRelay",
             targets: ["AgentRelay"])
@@ -20,7 +20,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "RelayMacOSUI",
+            name: "AgentRelayUI",
             dependencies: [
                 "Defaults",
                 .product(name: "LaunchAtLogin", package: "LaunchAtLogin-Modern")
@@ -33,13 +33,13 @@ let package = Package(
         .executableTarget(
             name: "AgentRelay",
             dependencies: [
-                "RelayMacOSUI",
+                "AgentRelayUI",
                 "Defaults"
             ],
             path: "RelayAppExecutable",
-            exclude: ["Resources/Info.plist"]),
+            exclude: ["AppIcon.icon", "Resources/Info.plist"]),
         .testTarget(
             name: "RelayMacOSTests",
-            dependencies: ["RelayMacOSUI"],
+            dependencies: ["AgentRelayUI"],
             path: "Tests/RelayMacOSTests")
     ])

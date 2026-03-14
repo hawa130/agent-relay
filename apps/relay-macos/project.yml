@@ -19,7 +19,7 @@ settings:
     MARKETING_VERSION: 0.1.0
     CURRENT_PROJECT_VERSION: 1
 targets:
-  RelayMacOSUI:
+  AgentRelayUI:
     type: framework
     platform: macOS
     sources:
@@ -38,7 +38,7 @@ targets:
         product: LaunchAtLogin
     settings:
       base:
-        PRODUCT_MODULE_NAME: RelayMacOSUI
+        PRODUCT_MODULE_NAME: AgentRelayUI
         PRODUCT_BUNDLE_IDENTIFIER: dev.agentrelay.macos.ui
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_EMIT_LOC_STRINGS: NO
@@ -65,7 +65,7 @@ targets:
         basedOnDependencyAnalysis: false
         showEnvVars: false
     dependencies:
-      - target: RelayMacOSUI
+      - target: AgentRelayUI
     settings:
       base:
         PRODUCT_MODULE_NAME: AgentRelay
@@ -91,7 +91,7 @@ targets:
     sources:
       - Tests/RelayMacOSTests
     dependencies:
-      - target: RelayMacOSUI
+      - target: AgentRelayUI
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.agentrelay.macos.tests

@@ -7,129 +7,129 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		012B475EFDC7338790C37269 /* MenuBarProfilePickerItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944F8EC81F8288FCBF694592 /* MenuBarProfilePickerItem.swift */; };
 		025C7537A73BB5DBCCBE1CCE /* UsageCardNoteResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A90F9D8CCC22A0E2CD93EF1 /* UsageCardNoteResolverTests.swift */; };
-		03F26F2E40694961FA74B8D9 /* NativeToolbarSymbolButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2A586A533973BFB1218FB7A /* NativeToolbarSymbolButton.swift */; };
-		06A35A32A78C6118E66137D1 /* ProfileAccountStatusDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9522291E7D66D3888CE7A932 /* ProfileAccountStatusDot.swift */; };
-		09A7C2838AE1898AF58F1884 /* RelayMacOSUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B664612DD69880A03901E611 /* RelayMacOSUI.framework */; };
-		0AD179FEEB36DBE54D59E18B /* RelayClientError.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB940157341424B1AC855130 /* RelayClientError.swift */; };
+		06B53F45944EA5F14C4D991D /* ProfileRowContextMenuModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F1A0B79250CD1FBE3B6580 /* ProfileRowContextMenuModel.swift */; };
+		085C9137CF3A266012875F0A /* RelayStatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4109AACA6A8A4A399338640 /* RelayStatusItemController.swift */; };
+		0B62300DC3B865990AC46A2D /* ProfileAgentLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C8BA9907389CF0DDC458F25 /* ProfileAgentLabel.swift */; };
+		0BE8146A500D5235B570AE00 /* AgentRelayUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 6B8B10AAE753F0C93B6B3201 /* AgentRelayUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		0DDF18BDAFB75DFFA468CE4C /* MenuBarUsageStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F6E3CC9B4C00957DC8B792D /* MenuBarUsageStyle.swift */; };
 		0E75C901BEE38BD232FF7257 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 69C368E68E2FB421511D27EA /* AppIcon.icon */; };
+		0ECBBDC00C250B4F48C8E51C /* ProfileHeroAgentIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43953E9AA83667DE47187E2 /* ProfileHeroAgentIcon.swift */; };
 		1085C10EACF72C8F550FF85F /* RelayAppModelDaemonNotificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F21A90CF12B38BA46952C31 /* RelayAppModelDaemonNotificationTests.swift */; };
-		16FF98B4E5D684E5F7654C28 /* ProfileDetailUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2076AB303E815443D7BCDAD5 /* ProfileDetailUsageCard.swift */; };
-		17F207C8C83C3319E79781F8 /* ProfileListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 831A713FEE83CB811617063C /* ProfileListRow.swift */; };
-		1B4FB2FE74618415AF93446C /* MenuBarUsageCardHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DEA52CDAF2CE515CDDF9AC7 /* MenuBarUsageCardHeaderView.swift */; };
+		11743C4ABFBDEEDC503E6D23 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 880F54A8F624D78BDB90461F /* Defaults */; };
+		11A40985AC66DA0C28C16696 /* MenuBarProfilePickerItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944F8EC81F8288FCBF694592 /* MenuBarProfilePickerItem.swift */; };
+		18AB8E53BBB45ED74A05E929 /* ProfilesSidebarItemLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B17D6784EAAC8B9B5B0E11B7 /* ProfilesSidebarItemLabel.swift */; };
+		195B3E932EE7F67C2FC95E0C /* RelayDaemonClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6ACCDC3A85E0DE8BCAFC4A0 /* RelayDaemonClient.swift */; };
+		1A4FD89BCFB67FBD9466E2D7 /* AddProfileCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA475003813D532DEEC4DB8 /* AddProfileCatalogView.swift */; };
 		1B5DF85B7392A78242EA715B /* RelayAppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFE8A5822499589EEE63DD6E /* RelayAppModelTests.swift */; };
-		1C3889D97902C5C5CE244CEF /* UsageToolbarRefreshScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3BFC2DD792DC8956DF55A2 /* UsageToolbarRefreshScope.swift */; };
-		1CA39C4E6E228DD1F47A7E3B /* RelayDaemonClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6ACCDC3A85E0DE8BCAFC4A0 /* RelayDaemonClient.swift */; };
+		1E064553320D52CF06791B8F /* ProfilesPaneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7850CF42B59D158890C17B9F /* ProfilesPaneModel.swift */; };
+		1F3511D198C0AE6CA2CEFADF /* AddProfileLoginStatusCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44624E0783DC70AE9065AB9D /* AddProfileLoginStatusCard.swift */; };
+		1FE32018487454781ABB9246 /* ProfileStatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5ABE736F7A0B2AFB6AE147 /* ProfileStatusBadge.swift */; };
+		200FE79CA047550712844971 /* ProfileInfoBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5999E2FEBCD085C4DE80ABD /* ProfileInfoBadge.swift */; };
 		203FE1102C6331E5BE81F7A9 /* ProfilesNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9695540A5E1D317A8356BEBB /* ProfilesNavigationTests.swift */; };
 		205425231D16E7ED303F769A /* MenuBarPresenterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A54E4C84F02434B098C5C73B /* MenuBarPresenterTests.swift */; };
-		23B973C75F8154F1DF677C2D /* SectionSurfaceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83836FB8525C6155C79C4579 /* SectionSurfaceCard.swift */; };
-		261ED7E5EDF7317853AEB702 /* ProfileEditorMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C86478F5FF638B5E9F94673B /* ProfileEditorMode.swift */; };
-		276C6D650299FFAEC8EEE54A /* ProfilesPaneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7850CF42B59D158890C17B9F /* ProfilesPaneModel.swift */; };
-		2847108F5E8A0D46ED7914CB /* ProfileEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCDD6A7FF6B2E01D5C54D01E /* ProfileEditorSheet.swift */; };
-		28FF4DDC61D3B7EFF8EDCF9A /* MenuBarCurrentProfileCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 255BD3F5D1FCFD94AF16C54B /* MenuBarCurrentProfileCard.swift */; };
-		2971DB5F23248019E6C65BD0 /* RelayMacOSUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B664612DD69880A03901E611 /* RelayMacOSUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		2FDBDE11C153A1B634EAC285 /* NativeStatusSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B9BA6224BE38D38DC007E7 /* NativeStatusSymbol.swift */; };
-		330F949920E2EFE4CC1BD879 /* MultiRingProgressAccessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7182B9833C7B57B375E17EC /* MultiRingProgressAccessibility.swift */; };
-		33F2B963ADF3D26918E1A13D /* AgentSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A709374CBACD5AF2F935DB7E /* AgentSettingsDetailView.swift */; };
-		37C3ACAE9D3CF18A054A28C9 /* MenuBarUsageStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F6E3CC9B4C00957DC8B792D /* MenuBarUsageStyle.swift */; };
-		38B15E45B7BA475EE759CA9B /* MenuBarMetricRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA9B068AE48B8887E739692E /* MenuBarMetricRow.swift */; };
-		3C30262DA51FE627EC67B204 /* UsageCardNoteResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99DB535361A739BAF3ECE10C /* UsageCardNoteResolver.swift */; };
-		3D5492BB99CD80B0044C023E /* ProfileDetailHeroSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95C00664D6CB41D4A28E952 /* ProfileDetailHeroSection.swift */; };
-		40BEF6AE4031D718CBB0FA58 /* RelayAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 661BECF181F3A9E846E646B1 /* RelayAppModel.swift */; };
-		42AB03593E7706DADA84C286 /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = CE7E75657ABC887C614D1B55 /* LaunchAtLogin */; };
-		46B27DDE3F6A33A56848F50F /* ProfileHeroAgentIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43953E9AA83667DE47187E2 /* ProfileHeroAgentIcon.swift */; };
+		2128BB41CF5CF61BCC70D786 /* ProfileListRowStatusIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6527ADD23DC7EB1E50B45172 /* ProfileListRowStatusIndicator.swift */; };
+		21B9BE5F87B9C743D617826C /* GeneralSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F543A608E88C21114E336C8 /* GeneralSettingsDetailView.swift */; };
+		2450AE9271FA1571282D8976 /* AgentRelayUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6B8B10AAE753F0C93B6B3201 /* AgentRelayUI.framework */; };
+		262A94976DCEC6AEF68E9FE8 /* ProfilesContentColumn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6770450830E405BF3CFF9F76 /* ProfilesContentColumn.swift */; };
+		2D07A270B461FE1E65D08D0C /* SettingsPaneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9436FBBA69465E0E5AAE5C /* SettingsPaneModel.swift */; };
+		2D5F0C019A44A4FB5C253E51 /* AdaptiveRelativeDateText.swift in Sources */ = {isa = PBXBuildFile; fileRef = A687D08444D9C8E5C60E62D9 /* AdaptiveRelativeDateText.swift */; };
+		330CE296F4B654BB26C35D99 /* AddProfileCatalogProfileText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E0778592A9884E9BB14EFE7 /* AddProfileCatalogProfileText.swift */; };
+		34BB850FB159A513F0D8691F /* AgentRelayUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6B8B10AAE753F0C93B6B3201 /* AgentRelayUI.framework */; };
+		34EC0B7CE2E809EAAE76997C /* AddProfileSheetMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36875D1E808677357C2F0CF /* AddProfileSheetMode.swift */; };
+		36AA5D82D46A182B4EDE066B /* MenuBarUsageIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6AA27A1DECE0A0B6D45505 /* MenuBarUsageIcon.swift */; };
+		394930862515612A6D807544 /* SettingsPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB08E701E0705828BD29698E /* SettingsPaneView.swift */; };
+		3C1DE7687A5776A346C3D214 /* NativeMetaText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 425CEC9A958433D49ABE1865 /* NativeMetaText.swift */; };
+		3E3730EC383BEC6003C2AF96 /* UsageToolbarRefreshScopeResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98D49A42F82AEF8CF2A69E89 /* UsageToolbarRefreshScopeResolver.swift */; };
+		3F19C26DA1E598E3977D5698 /* ProfileListAgentLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E928D9A423B60DA499ECD294 /* ProfileListAgentLabel.swift */; };
+		3F907245AFCF1E54C5163674 /* ProfilesActionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE363462A754310EC0EE170C /* ProfilesActionHandler.swift */; };
+		404B5523A3E8B61E116C5BB4 /* MenuBarUsageProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E579937A49F755B78251E88A /* MenuBarUsageProgressBar.swift */; };
 		4737E6B36242FF889CDD62D4 /* RelayMacOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CC5C656E3E0A10F303A0E4 /* RelayMacOSApp.swift */; };
-		47C3E9CE7F91F56258B6D225 /* MenuBarUsageCardSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58727AA533856163A444174F /* MenuBarUsageCardSectionView.swift */; };
-		4CF4158C982173AAAE4B9374 /* ProfileAgentLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C8BA9907389CF0DDC458F25 /* ProfileAgentLabel.swift */; };
-		509072D0EA20A0FEF310BEE2 /* ProfilesPresentationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25909D31E6257E58875A859B /* ProfilesPresentationState.swift */; };
-		568CE2F6F0F8205C056C70B4 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 7B2EDAAAF50F340F006C05F9 /* Defaults */; };
-		5AEF71EB19CDA7FDA66809B3 /* UsageAlertSeverity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26F4DB3A0860942AB8F3E719 /* UsageAlertSeverity.swift */; };
-		5CAC9BCA458603A651378CED /* UsageMetricRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A625265C94BAEF3798497537 /* UsageMetricRow.swift */; };
-		5D8FDD30546652B5EE11597A /* UsageRefreshButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8E7E10A7FFE70EA08A33A3 /* UsageRefreshButton.swift */; };
+		485BA0275EDC28F5E47C5283 /* AgentSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A709374CBACD5AF2F935DB7E /* AgentSettingsDetailView.swift */; };
+		4A166925B82E441ED971E3A8 /* MenuBarCurrentProfileCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 255BD3F5D1FCFD94AF16C54B /* MenuBarCurrentProfileCard.swift */; };
+		5261030C03C31E831DCBCE21 /* MenuBarUsageCardHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DEA52CDAF2CE515CDDF9AC7 /* MenuBarUsageCardHeaderView.swift */; };
+		5A4944005183560889A01A06 /* UsageCardNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850871398B5267E66839E5B6 /* UsageCardNote.swift */; };
 		5EC5BD95C26CD71B4BE61C61 /* ProfileRowContextMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 250593F07253966F2670E681 /* ProfileRowContextMenuTests.swift */; };
-		5EE58564C0EC0F4F9E9246C6 /* ProviderIcon-codex.svg in Resources */ = {isa = PBXBuildFile; fileRef = 49302B57C388833013FD07A2 /* ProviderIcon-codex.svg */; };
-		5FB20764033370F7C47F73B3 /* MenuBarPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0816B034DB56D0E8E0C733A7 /* MenuBarPresenter.swift */; };
+		5FCB467175E5CD2236058A9D /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D8875ED9755C72D9C82530C /* APIModels.swift */; };
+		6007BCBD0CEA34B5F12515DB /* NativeBadgeSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = C24BA2B2A03E714D60559F0D /* NativeBadgeSurface.swift */; };
 		62CE8CECD90095E715E91437 /* AddProfileCatalogProfileCountTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 382083415C46A1DCFFB2EAD6 /* AddProfileCatalogProfileCountTextTests.swift */; };
+		642054085A2E6ED5258F16B0 /* MultiRingProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD36660633891A4BB609ABA /* MultiRingProgressView.swift */; };
 		6431F8733EAAD6F923F0CA7D /* ProfileListRowStatusIndicatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED39CFF8D2D3419ED43E4415 /* ProfileListRowStatusIndicatorTests.swift */; };
-		646FD8DD17DA6FA495C97967 /* AddProfileAgentRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBF6663DBBBF5FD320BE6671 /* AddProfileAgentRow.swift */; };
+		645FD18BBAE3B335629B91FD /* ProfilesSettingsPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2CF57A603746D1B525B57B /* ProfilesSettingsPaneView.swift */; };
+		65E7462E9C98D8BF0031E4C1 /* UsageCardNoteResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99DB535361A739BAF3ECE10C /* UsageCardNoteResolver.swift */; };
 		66534A21CDD17168317C92D2 /* UsageToolbarRefreshScopeResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D21F7EC05239F80B8989AA43 /* UsageToolbarRefreshScopeResolverTests.swift */; };
+		6752FA4B4DC9827AD4F30A95 /* RelayAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 661BECF181F3A9E846E646B1 /* RelayAppModel.swift */; };
 		677A0E8EAC594853C701B5A0 /* ModelDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8550165DAB00B1CDDBD2F7D /* ModelDecodingTests.swift */; };
+		6AEB473EB70F6132CF94D86B /* AddAccountResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96404AB3A52F15DEB89F439F /* AddAccountResult.swift */; };
 		6CD4639B323D7DC86D59919E /* RelayDaemonClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C322786D287CA13AFA4991 /* RelayDaemonClientTests.swift */; };
-		6D60183FE225CD7ADC4CDB9A /* UsageCardNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850871398B5267E66839E5B6 /* UsageCardNote.swift */; };
-		6E88374B5E323E3E5FC1571D /* ProfileInfoBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5999E2FEBCD085C4DE80ABD /* ProfileInfoBadge.swift */; };
-		7172929FB5D0B1CB9C1CBD2C /* AddProfileLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E833AF4A630EC922F5101C4F /* AddProfileLoginView.swift */; };
-		717D2BE36FDA8BE69B8D542B /* NativeStepperRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384B454601CB89354144C1D9 /* NativeStepperRow.swift */; };
-		721479D52E1895D0125579CD /* MenuBarUsageIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6AA27A1DECE0A0B6D45505 /* MenuBarUsageIcon.swift */; };
-		727F061ED3864928E6669927 /* ProfileListRowStatusIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6527ADD23DC7EB1E50B45172 /* ProfileListRowStatusIndicator.swift */; };
-		754E8B514860450375A9EBB8 /* ProfileStateBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 056E6E6DC5118AB3DB9B0776 /* ProfileStateBadge.swift */; };
-		767CBF64FAA57C06924EBC9A /* MenuBarMetricRowModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF8643A392F23B38115AE358 /* MenuBarMetricRowModel.swift */; };
-		7EA7D5140F26D6C6529C985D /* GeneralSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F543A608E88C21114E336C8 /* GeneralSettingsDetailView.swift */; };
-		83D97DDA39B827D7E35F5C03 /* NativePaneScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E245E065CC53E558C516BE /* NativePaneScrollView.swift */; };
-		87040D8E5CBCE55DAA46806F /* AddProfileSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E358ADFDC7AF1B3FA87AADE /* AddProfileSheet.swift */; };
-		89F777F8728E87FD24FF4754 /* ProfilesSidebarItemLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B17D6784EAAC8B9B5B0E11B7 /* ProfilesSidebarItemLabel.swift */; };
-		8A27B0648EF283C166500223 /* UsageToolbarRefreshScopeResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98D49A42F82AEF8CF2A69E89 /* UsageToolbarRefreshScopeResolver.swift */; };
+		6D1232783E122D152E205F74 /* ProfilesPresentationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25909D31E6257E58875A859B /* ProfilesPresentationState.swift */; };
+		6EED8CB37650EA6FDF54D8FB /* MultiRingProgressAccessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7182B9833C7B57B375E17EC /* MultiRingProgressAccessibility.swift */; };
+		76151BBE41611CF0ECEF88FE /* MenuBarMetricRowModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF8643A392F23B38115AE358 /* MenuBarMetricRowModel.swift */; };
+		7B469803F0DB98D6135CD1B8 /* UsageToolbarRefreshScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3BFC2DD792DC8956DF55A2 /* UsageToolbarRefreshScope.swift */; };
+		80B6CC42E466E603389647C9 /* ProfileEditorMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C86478F5FF638B5E9F94673B /* ProfileEditorMode.swift */; };
+		80D774D84CE48C2C51B759A6 /* ProfileAccountStatusDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9522291E7D66D3888CE7A932 /* ProfileAccountStatusDot.swift */; };
+		84AE04A0C2E8EB2563298ECD /* NativePreferencesTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A267B3EC2D6550A174B295 /* NativePreferencesTheme.swift */; };
+		85CE404511B56A49BDD8E091 /* MenuBarPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0816B034DB56D0E8E0C733A7 /* MenuBarPresenter.swift */; };
+		864761A6DF7595A7C75325AC /* ProfileListUsageLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92ADB034CF91CF936F2638E1 /* ProfileListUsageLine.swift */; };
+		881E52AA80DBA7FE6C931025 /* ResetRelativeDateText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B1A3741B0BA59B3FF28A285 /* ResetRelativeDateText.swift */; };
+		8B82225833CFCFAD470D195B /* RelayNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F868ECCA6CC1A1566DD3138 /* RelayNotificationService.swift */; };
 		8B82ACE798B7AA23F2AB6DD5 /* WindowActionRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 315823C94C4210AEFADCADE8 /* WindowActionRegistry.swift */; };
-		8CCB0D0840E6622F5CC223A2 /* ProfilesContentToolbarTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF60A55F725033BD2ADFA402 /* ProfilesContentToolbarTitle.swift */; };
-		906BFF7273D1843EB2484743 /* NativeBadgeSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = C24BA2B2A03E714D60559F0D /* NativeBadgeSurface.swift */; };
 		909BDD4022E96766094DD789 /* ProfilesViewSemanticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FF332BED55371BDD76A4111 /* ProfilesViewSemanticsTests.swift */; };
-		928EF6F96D7BBE6AFC17A3A4 /* ProfileStatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5ABE736F7A0B2AFB6AE147 /* ProfileStatusBadge.swift */; };
-		92CE3A0CAAC6F8248AE2054D /* AgentSettingsCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14C633108720375961F9D1A /* AgentSettingsCatalog.swift */; };
-		945EA58B195F0ADB2EAFDE30 /* ProfileListUsageLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92ADB034CF91CF936F2638E1 /* ProfileListUsageLine.swift */; };
-		94E0B93AE20E3911591C3473 /* SettingsPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB08E701E0705828BD29698E /* SettingsPaneView.swift */; };
-		9541A539200ECD9209DCE988 /* UsageBadgeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC5BD3733F06140AF232FA5 /* UsageBadgeViews.swift */; };
-		9897D9DC46EA4A7AC28011BC /* AddProfileLoginStatusCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44624E0783DC70AE9065AB9D /* AddProfileLoginStatusCard.swift */; };
+		9262C2D37775E8EC968EFA7C /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCE548E9E88E9FA8DB3D3CBE /* AppPreferences.swift */; };
+		92F090149EE39AB17329ED33 /* RelayClientError.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB940157341424B1AC855130 /* RelayClientError.swift */; };
 		99633A0AA5B4CA7F72548C25 /* MultiRingProgressViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A459E3A4C55021A5F50C0CB /* MultiRingProgressViewTests.swift */; };
-		9BA3658C0BD572993A076414 /* RelayStatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4109AACA6A8A4A399338640 /* RelayStatusItemController.swift */; };
-		9EE95C8B7F2B3981AAB0B66A /* ProfileRowContextMenuModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F1A0B79250CD1FBE3B6580 /* ProfileRowContextMenuModel.swift */; };
-		A2778B8AD5518506EB3ABE69 /* ProfileCurrentStatusSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2ECC07A10467AB7E4FAA304 /* ProfileCurrentStatusSection.swift */; };
-		A31BCC4E230500B52C8FF025 /* NativePreferencesTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A267B3EC2D6550A174B295 /* NativePreferencesTheme.swift */; };
-		A583B62C1359149573CDF7EA /* ProfilesSettingsPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2CF57A603746D1B525B57B /* ProfilesSettingsPaneView.swift */; };
-		A5DFDD8A59880C62A6B59C09 /* NativeDetailRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C153DC8E24F4721A6F695DD /* NativeDetailRow.swift */; };
-		AAB97E21374423B5099324D1 /* ProfilesContentColumn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6770450830E405BF3CFF9F76 /* ProfilesContentColumn.swift */; };
-		AE05A6BCE693042E78712247 /* SettingsPaneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9436FBBA69465E0E5AAE5C /* SettingsPaneModel.swift */; };
-		B1861869FC891AC5F7F1B6B5 /* RelayMacOSUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B664612DD69880A03901E611 /* RelayMacOSUI.framework */; };
-		B18FF5772CD01C3234E4E9BE /* MultiRingProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD36660633891A4BB609ABA /* MultiRingProgressView.swift */; };
-		B1C42199CF46ADF740E2A584 /* AddProfileSheetMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36875D1E808677357C2F0CF /* AddProfileSheetMode.swift */; };
-		B5AC3FDF4D3A8ADD7708D0AA /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D8875ED9755C72D9C82530C /* APIModels.swift */; };
+		9A9266C7AE16C8D5FB7C4D15 /* NativeStatusSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B9BA6224BE38D38DC007E7 /* NativeStatusSymbol.swift */; };
+		A09EF4B17A219A4340A13EF3 /* NativeToolbarSymbolButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2A586A533973BFB1218FB7A /* NativeToolbarSymbolButton.swift */; };
+		A5623D5BB393919AABD60C43 /* NativePaneScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E245E065CC53E558C516BE /* NativePaneScrollView.swift */; };
+		AD2E7B539842C5E0F3777121 /* ProfilesContentToolbarTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF60A55F725033BD2ADFA402 /* ProfilesContentToolbarTitle.swift */; };
+		AFDC434C5C6A5A112942517C /* AddProfileSheetFlowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB4C56531428C92B5810F89F /* AddProfileSheetFlowState.swift */; };
+		B15798456DCE8EB2D29308B1 /* NativeDetailRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C153DC8E24F4721A6F695DD /* NativeDetailRow.swift */; };
+		B60999BA81331E242E3874FD /* AddProfileLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E833AF4A630EC922F5101C4F /* AddProfileLoginView.swift */; };
+		BA71CC6C963C50F2FFEBD3B3 /* ProfileDetailHeroSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95C00664D6CB41D4A28E952 /* ProfileDetailHeroSection.swift */; };
 		BEE578A35032961A90BA6622 /* RelayAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C912FF0FA74E0F9320EAA85F /* RelayAppDelegate.swift */; };
 		C009F845A6AEE3B1C975F44B /* UsageProgressLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 485D9BD69CA27A18C6F493D8 /* UsageProgressLayoutTests.swift */; };
+		C0FB4832F42FEB5AB78673DD /* NativeStepperRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384B454601CB89354144C1D9 /* NativeStepperRow.swift */; };
+		C1513612461C1DC051B0BB53 /* UsageBadgeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC5BD3733F06140AF232FA5 /* UsageBadgeViews.swift */; };
+		C19782B1A52092408D14F4F7 /* ProfileStateBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 056E6E6DC5118AB3DB9B0776 /* ProfileStateBadge.swift */; };
 		C1F2552226D9FDA2DBB079BE /* MenuBarUsageIconTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFB9B1C5248867B64F67BA27 /* MenuBarUsageIconTests.swift */; };
-		C400EDC24DC4211E45B81791 /* AddProfileSheetFlowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB4C56531428C92B5810F89F /* AddProfileSheetFlowState.swift */; };
-		C49E5F32525F07466F33C13B /* MenuBarHighlightStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F510799CE221EDAEF31029D /* MenuBarHighlightStyle.swift */; };
-		C6189CF5B93501A1C2697588 /* ProfileListAgentLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E928D9A423B60DA499ECD294 /* ProfileListAgentLabel.swift */; };
-		C708EADC10E05938B7786C8F /* ProfilesSelectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 322FF31687FBF5B208FEAF77 /* ProfilesSelectionState.swift */; };
-		D009FAC2B26F6C54F8BE094F /* RelayMacOSUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B664612DD69880A03901E611 /* RelayMacOSUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		D9ADF9F4DB3077025195650C /* ProfilesSidebarColumn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B16C18D4D7B5C2C93D74D4D /* ProfilesSidebarColumn.swift */; };
-		E058B0397FAB7FCCD4C46C8A /* MenuBarUsageProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E579937A49F755B78251E88A /* MenuBarUsageProgressBar.swift */; };
+		C5DC78A14AC960776325741A /* MenuBarHighlightStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F510799CE221EDAEF31029D /* MenuBarHighlightStyle.swift */; };
+		C5FC5E6DF022002D849FDF90 /* SectionSurfaceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83836FB8525C6155C79C4579 /* SectionSurfaceCard.swift */; };
+		CA8AB0EC529E7F95A8AD5094 /* ProfileDetailUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2076AB303E815443D7BCDAD5 /* ProfileDetailUsageCard.swift */; };
+		CC55A41B49416B1E79FAAE7C /* MenuBarUsageCardSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58727AA533856163A444174F /* MenuBarUsageCardSectionView.swift */; };
+		CF5762B8B6A4CC6D2CAF623A /* ProfileEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCDD6A7FF6B2E01D5C54D01E /* ProfileEditorSheet.swift */; };
+		D0322C189B8D621BB5F20C4F /* ProviderIcon-codex.svg in Resources */ = {isa = PBXBuildFile; fileRef = 49302B57C388833013FD07A2 /* ProviderIcon-codex.svg */; };
+		D1D7C7D0258B3882230B609E /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 2FCF917CF52C57DB2DC9CCEF /* LaunchAtLogin */; };
+		D21AEECA875A29E801F38478 /* ProfilesSidebarColumn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B16C18D4D7B5C2C93D74D4D /* ProfilesSidebarColumn.swift */; };
+		D31ABD1466196B430F64FECD /* AgentSettingsCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14C633108720375961F9D1A /* AgentSettingsCatalog.swift */; };
+		D9F062F0D940B385CAA7170A /* UsageMetricRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A625265C94BAEF3798497537 /* UsageMetricRow.swift */; };
+		DBB9A49AF63DDD87582733E6 /* UsageRefreshButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8E7E10A7FFE70EA08A33A3 /* UsageRefreshButton.swift */; };
+		DBC1ACBC5E9AC9F88670A337 /* ProfilesSelectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 322FF31687FBF5B208FEAF77 /* ProfilesSelectionState.swift */; };
 		E1A4CB74203B8A5F0BA8DA5A /* AddProfileSheetFlowStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850A029D3504ACC72DA5B7F7 /* AddProfileSheetFlowStateTests.swift */; };
-		E4F0DB38276A92164E32E35A /* AddProfileCatalogProfileText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E0778592A9884E9BB14EFE7 /* AddProfileCatalogProfileText.swift */; };
-		E72217A5C05E390BA22E3E70 /* ProfilesDetailPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37C3AD5A054DAE549F1A04D /* ProfilesDetailPane.swift */; };
-		EE74DBA0136189C0C46D6F6C /* ResetRelativeDateText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B1A3741B0BA59B3FF28A285 /* ResetRelativeDateText.swift */; };
-		EED30FE92B03926110238CCA /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCE548E9E88E9FA8DB3D3CBE /* AppPreferences.swift */; };
-		EEDB08DA10E5D217DE1F73DB /* RelayNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F868ECCA6CC1A1566DD3138 /* RelayNotificationService.swift */; };
-		F1A5841D9F2D37A94B47E50D /* NativeMetaText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 425CEC9A958433D49ABE1865 /* NativeMetaText.swift */; };
-		F50852D2EFB5ECAD50B6E8C2 /* AddAccountResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96404AB3A52F15DEB89F439F /* AddAccountResult.swift */; };
+		E60902550F3EE7B641D9FE99 /* AgentRelayUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 6B8B10AAE753F0C93B6B3201 /* AgentRelayUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		E71A0F5226A6BE38AA8E3384 /* AddProfileSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E358ADFDC7AF1B3FA87AADE /* AddProfileSheet.swift */; };
+		EDE5378ED110FBB59890D155 /* ProfileListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 831A713FEE83CB811617063C /* ProfileListRow.swift */; };
+		F1A12AF8C6D4C2991BF9F7A8 /* ProfileCurrentStatusSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2ECC07A10467AB7E4FAA304 /* ProfileCurrentStatusSection.swift */; };
+		F38BB40E67966BAA8423EA74 /* MenuBarMetricRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA9B068AE48B8887E739692E /* MenuBarMetricRow.swift */; };
+		F47B2DEDFAC2B9BCD52BC0B3 /* ProfilesDetailPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37C3AD5A054DAE549F1A04D /* ProfilesDetailPane.swift */; };
+		F60F2EF24821FF31E0260200 /* AddProfileAgentRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBF6663DBBBF5FD320BE6671 /* AddProfileAgentRow.swift */; };
 		FB6D53D8FD196C2C10F4AC79 /* SettingsNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AB3977FA134C8C4FE36C749 /* SettingsNavigationTests.swift */; };
-		FC1573659A4A744A43828C79 /* AdaptiveRelativeDateText.swift in Sources */ = {isa = PBXBuildFile; fileRef = A687D08444D9C8E5C60E62D9 /* AdaptiveRelativeDateText.swift */; };
-		FCC360DFA6F77ABEB2DEA234 /* ProfilesActionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE363462A754310EC0EE170C /* ProfilesActionHandler.swift */; };
-		FEFF45C935374A0D300BB6C3 /* AddProfileCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA475003813D532DEEC4DB8 /* AddProfileCatalogView.swift */; };
+		FFD8B27F48CF18F912A0B01C /* UsageAlertSeverity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26F4DB3A0860942AB8F3E719 /* UsageAlertSeverity.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		983EEF91C7900AE8A64518C2 /* PBXContainerItemProxy */ = {
+		A9C63469468AE00C4CEC6267 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = B3791AC610DC5631ADAF898C /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 176D55458DF119B4A47DB3AF;
-			remoteInfo = RelayMacOSUI;
+			remoteGlobalIDString = D2B02ADE4920C84C969620A9;
+			remoteInfo = AgentRelayUI;
 		};
-		AB39F6AD172D56660A9645C5 /* PBXContainerItemProxy */ = {
+		FDC2CCE7F12EDFF059290EC0 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = B3791AC610DC5631ADAF898C /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 176D55458DF119B4A47DB3AF;
-			remoteInfo = RelayMacOSUI;
+			remoteGlobalIDString = D2B02ADE4920C84C969620A9;
+			remoteInfo = AgentRelayUI;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -140,7 +140,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				2971DB5F23248019E6C65BD0 /* RelayMacOSUI.framework in Embed Frameworks */,
+				0BE8146A500D5235B570AE00 /* AgentRelayUI.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -151,7 +151,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				D009FAC2B26F6C54F8BE094F /* RelayMacOSUI.framework in Embed Frameworks */,
+				E60902550F3EE7B641D9FE99 /* AgentRelayUI.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -197,6 +197,7 @@
 		6770450830E405BF3CFF9F76 /* ProfilesContentColumn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesContentColumn.swift; sourceTree = "<group>"; };
 		69C368E68E2FB421511D27EA /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		6AB3977FA134C8C4FE36C749 /* SettingsNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsNavigationTests.swift; sourceTree = "<group>"; };
+		6B8B10AAE753F0C93B6B3201 /* AgentRelayUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = AgentRelayUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		7850CF42B59D158890C17B9F /* ProfilesPaneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesPaneModel.swift; sourceTree = "<group>"; };
 		7C5ABE736F7A0B2AFB6AE147 /* ProfileStatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStatusBadge.swift; sourceTree = "<group>"; };
 		7F21A90CF12B38BA46952C31 /* RelayAppModelDaemonNotificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayAppModelDaemonNotificationTests.swift; sourceTree = "<group>"; };
@@ -226,7 +227,6 @@
 		B17D6784EAAC8B9B5B0E11B7 /* ProfilesSidebarItemLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesSidebarItemLabel.swift; sourceTree = "<group>"; };
 		B37C3AD5A054DAE549F1A04D /* ProfilesDetailPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesDetailPane.swift; sourceTree = "<group>"; };
 		B5999E2FEBCD085C4DE80ABD /* ProfileInfoBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileInfoBadge.swift; sourceTree = "<group>"; };
-		B664612DD69880A03901E611 /* RelayMacOSUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RelayMacOSUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6ACCDC3A85E0DE8BCAFC4A0 /* RelayDaemonClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayDaemonClient.swift; sourceTree = "<group>"; };
 		BCD36660633891A4BB609ABA /* MultiRingProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiRingProgressView.swift; sourceTree = "<group>"; };
 		C24BA2B2A03E714D60559F0D /* NativeBadgeSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBadgeSurface.swift; sourceTree = "<group>"; };
@@ -267,20 +267,20 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		99B3A35459C06F65B95D0432 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				568CE2F6F0F8205C056C70B4 /* Defaults in Frameworks */,
-				42AB03593E7706DADA84C286 /* LaunchAtLogin in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		A5AB9246DFB5C4BE27025432 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				09A7C2838AE1898AF58F1884 /* RelayMacOSUI.framework in Frameworks */,
+				34BB850FB159A513F0D8691F /* AgentRelayUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EE1E37BB36C2EEA8A1E18C1E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				11743C4ABFBDEEDC503E6D23 /* Defaults in Frameworks */,
+				D1D7C7D0258B3882230B609E /* LaunchAtLogin in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -288,7 +288,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B1861869FC891AC5F7F1B6B5 /* RelayMacOSUI.framework in Frameworks */,
+				2450AE9271FA1571282D8976 /* AgentRelayUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -382,8 +382,8 @@
 			isa = PBXGroup;
 			children = (
 				D18A249E3D6C21B3B0C79510 /* AgentRelay.app */,
+				6B8B10AAE753F0C93B6B3201 /* AgentRelayUI.framework */,
 				2F9841A4A0180D5FD8DB1379 /* RelayMacOSTests.xctest */,
-				B664612DD69880A03901E611 /* RelayMacOSUI.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -537,27 +537,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		176D55458DF119B4A47DB3AF /* RelayMacOSUI */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = C529920A18C797300E2F53F9 /* Build configuration list for PBXNativeTarget "RelayMacOSUI" */;
-			buildPhases = (
-				4DF51E90B732DD9F90D06C94 /* Sources */,
-				D6C822A0B73C05B0F4144BCA /* Resources */,
-				99B3A35459C06F65B95D0432 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = RelayMacOSUI;
-			packageProductDependencies = (
-				7B2EDAAAF50F340F006C05F9 /* Defaults */,
-				CE7E75657ABC887C614D1B55 /* LaunchAtLogin */,
-			);
-			productName = RelayMacOSUI;
-			productReference = B664612DD69880A03901E611 /* RelayMacOSUI.framework */;
-			productType = "com.apple.product-type.framework";
-		};
 		56685C5C4225F77079D4F97B /* RelayMacOSTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = DD9830031F16AF95416472B4 /* Build configuration list for PBXNativeTarget "RelayMacOSTests" */;
@@ -569,7 +548,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				470181F2CD0C63965B814F2D /* PBXTargetDependency */,
+				604424A7012D8DB2EB307A84 /* PBXTargetDependency */,
 			);
 			name = RelayMacOSTests;
 			packageProductDependencies = (
@@ -591,7 +570,7 @@
 			buildRules = (
 			);
 			dependencies = (
-				B89FCEC1B1F352F11A951A2E /* PBXTargetDependency */,
+				B43F5F1ECFAAEF0042097916 /* PBXTargetDependency */,
 			);
 			name = AgentRelay;
 			packageProductDependencies = (
@@ -599,6 +578,27 @@
 			productName = AgentRelay;
 			productReference = D18A249E3D6C21B3B0C79510 /* AgentRelay.app */;
 			productType = "com.apple.product-type.application";
+		};
+		D2B02ADE4920C84C969620A9 /* AgentRelayUI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D8CA235CF92BA351E1F430CD /* Build configuration list for PBXNativeTarget "AgentRelayUI" */;
+			buildPhases = (
+				337BB0001DD21AED3E2A6672 /* Sources */,
+				370A4229D3A050D5DA876247 /* Resources */,
+				EE1E37BB36C2EEA8A1E18C1E /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = AgentRelayUI;
+			packageProductDependencies = (
+				880F54A8F624D78BDB90461F /* Defaults */,
+				2FCF917CF52C57DB2DC9CCEF /* LaunchAtLogin */,
+			);
+			productName = AgentRelayUI;
+			productReference = 6B8B10AAE753F0C93B6B3201 /* AgentRelayUI.framework */;
+			productType = "com.apple.product-type.framework";
 		};
 /* End PBXNativeTarget section */
 
@@ -634,26 +634,26 @@
 			projectRoot = "";
 			targets = (
 				8863E2F49DE62333ED259B50 /* AgentRelay */,
+				D2B02ADE4920C84C969620A9 /* AgentRelayUI */,
 				56685C5C4225F77079D4F97B /* RelayMacOSTests */,
-				176D55458DF119B4A47DB3AF /* RelayMacOSUI */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		370A4229D3A050D5DA876247 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D0322C189B8D621BB5F20C4F /* ProviderIcon-codex.svg in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		81FCCF4703FCBE03B7D19D97 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				0E75C901BEE38BD232FF7257 /* AppIcon.icon in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D6C822A0B73C05B0F4144BCA /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				5EE58564C0EC0F4F9E9246C6 /* ProviderIcon-codex.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -712,89 +712,89 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		4DF51E90B732DD9F90D06C94 /* Sources */ = {
+		337BB0001DD21AED3E2A6672 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B5AC3FDF4D3A8ADD7708D0AA /* APIModels.swift in Sources */,
-				FC1573659A4A744A43828C79 /* AdaptiveRelativeDateText.swift in Sources */,
-				F50852D2EFB5ECAD50B6E8C2 /* AddAccountResult.swift in Sources */,
-				646FD8DD17DA6FA495C97967 /* AddProfileAgentRow.swift in Sources */,
-				E4F0DB38276A92164E32E35A /* AddProfileCatalogProfileText.swift in Sources */,
-				FEFF45C935374A0D300BB6C3 /* AddProfileCatalogView.swift in Sources */,
-				9897D9DC46EA4A7AC28011BC /* AddProfileLoginStatusCard.swift in Sources */,
-				7172929FB5D0B1CB9C1CBD2C /* AddProfileLoginView.swift in Sources */,
-				87040D8E5CBCE55DAA46806F /* AddProfileSheet.swift in Sources */,
-				C400EDC24DC4211E45B81791 /* AddProfileSheetFlowState.swift in Sources */,
-				B1C42199CF46ADF740E2A584 /* AddProfileSheetMode.swift in Sources */,
-				92CE3A0CAAC6F8248AE2054D /* AgentSettingsCatalog.swift in Sources */,
-				33F2B963ADF3D26918E1A13D /* AgentSettingsDetailView.swift in Sources */,
-				EED30FE92B03926110238CCA /* AppPreferences.swift in Sources */,
-				7EA7D5140F26D6C6529C985D /* GeneralSettingsDetailView.swift in Sources */,
-				28FF4DDC61D3B7EFF8EDCF9A /* MenuBarCurrentProfileCard.swift in Sources */,
-				C49E5F32525F07466F33C13B /* MenuBarHighlightStyle.swift in Sources */,
-				38B15E45B7BA475EE759CA9B /* MenuBarMetricRow.swift in Sources */,
-				767CBF64FAA57C06924EBC9A /* MenuBarMetricRowModel.swift in Sources */,
-				5FB20764033370F7C47F73B3 /* MenuBarPresenter.swift in Sources */,
-				012B475EFDC7338790C37269 /* MenuBarProfilePickerItem.swift in Sources */,
-				1B4FB2FE74618415AF93446C /* MenuBarUsageCardHeaderView.swift in Sources */,
-				47C3E9CE7F91F56258B6D225 /* MenuBarUsageCardSectionView.swift in Sources */,
-				721479D52E1895D0125579CD /* MenuBarUsageIcon.swift in Sources */,
-				E058B0397FAB7FCCD4C46C8A /* MenuBarUsageProgressBar.swift in Sources */,
-				37C3ACAE9D3CF18A054A28C9 /* MenuBarUsageStyle.swift in Sources */,
-				330F949920E2EFE4CC1BD879 /* MultiRingProgressAccessibility.swift in Sources */,
-				B18FF5772CD01C3234E4E9BE /* MultiRingProgressView.swift in Sources */,
-				906BFF7273D1843EB2484743 /* NativeBadgeSurface.swift in Sources */,
-				A5DFDD8A59880C62A6B59C09 /* NativeDetailRow.swift in Sources */,
-				F1A5841D9F2D37A94B47E50D /* NativeMetaText.swift in Sources */,
-				83D97DDA39B827D7E35F5C03 /* NativePaneScrollView.swift in Sources */,
-				A31BCC4E230500B52C8FF025 /* NativePreferencesTheme.swift in Sources */,
-				2FDBDE11C153A1B634EAC285 /* NativeStatusSymbol.swift in Sources */,
-				717D2BE36FDA8BE69B8D542B /* NativeStepperRow.swift in Sources */,
-				03F26F2E40694961FA74B8D9 /* NativeToolbarSymbolButton.swift in Sources */,
-				06A35A32A78C6118E66137D1 /* ProfileAccountStatusDot.swift in Sources */,
-				4CF4158C982173AAAE4B9374 /* ProfileAgentLabel.swift in Sources */,
-				A2778B8AD5518506EB3ABE69 /* ProfileCurrentStatusSection.swift in Sources */,
-				3D5492BB99CD80B0044C023E /* ProfileDetailHeroSection.swift in Sources */,
-				16FF98B4E5D684E5F7654C28 /* ProfileDetailUsageCard.swift in Sources */,
-				261ED7E5EDF7317853AEB702 /* ProfileEditorMode.swift in Sources */,
-				2847108F5E8A0D46ED7914CB /* ProfileEditorSheet.swift in Sources */,
-				46B27DDE3F6A33A56848F50F /* ProfileHeroAgentIcon.swift in Sources */,
-				6E88374B5E323E3E5FC1571D /* ProfileInfoBadge.swift in Sources */,
-				C6189CF5B93501A1C2697588 /* ProfileListAgentLabel.swift in Sources */,
-				17F207C8C83C3319E79781F8 /* ProfileListRow.swift in Sources */,
-				727F061ED3864928E6669927 /* ProfileListRowStatusIndicator.swift in Sources */,
-				945EA58B195F0ADB2EAFDE30 /* ProfileListUsageLine.swift in Sources */,
-				9EE95C8B7F2B3981AAB0B66A /* ProfileRowContextMenuModel.swift in Sources */,
-				754E8B514860450375A9EBB8 /* ProfileStateBadge.swift in Sources */,
-				928EF6F96D7BBE6AFC17A3A4 /* ProfileStatusBadge.swift in Sources */,
-				FCC360DFA6F77ABEB2DEA234 /* ProfilesActionHandler.swift in Sources */,
-				AAB97E21374423B5099324D1 /* ProfilesContentColumn.swift in Sources */,
-				8CCB0D0840E6622F5CC223A2 /* ProfilesContentToolbarTitle.swift in Sources */,
-				E72217A5C05E390BA22E3E70 /* ProfilesDetailPane.swift in Sources */,
-				276C6D650299FFAEC8EEE54A /* ProfilesPaneModel.swift in Sources */,
-				509072D0EA20A0FEF310BEE2 /* ProfilesPresentationState.swift in Sources */,
-				C708EADC10E05938B7786C8F /* ProfilesSelectionState.swift in Sources */,
-				A583B62C1359149573CDF7EA /* ProfilesSettingsPaneView.swift in Sources */,
-				D9ADF9F4DB3077025195650C /* ProfilesSidebarColumn.swift in Sources */,
-				89F777F8728E87FD24FF4754 /* ProfilesSidebarItemLabel.swift in Sources */,
-				40BEF6AE4031D718CBB0FA58 /* RelayAppModel.swift in Sources */,
-				0AD179FEEB36DBE54D59E18B /* RelayClientError.swift in Sources */,
-				1CA39C4E6E228DD1F47A7E3B /* RelayDaemonClient.swift in Sources */,
-				EEDB08DA10E5D217DE1F73DB /* RelayNotificationService.swift in Sources */,
-				9BA3658C0BD572993A076414 /* RelayStatusItemController.swift in Sources */,
-				EE74DBA0136189C0C46D6F6C /* ResetRelativeDateText.swift in Sources */,
-				23B973C75F8154F1DF677C2D /* SectionSurfaceCard.swift in Sources */,
-				AE05A6BCE693042E78712247 /* SettingsPaneModel.swift in Sources */,
-				94E0B93AE20E3911591C3473 /* SettingsPaneView.swift in Sources */,
-				5AEF71EB19CDA7FDA66809B3 /* UsageAlertSeverity.swift in Sources */,
-				9541A539200ECD9209DCE988 /* UsageBadgeViews.swift in Sources */,
-				6D60183FE225CD7ADC4CDB9A /* UsageCardNote.swift in Sources */,
-				3C30262DA51FE627EC67B204 /* UsageCardNoteResolver.swift in Sources */,
-				5CAC9BCA458603A651378CED /* UsageMetricRow.swift in Sources */,
-				5D8FDD30546652B5EE11597A /* UsageRefreshButton.swift in Sources */,
-				1C3889D97902C5C5CE244CEF /* UsageToolbarRefreshScope.swift in Sources */,
-				8A27B0648EF283C166500223 /* UsageToolbarRefreshScopeResolver.swift in Sources */,
+				5FCB467175E5CD2236058A9D /* APIModels.swift in Sources */,
+				2D5F0C019A44A4FB5C253E51 /* AdaptiveRelativeDateText.swift in Sources */,
+				6AEB473EB70F6132CF94D86B /* AddAccountResult.swift in Sources */,
+				F60F2EF24821FF31E0260200 /* AddProfileAgentRow.swift in Sources */,
+				330CE296F4B654BB26C35D99 /* AddProfileCatalogProfileText.swift in Sources */,
+				1A4FD89BCFB67FBD9466E2D7 /* AddProfileCatalogView.swift in Sources */,
+				1F3511D198C0AE6CA2CEFADF /* AddProfileLoginStatusCard.swift in Sources */,
+				B60999BA81331E242E3874FD /* AddProfileLoginView.swift in Sources */,
+				E71A0F5226A6BE38AA8E3384 /* AddProfileSheet.swift in Sources */,
+				AFDC434C5C6A5A112942517C /* AddProfileSheetFlowState.swift in Sources */,
+				34EC0B7CE2E809EAAE76997C /* AddProfileSheetMode.swift in Sources */,
+				D31ABD1466196B430F64FECD /* AgentSettingsCatalog.swift in Sources */,
+				485BA0275EDC28F5E47C5283 /* AgentSettingsDetailView.swift in Sources */,
+				9262C2D37775E8EC968EFA7C /* AppPreferences.swift in Sources */,
+				21B9BE5F87B9C743D617826C /* GeneralSettingsDetailView.swift in Sources */,
+				4A166925B82E441ED971E3A8 /* MenuBarCurrentProfileCard.swift in Sources */,
+				C5DC78A14AC960776325741A /* MenuBarHighlightStyle.swift in Sources */,
+				F38BB40E67966BAA8423EA74 /* MenuBarMetricRow.swift in Sources */,
+				76151BBE41611CF0ECEF88FE /* MenuBarMetricRowModel.swift in Sources */,
+				85CE404511B56A49BDD8E091 /* MenuBarPresenter.swift in Sources */,
+				11A40985AC66DA0C28C16696 /* MenuBarProfilePickerItem.swift in Sources */,
+				5261030C03C31E831DCBCE21 /* MenuBarUsageCardHeaderView.swift in Sources */,
+				CC55A41B49416B1E79FAAE7C /* MenuBarUsageCardSectionView.swift in Sources */,
+				36AA5D82D46A182B4EDE066B /* MenuBarUsageIcon.swift in Sources */,
+				404B5523A3E8B61E116C5BB4 /* MenuBarUsageProgressBar.swift in Sources */,
+				0DDF18BDAFB75DFFA468CE4C /* MenuBarUsageStyle.swift in Sources */,
+				6EED8CB37650EA6FDF54D8FB /* MultiRingProgressAccessibility.swift in Sources */,
+				642054085A2E6ED5258F16B0 /* MultiRingProgressView.swift in Sources */,
+				6007BCBD0CEA34B5F12515DB /* NativeBadgeSurface.swift in Sources */,
+				B15798456DCE8EB2D29308B1 /* NativeDetailRow.swift in Sources */,
+				3C1DE7687A5776A346C3D214 /* NativeMetaText.swift in Sources */,
+				A5623D5BB393919AABD60C43 /* NativePaneScrollView.swift in Sources */,
+				84AE04A0C2E8EB2563298ECD /* NativePreferencesTheme.swift in Sources */,
+				9A9266C7AE16C8D5FB7C4D15 /* NativeStatusSymbol.swift in Sources */,
+				C0FB4832F42FEB5AB78673DD /* NativeStepperRow.swift in Sources */,
+				A09EF4B17A219A4340A13EF3 /* NativeToolbarSymbolButton.swift in Sources */,
+				80D774D84CE48C2C51B759A6 /* ProfileAccountStatusDot.swift in Sources */,
+				0B62300DC3B865990AC46A2D /* ProfileAgentLabel.swift in Sources */,
+				F1A12AF8C6D4C2991BF9F7A8 /* ProfileCurrentStatusSection.swift in Sources */,
+				BA71CC6C963C50F2FFEBD3B3 /* ProfileDetailHeroSection.swift in Sources */,
+				CA8AB0EC529E7F95A8AD5094 /* ProfileDetailUsageCard.swift in Sources */,
+				80B6CC42E466E603389647C9 /* ProfileEditorMode.swift in Sources */,
+				CF5762B8B6A4CC6D2CAF623A /* ProfileEditorSheet.swift in Sources */,
+				0ECBBDC00C250B4F48C8E51C /* ProfileHeroAgentIcon.swift in Sources */,
+				200FE79CA047550712844971 /* ProfileInfoBadge.swift in Sources */,
+				3F19C26DA1E598E3977D5698 /* ProfileListAgentLabel.swift in Sources */,
+				EDE5378ED110FBB59890D155 /* ProfileListRow.swift in Sources */,
+				2128BB41CF5CF61BCC70D786 /* ProfileListRowStatusIndicator.swift in Sources */,
+				864761A6DF7595A7C75325AC /* ProfileListUsageLine.swift in Sources */,
+				06B53F45944EA5F14C4D991D /* ProfileRowContextMenuModel.swift in Sources */,
+				C19782B1A52092408D14F4F7 /* ProfileStateBadge.swift in Sources */,
+				1FE32018487454781ABB9246 /* ProfileStatusBadge.swift in Sources */,
+				3F907245AFCF1E54C5163674 /* ProfilesActionHandler.swift in Sources */,
+				262A94976DCEC6AEF68E9FE8 /* ProfilesContentColumn.swift in Sources */,
+				AD2E7B539842C5E0F3777121 /* ProfilesContentToolbarTitle.swift in Sources */,
+				F47B2DEDFAC2B9BCD52BC0B3 /* ProfilesDetailPane.swift in Sources */,
+				1E064553320D52CF06791B8F /* ProfilesPaneModel.swift in Sources */,
+				6D1232783E122D152E205F74 /* ProfilesPresentationState.swift in Sources */,
+				DBC1ACBC5E9AC9F88670A337 /* ProfilesSelectionState.swift in Sources */,
+				645FD18BBAE3B335629B91FD /* ProfilesSettingsPaneView.swift in Sources */,
+				D21AEECA875A29E801F38478 /* ProfilesSidebarColumn.swift in Sources */,
+				18AB8E53BBB45ED74A05E929 /* ProfilesSidebarItemLabel.swift in Sources */,
+				6752FA4B4DC9827AD4F30A95 /* RelayAppModel.swift in Sources */,
+				92F090149EE39AB17329ED33 /* RelayClientError.swift in Sources */,
+				195B3E932EE7F67C2FC95E0C /* RelayDaemonClient.swift in Sources */,
+				8B82225833CFCFAD470D195B /* RelayNotificationService.swift in Sources */,
+				085C9137CF3A266012875F0A /* RelayStatusItemController.swift in Sources */,
+				881E52AA80DBA7FE6C931025 /* ResetRelativeDateText.swift in Sources */,
+				C5FC5E6DF022002D849FDF90 /* SectionSurfaceCard.swift in Sources */,
+				2D07A270B461FE1E65D08D0C /* SettingsPaneModel.swift in Sources */,
+				394930862515612A6D807544 /* SettingsPaneView.swift in Sources */,
+				FFD8B27F48CF18F912A0B01C /* UsageAlertSeverity.swift in Sources */,
+				C1513612461C1DC051B0BB53 /* UsageBadgeViews.swift in Sources */,
+				5A4944005183560889A01A06 /* UsageCardNote.swift in Sources */,
+				65E7462E9C98D8BF0031E4C1 /* UsageCardNoteResolver.swift in Sources */,
+				D9F062F0D940B385CAA7170A /* UsageMetricRow.swift in Sources */,
+				DBB9A49AF63DDD87582733E6 /* UsageRefreshButton.swift in Sources */,
+				7B469803F0DB98D6135CD1B8 /* UsageToolbarRefreshScope.swift in Sources */,
+				3E3730EC383BEC6003C2AF96 /* UsageToolbarRefreshScopeResolver.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -811,20 +811,20 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		470181F2CD0C63965B814F2D /* PBXTargetDependency */ = {
+		604424A7012D8DB2EB307A84 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 176D55458DF119B4A47DB3AF /* RelayMacOSUI */;
-			targetProxy = 983EEF91C7900AE8A64518C2 /* PBXContainerItemProxy */;
+			target = D2B02ADE4920C84C969620A9 /* AgentRelayUI */;
+			targetProxy = FDC2CCE7F12EDFF059290EC0 /* PBXContainerItemProxy */;
 		};
-		B89FCEC1B1F352F11A951A2E /* PBXTargetDependency */ = {
+		B43F5F1ECFAAEF0042097916 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 176D55458DF119B4A47DB3AF /* RelayMacOSUI */;
-			targetProxy = AB39F6AD172D56660A9645C5 /* PBXContainerItemProxy */;
+			target = D2B02ADE4920C84C969620A9 /* AgentRelayUI */;
+			targetProxy = A9C63469468AE00C4CEC6267 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		05266D968AA14E48DA037DA0 /* Release */ = {
+		301145FEB0B6C366D15FEA6C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
@@ -841,13 +841,13 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.agentrelay.macos.ui;
-				PRODUCT_MODULE_NAME = RelayMacOSUI;
+				PRODUCT_MODULE_NAME = AgentRelayUI;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
-			name = Release;
+			name = Debug;
 		};
 		37142B5A14550DFF9751B10A /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -888,7 +888,7 @@
 			};
 			name = Debug;
 		};
-		45379604EC049A96DC36AA2F /* Debug */ = {
+		7331B754B6501D0BDD7C8189 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
@@ -905,13 +905,13 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = dev.agentrelay.macos.ui;
-				PRODUCT_MODULE_NAME = RelayMacOSUI;
+				PRODUCT_MODULE_NAME = AgentRelayUI;
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				VERSIONING_SYSTEM = "apple-generic";
 			};
-			name = Debug;
+			name = Release;
 		};
 		7CCF8500DA427A60908D7545 /* Release */ = {
 			isa = XCBuildConfiguration;
@@ -1096,11 +1096,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		C529920A18C797300E2F53F9 /* Build configuration list for PBXNativeTarget "RelayMacOSUI" */ = {
+		D8CA235CF92BA351E1F430CD /* Build configuration list for PBXNativeTarget "AgentRelayUI" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				45379604EC049A96DC36AA2F /* Debug */,
-				05266D968AA14E48DA037DA0 /* Release */,
+				301145FEB0B6C366D15FEA6C /* Debug */,
+				7331B754B6501D0BDD7C8189 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -1136,15 +1136,15 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		7B2EDAAAF50F340F006C05F9 /* Defaults */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 11AFA48E455E3778C2228AF0 /* XCRemoteSwiftPackageReference "Defaults" */;
-			productName = Defaults;
-		};
-		CE7E75657ABC887C614D1B55 /* LaunchAtLogin */ = {
+		2FCF917CF52C57DB2DC9CCEF /* LaunchAtLogin */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 496A66BCE125CBD3B22E4F35 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */;
 			productName = LaunchAtLogin;
+		};
+		880F54A8F624D78BDB90461F /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 11AFA48E455E3778C2228AF0 /* XCRemoteSwiftPackageReference "Defaults" */;
+			productName = Defaults;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
