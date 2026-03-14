@@ -58,7 +58,7 @@ apps/relay-macos/dist/AgentRelay.app
 Embedded CLI path:
 
 ```bash
-AgentRelay.app/Contents/Resources/bin/agrelay
+AgentRelay.app/Contents/Helpers/agrelay
 ```
 
 ## Run
@@ -94,6 +94,7 @@ RelayApp/
 - `swift run` is useful for source-level iteration, but the `.app` bundle is the supported distribution shape for reliable menu bar behavior and login-item integration
 - Xcode project files are generated from `apps/relay-macos/project.yml` via XcodeGen; regenerate after changing target structure or package references
 - the generated Xcode project mirrors the SwiftPM layout with a separate `RelayMacOSUI` module, so source-level imports and tests stay aligned across `swift test` and Xcode
-- the app resolves `agrelay` in this order: `AGRELAY_CLI_PATH`, bundled `Contents/Resources/bin/agrelay`, then `PATH`
+- the app resolves `agrelay` in this order: `AGRELAY_CLI_PATH`, bundled `Contents/Helpers/agrelay`, legacy bundled `Contents/Resources/bin/agrelay`, then `PATH`
+- Xcode builds run `apps/relay-macos/scripts/package-agrelay.sh` as a post-build phase so clicking Build in Xcode also compiles and embeds the Rust CLI into the app bundle
 - `SMAppService` launch-at-login support requires running from a proper app bundle; the toggle may report unsupported when launched directly from `swift run`
 - the app expects the AgentRelay daemon RPC contract to remain stable across compatible releases
