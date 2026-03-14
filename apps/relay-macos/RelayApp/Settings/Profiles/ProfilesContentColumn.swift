@@ -12,8 +12,14 @@ struct ProfilesContentColumn: View {
     let usageSnapshot: (String) -> UsageSnapshot?
     let isFetchingUsage: (String) -> Bool
     let usageRefreshError: (String) -> String?
+    let isMutatingProfiles: Bool
+    let isSwitching: Bool
     let onRefreshUsage: () -> Void
     let onAddProfile: () -> Void
+    let onMakeCurrentProfile: (Profile) -> Void
+    let onEditProfile: (Profile) -> Void
+    let onToggleProfileEnabled: (Profile) -> Void
+    let onDeleteProfile: (Profile) -> Void
 
     var body: some View {
         Group {
@@ -32,7 +38,16 @@ struct ProfilesContentColumn: View {
                             usage: usageSnapshot(profile.id),
                             isActive: activeProfileId == profile.id,
                             isFetchingUsage: isFetchingUsage(profile.id),
-                            usageRefreshError: usageRefreshError(profile.id))
+                            usageRefreshError: usageRefreshError(profile.id),
+                            contextMenuModel: ProfileRowContextMenuModel(
+                                profile: profile,
+                                isActive: activeProfileId == profile.id,
+                                isMutatingProfiles: isMutatingProfiles,
+                                isSwitching: isSwitching),
+                            onMakeCurrent: { onMakeCurrentProfile(profile) },
+                            onEdit: { onEditProfile(profile) },
+                            onToggleEnabled: { onToggleProfileEnabled(profile) },
+                            onDelete: { onDeleteProfile(profile) })
                             .tag(Optional(profile.id))
                     }
                 }

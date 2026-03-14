@@ -6,6 +6,11 @@ struct ProfileListRow: View {
     let isActive: Bool
     let isFetchingUsage: Bool
     let usageRefreshError: String?
+    var contextMenuModel: ProfileRowContextMenuModel?
+    var onMakeCurrent: (() -> Void)?
+    var onEdit: (() -> Void)?
+    var onToggleEnabled: (() -> Void)?
+    var onDelete: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -79,6 +84,23 @@ struct ProfileListRow: View {
                     .padding(.trailing, 4)
             }
         }
+        .contextMenu {
+            if let contextMenuModel {
+                Button("Set as Current", action: run(onMakeCurrent))
+                    .disabled(!contextMenuModel.canMakeCurrent)
+
+                Button("Edit", action: run(onEdit))
+                    .disabled(!contextMenuModel.canEdit)
+
+                Button(contextMenuModel.toggleEnabledTitle, action: run(onToggleEnabled))
+                    .disabled(!contextMenuModel.canToggleEnabled)
+
+                Divider()
+
+                Button("Delete", role: .destructive, action: run(onDelete))
+                    .disabled(!contextMenuModel.canDelete)
+            }
+        }
     }
 
     var statusIndicator: ProfileListRowStatusIndicator.Kind? {
@@ -95,5 +117,9 @@ struct ProfileListRow: View {
             prefix: "Updated ",
             date: usage.lastRefreshedAt,
             style: .named)
+    }
+
+    private func run(_ action: (() -> Void)?) -> () -> Void {
+        { action?() }
     }
 }
