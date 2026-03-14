@@ -16,7 +16,7 @@ struct ProfileAgentLabel: View {
         }
         .overlay(alignment: .topTrailing) {
             if showsActiveBadge {
-                ProfileStateBadge(title: "Active", kind: .info)
+                ProfileStateBadge(title: "Current", kind: .info)
                     .offset(x: 52, y: -1)
                     .allowsHitTesting(false)
             }

@@ -62,13 +62,13 @@ struct ProfilesDetailPane: View {
 
             ToolbarItemGroup(placement: .confirmationAction) {
                 NativeToolbarSymbolButton(
-                    "Edit Profile",
+                    "Edit",
                     systemImage: "square.and.pencil",
                     isEnabled: selectedProfile != nil && !isMutatingProfiles,
                     action: onEditProfile)
 
                 NativeToolbarSymbolButton(
-                    "Delete Profile",
+                    "Delete",
                     systemImage: "trash",
                     role: .destructive,
                     isEnabled: selectedProfile != nil && !isMutatingProfiles,
@@ -78,7 +78,7 @@ struct ProfilesDetailPane: View {
     }
 
     nonisolated static func activateProfileLabel(isActive: Bool) -> String {
-        isActive ? "Profile is active" : "Activate Profile"
+        "Set as current"
     }
 
     nonisolated static func activateProfileSymbol(isActive: Bool) -> String {

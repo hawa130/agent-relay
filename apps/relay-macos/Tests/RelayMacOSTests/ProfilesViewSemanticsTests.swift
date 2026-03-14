@@ -7,6 +7,7 @@ final class ProfilesViewSemanticsTests: XCTestCase {
             UsageRefreshButton.Variant.toolbar.iconFrameWidth,
             28,
             accuracy: 0.001)
+        XCTAssertFalse(UsageRefreshButton.Variant.toolbar.usesIconOnlyLabel)
     }
 
     func testUsageRefreshButtonCardVariantUsesCompactIconWidth() {
@@ -14,16 +15,17 @@ final class ProfilesViewSemanticsTests: XCTestCase {
             UsageRefreshButton.Variant.card.iconFrameWidth,
             14,
             accuracy: 0.001)
+        XCTAssertTrue(UsageRefreshButton.Variant.card.usesIconOnlyLabel)
     }
 
     @MainActor
     func testActivateProfileActionLabelReflectsCurrentState() {
         XCTAssertEqual(
             ProfilesDetailPane.activateProfileLabel(isActive: false),
-            "Activate Profile")
+            "Set as current")
         XCTAssertEqual(
             ProfilesDetailPane.activateProfileLabel(isActive: true),
-            "Profile is active")
+            "Set as current")
     }
 
     @MainActor
