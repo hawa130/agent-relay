@@ -13,6 +13,7 @@
 		06A35A32A78C6118E66137D1 /* ProfileAccountStatusDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9522291E7D66D3888CE7A932 /* ProfileAccountStatusDot.swift */; };
 		09A7C2838AE1898AF58F1884 /* RelayMacOSUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B664612DD69880A03901E611 /* RelayMacOSUI.framework */; };
 		0AD179FEEB36DBE54D59E18B /* RelayClientError.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB940157341424B1AC855130 /* RelayClientError.swift */; };
+		0E75C901BEE38BD232FF7257 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 69C368E68E2FB421511D27EA /* AppIcon.icon */; };
 		1085C10EACF72C8F550FF85F /* RelayAppModelDaemonNotificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F21A90CF12B38BA46952C31 /* RelayAppModelDaemonNotificationTests.swift */; };
 		16FF98B4E5D684E5F7654C28 /* ProfileDetailUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2076AB303E815443D7BCDAD5 /* ProfileDetailUsageCard.swift */; };
 		17F207C8C83C3319E79781F8 /* ProfileListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 831A713FEE83CB811617063C /* ProfileListRow.swift */; };
@@ -28,7 +29,6 @@
 		2847108F5E8A0D46ED7914CB /* ProfileEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCDD6A7FF6B2E01D5C54D01E /* ProfileEditorSheet.swift */; };
 		28FF4DDC61D3B7EFF8EDCF9A /* MenuBarCurrentProfileCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 255BD3F5D1FCFD94AF16C54B /* MenuBarCurrentProfileCard.swift */; };
 		2971DB5F23248019E6C65BD0 /* RelayMacOSUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B664612DD69880A03901E611 /* RelayMacOSUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		2A262D769DBFEA825FAFD7BA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BF85C47B856546F1A24EFD6E /* Assets.xcassets */; };
 		2FDBDE11C153A1B634EAC285 /* NativeStatusSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B9BA6224BE38D38DC007E7 /* NativeStatusSymbol.swift */; };
 		330F949920E2EFE4CC1BD879 /* MultiRingProgressAccessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7182B9833C7B57B375E17EC /* MultiRingProgressAccessibility.swift */; };
 		33F2B963ADF3D26918E1A13D /* AgentSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A709374CBACD5AF2F935DB7E /* AgentSettingsDetailView.swift */; };
@@ -195,6 +195,7 @@
 		6527ADD23DC7EB1E50B45172 /* ProfileListRowStatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileListRowStatusIndicator.swift; sourceTree = "<group>"; };
 		661BECF181F3A9E846E646B1 /* RelayAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayAppModel.swift; sourceTree = "<group>"; };
 		6770450830E405BF3CFF9F76 /* ProfilesContentColumn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesContentColumn.swift; sourceTree = "<group>"; };
+		69C368E68E2FB421511D27EA /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		6AB3977FA134C8C4FE36C749 /* SettingsNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsNavigationTests.swift; sourceTree = "<group>"; };
 		7850CF42B59D158890C17B9F /* ProfilesPaneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesPaneModel.swift; sourceTree = "<group>"; };
 		7C5ABE736F7A0B2AFB6AE147 /* ProfileStatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStatusBadge.swift; sourceTree = "<group>"; };
@@ -228,7 +229,6 @@
 		B664612DD69880A03901E611 /* RelayMacOSUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RelayMacOSUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6ACCDC3A85E0DE8BCAFC4A0 /* RelayDaemonClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayDaemonClient.swift; sourceTree = "<group>"; };
 		BCD36660633891A4BB609ABA /* MultiRingProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiRingProgressView.swift; sourceTree = "<group>"; };
-		BF85C47B856546F1A24EFD6E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C24BA2B2A03E714D60559F0D /* NativeBadgeSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBadgeSurface.swift; sourceTree = "<group>"; };
 		C2A586A533973BFB1218FB7A /* NativeToolbarSymbolButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeToolbarSymbolButton.swift; sourceTree = "<group>"; };
 		C36875D1E808677357C2F0CF /* AddProfileSheetMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileSheetMode.swift; sourceTree = "<group>"; };
@@ -346,6 +346,7 @@
 			isa = PBXGroup;
 			children = (
 				DA2F739F962FED145BCD1799 /* Resources */,
+				69C368E68E2FB421511D27EA /* AppIcon.icon */,
 				C912FF0FA74E0F9320EAA85F /* RelayAppDelegate.swift */,
 				A1CC5C656E3E0A10F303A0E4 /* RelayMacOSApp.swift */,
 				315823C94C4210AEFADCADE8 /* WindowActionRegistry.swift */,
@@ -470,7 +471,6 @@
 		BC381DC5895E9F6161AA1859 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
-				BF85C47B856546F1A24EFD6E /* Assets.xcassets */,
 				49302B57C388833013FD07A2 /* ProviderIcon-codex.svg */,
 			);
 			path = Resources;
@@ -583,6 +583,7 @@
 			buildConfigurationList = AB7FA51DAC60D7E980B72978 /* Build configuration list for PBXNativeTarget "AgentRelay" */;
 			buildPhases = (
 				A0302F4580831D661B86C592 /* Sources */,
+				81FCCF4703FCBE03B7D19D97 /* Resources */,
 				A5AB9246DFB5C4BE27025432 /* Frameworks */,
 				5437190B0C827B96639C71E6 /* Embed Frameworks */,
 				712FCDC792DB2814FD565209 /* Package agrelay CLI */,
@@ -640,11 +641,18 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		81FCCF4703FCBE03B7D19D97 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				0E75C901BEE38BD232FF7257 /* AppIcon.icon in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D6C822A0B73C05B0F4144BCA /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2A262D769DBFEA825FAFD7BA /* Assets.xcassets in Resources */,
 				5EE58564C0EC0F4F9E9246C6 /* ProviderIcon-codex.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -674,7 +682,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
-			shellScript = "#!/usr/bin/env bash\n\nset -euo pipefail\n\nROOT_DIR=\"${SRCROOT:-$(cd \"$(dirname \"$0\")/..\" && pwd)}\"\nWORKSPACE_ROOT=\"$(cd \"$ROOT_DIR/../..\" && pwd)\"\nAPP_CONTENTS_PATH=\"${1:-${TARGET_BUILD_DIR:-}${CONTENTS_FOLDER_PATH:+/$CONTENTS_FOLDER_PATH}}\"\nBUILD_CONFIGURATION=\"${2:-${CONFIGURATION:-Release}}\"\nCACHE_DIR=\"$ROOT_DIR/.swift-cache\"\nORIGINAL_HOME=\"${HOME:-}\"\n\nif [[ -z \"$APP_CONTENTS_PATH\" ]]; then\n  printf 'usage: %s <app-bundle-path> [configuration]\\n' \"$0\" >&2\n  exit 1\nfi\n\ncase \"$BUILD_CONFIGURATION\" in\n  [Dd]ebug)\n    RUST_PROFILE=\"debug\"\n    CARGO_ARGS=()\n    ;;\n  *)\n    RUST_PROFILE=\"release\"\n    CARGO_ARGS=(--release)\n    ;;\nesac\n\nmkdir -p \"$CACHE_DIR/clang\" \"$CACHE_DIR/swiftpm\" \"$CACHE_DIR/home\"\n\nif [[ -n \"$ORIGINAL_HOME\" ]]; then\n  export RUSTUP_HOME=\"${RUSTUP_HOME:-$ORIGINAL_HOME/.rustup}\"\n  export CARGO_HOME=\"${CARGO_HOME:-$ORIGINAL_HOME/.cargo}\"\nfi\n\nexport HOME=\"$CACHE_DIR/home\"\nexport SWIFTPM_MODULECACHE_OVERRIDE=\"$CACHE_DIR/swiftpm\"\nexport CLANG_MODULE_CACHE_PATH=\"$CACHE_DIR/clang\"\n\nif [[ -n \"${CARGO_HOME:-}\" ]]; then\n  export PATH=\"$CARGO_HOME/bin:$PATH\"\nelif [[ -n \"$ORIGINAL_HOME\" && -d \"$ORIGINAL_HOME/.cargo/bin\" ]]; then\n  export PATH=\"$ORIGINAL_HOME/.cargo/bin:$PATH\"\nfi\n\nif ! command -v cargo >/dev/null 2>&1; then\n  echo \"cargo executable not found; install Rust or configure CARGO_HOME before building AgentRelay\" >&2\n  exit 1\nfi\n\ncd \"$WORKSPACE_ROOT\"\ncargo build -p agrelay-cli --bin agrelay \"${CARGO_ARGS[@]}\"\n\nRELAY_BINARY_PATH=\"$WORKSPACE_ROOT/target/$RUST_PROFILE/agrelay\"\nDESTINATION_DIR=\"$APP_CONTENTS_PATH/Helpers\"\nDESTINATION_PATH=\"$DESTINATION_DIR/agrelay\"\n\nif [[ ! -x \"$RELAY_BINARY_PATH\" ]]; then\n  echo \"expected agrelay binary not found at $RELAY_BINARY_PATH\" >&2\n  exit 1\nfi\n\nmkdir -p \"$DESTINATION_DIR\"\ncp \"$RELAY_BINARY_PATH\" \"$DESTINATION_PATH\"\nchmod +x \"$DESTINATION_PATH\"\n\nSIGN_IDENTITY=\"-\"\nif [[ \"${CODE_SIGNING_ALLOWED:-NO}\" == \"YES\" && -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]]; then\n  SIGN_IDENTITY=\"$EXPANDED_CODE_SIGN_IDENTITY\"\nfi\n\ncodesign --force --sign \"$SIGN_IDENTITY\" --timestamp=none \"$DESTINATION_PATH\"\n";
+			shellScript = "#!/usr/bin/env bash\n\nset -euo pipefail\n\nROOT_DIR=\"${SRCROOT:-$(cd \"$(dirname \"$0\")/..\" && pwd)}\"\nWORKSPACE_ROOT=\"$(cd \"$ROOT_DIR/../..\" && pwd)\"\nAPP_CONTENTS_PATH=\"${1:-${TARGET_BUILD_DIR:-}${CONTENTS_FOLDER_PATH:+/$CONTENTS_FOLDER_PATH}}\"\nBUILD_CONFIGURATION=\"${2:-${CONFIGURATION:-Release}}\"\nCACHE_DIR=\"$ROOT_DIR/.swift-cache\"\nORIGINAL_HOME=\"${HOME:-}\"\n\nif [[ -z \"$APP_CONTENTS_PATH\" ]]; then\n  printf 'usage: %s <app-bundle-path> [configuration]\\n' \"$0\" >&2\n  exit 1\nfi\n\ncase \"$BUILD_CONFIGURATION\" in\n  [Dd]ebug)\n    RUST_PROFILE=\"debug\"\n    ;;\n  *)\n    RUST_PROFILE=\"release\"\n    ;;\nesac\n\nmkdir -p \"$CACHE_DIR/clang\" \"$CACHE_DIR/swiftpm\" \"$CACHE_DIR/home\"\n\nif [[ -n \"$ORIGINAL_HOME\" ]]; then\n  export RUSTUP_HOME=\"${RUSTUP_HOME:-$ORIGINAL_HOME/.rustup}\"\n  export CARGO_HOME=\"${CARGO_HOME:-$ORIGINAL_HOME/.cargo}\"\nfi\n\nexport HOME=\"$CACHE_DIR/home\"\nexport SWIFTPM_MODULECACHE_OVERRIDE=\"$CACHE_DIR/swiftpm\"\nexport CLANG_MODULE_CACHE_PATH=\"$CACHE_DIR/clang\"\n\nif [[ -n \"${CARGO_HOME:-}\" ]]; then\n  export PATH=\"$CARGO_HOME/bin:$PATH\"\nelif [[ -n \"$ORIGINAL_HOME\" && -d \"$ORIGINAL_HOME/.cargo/bin\" ]]; then\n  export PATH=\"$ORIGINAL_HOME/.cargo/bin:$PATH\"\nfi\n\nif ! command -v cargo >/dev/null 2>&1; then\n  echo \"cargo executable not found; install Rust or configure CARGO_HOME before building AgentRelay\" >&2\n  exit 1\nfi\n\ncd \"$WORKSPACE_ROOT\"\nif [[ \"$RUST_PROFILE\" == \"debug\" ]]; then\n  cargo build -p agrelay-cli --bin agrelay\nelse\n  cargo build -p agrelay-cli --bin agrelay --release\nfi\n\nRELAY_BINARY_PATH=\"$WORKSPACE_ROOT/target/$RUST_PROFILE/agrelay\"\nDESTINATION_DIR=\"$APP_CONTENTS_PATH/Helpers\"\nDESTINATION_PATH=\"$DESTINATION_DIR/agrelay\"\n\nif [[ ! -x \"$RELAY_BINARY_PATH\" ]]; then\n  echo \"expected agrelay binary not found at $RELAY_BINARY_PATH\" >&2\n  exit 1\nfi\n\nmkdir -p \"$DESTINATION_DIR\"\ncp \"$RELAY_BINARY_PATH\" \"$DESTINATION_PATH\"\nchmod +x \"$DESTINATION_PATH\"\n\nSIGN_IDENTITY=\"-\"\nif [[ \"${CODE_SIGNING_ALLOWED:-NO}\" == \"YES\" && -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]]; then\n  SIGN_IDENTITY=\"$EXPANDED_CODE_SIGN_IDENTITY\"\nfi\n\ncodesign --force --sign \"$SIGN_IDENTITY\" --timestamp=none \"$DESTINATION_PATH\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
