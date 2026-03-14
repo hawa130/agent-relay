@@ -500,10 +500,10 @@ actor RelayDaemonClient {
     private func scheduleTimeout(for requestID: String) {
         pendingTimeouts.removeValue(forKey: requestID)?.cancel()
         let timeoutSeconds = requestTimeoutSeconds
-        let timeoutNanoseconds = UInt64((timeoutSeconds * 1_000_000_000).rounded())
+        let timeoutDuration = Duration.seconds(timeoutSeconds)
         pendingTimeouts[requestID] = Task { [weak self] in
             do {
-                try await Task.sleep(nanoseconds: timeoutNanoseconds)
+                try await Task.sleep(for: timeoutDuration)
             } catch {
                 return
             }
@@ -571,7 +571,8 @@ actor RelayDaemonClient {
             return
         }
 
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.2) {
+        Task(priority: .userInitiated) {
+            try? await Task.sleep(for: .milliseconds(200))
             if process.isRunning {
                 kill(pid, SIGKILL)
             }
@@ -670,7 +671,7 @@ actor RelayDaemonClient {
         if seconds.rounded() == seconds {
             return String(Int(seconds))
         }
-        return String(format: "%.1f", seconds)
+        return seconds.formatted(.number.precision(.fractionLength(1)))
     }
 }
 

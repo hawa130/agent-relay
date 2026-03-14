@@ -4,7 +4,7 @@ import SwiftUI
 extension UsageWindow {
     var menuBarDisplayValue: String {
         if let usedPercent {
-            return String(format: "%.0f%%", usedPercent)
+            return usedPercent.formatted(.number.precision(.fractionLength(0))) + "%"
         }
 
         return status.shortLabel

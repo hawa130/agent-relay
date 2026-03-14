@@ -1,0 +1,79 @@
+import SwiftUI
+
+struct ProfileDetailUsageCard: View {
+    let usage: UsageSnapshot?
+    let isFetchingUsage: Bool
+    let note: UsageCardNote?
+    let onRefresh: () -> Void
+
+    var body: some View {
+        SectionSurfaceCard(
+            "Usage",
+            headerAccessory: {
+                Button {
+                    onRefresh()
+                } label: {
+                    Group {
+                        if isFetchingUsage {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.clockwise")
+                        }
+                    }
+                    .frame(width: 14, height: 14)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isFetchingUsage)
+                .help("Refresh Usage")
+                .accessibilityLabel("Refresh Usage")
+            },
+            content: {
+                Group {
+                    if let usage {
+                        VStack(alignment: .leading, spacing: 10) {
+                            UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
+                            UsageMetricRow(title: "Weekly", window: usage.weekly, stale: usage.stale)
+
+                            if let note {
+                                Text(note.text)
+                                    .font(NativePreferencesTheme.Typography.detail)
+                                    .foregroundStyle(UsageCardNoteResolver.color(for: note))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+
+                            HStack {
+                                Spacer(minLength: 0)
+
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text("Source: \(usage.source.displayName)")
+                                    Text("Updated: \(usage.lastRefreshedAt.formatted(date: .abbreviated, time: .standard))")
+                                }
+                                .font(.system(size: 10))
+                                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                            }
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 8) {
+                            if isFetchingUsage {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                    Text("Refreshing usage…")
+                                        .foregroundStyle(.secondary)
+                                }
+                            } else if let note {
+                                Text(note.text)
+                                    .font(NativePreferencesTheme.Typography.detail)
+                                    .foregroundStyle(UsageCardNoteResolver.color(for: note))
+                            } else {
+                                Text("Usage data unavailable.")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            })
+    }
+}

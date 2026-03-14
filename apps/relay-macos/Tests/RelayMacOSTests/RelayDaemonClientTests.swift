@@ -331,7 +331,7 @@ private enum NotificationTimeout: Error {
 
 private func nextNotification(
     from stream: AsyncStream<RelaySessionUpdate>,
-    timeoutNanoseconds: UInt64 = 2_000_000_000) async throws -> RelaySessionUpdate
+    timeout: Duration = .seconds(2)) async throws -> RelaySessionUpdate
 {
     try await withThrowingTaskGroup(of: RelaySessionUpdate.self) { group in
         group.addTask {
@@ -342,7 +342,7 @@ private func nextNotification(
             return update
         }
         group.addTask {
-            try await Task.sleep(nanoseconds: timeoutNanoseconds)
+            try await Task.sleep(for: timeout)
             throw NotificationTimeout.timedOut
         }
 

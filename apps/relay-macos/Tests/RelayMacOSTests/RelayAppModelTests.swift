@@ -390,15 +390,16 @@ private enum WaitTimeout: Error {
 
 @MainActor
 private func waitUntil(
-    timeoutNanoseconds: UInt64 = 2_000_000_000,
+    timeout: Duration = .seconds(2),
     condition: @escaping @MainActor () -> Bool) async throws
 {
-    let deadline = DispatchTime.now().uptimeNanoseconds + timeoutNanoseconds
-    while DispatchTime.now().uptimeNanoseconds < deadline {
+    let clock = ContinuousClock()
+    let deadline = clock.now + timeout
+    while clock.now < deadline {
         if condition() {
             return
         }
-        try await Task.sleep(nanoseconds: 50_000_000)
+        try await Task.sleep(for: .milliseconds(50))
     }
     throw WaitTimeout.timedOut
 }
