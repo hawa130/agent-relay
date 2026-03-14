@@ -222,15 +222,7 @@ public struct MultiRingProgressView<CenterContent: View>: View {
     }
 
     private var accessibilityLabel: String {
-        guard let focusedItem else {
-            return "Progress unavailable"
-        }
-
-        if let valueText = focusedItem.valueText {
-            return "\(focusedItem.label) \(valueText)"
-        }
-
-        return focusedItem.label
+        MultiRingProgressAccessibility.summary(for: items)
     }
 
     private func toneColor(for item: RingProgressItem) -> Color {

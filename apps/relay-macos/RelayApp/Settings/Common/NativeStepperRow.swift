@@ -14,9 +14,15 @@ struct NativeStepperRow: View {
                     .monospacedDigit()
                 Stepper("", value: $value, in: range, step: step)
                     .labelsHidden()
+                    .accessibilityLabel(title)
+                    .accessibilityValue(Self.accessibilityValueText(valueText))
             }
         } label: {
             Text(title)
         }
+    }
+
+    nonisolated static func accessibilityValueText(_ valueText: String) -> String {
+        valueText
     }
 }
