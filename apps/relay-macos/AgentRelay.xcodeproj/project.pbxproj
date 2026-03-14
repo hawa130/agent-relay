@@ -1,0 +1,1099 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		012B475EFDC7338790C37269 /* MenuBarProfilePickerItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944F8EC81F8288FCBF694592 /* MenuBarProfilePickerItem.swift */; };
+		025C7537A73BB5DBCCBE1CCE /* UsageCardNoteResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A90F9D8CCC22A0E2CD93EF1 /* UsageCardNoteResolverTests.swift */; };
+		03F26F2E40694961FA74B8D9 /* NativeToolbarSymbolButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2A586A533973BFB1218FB7A /* NativeToolbarSymbolButton.swift */; };
+		06A35A32A78C6118E66137D1 /* ProfileAccountStatusDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9522291E7D66D3888CE7A932 /* ProfileAccountStatusDot.swift */; };
+		09A7C2838AE1898AF58F1884 /* RelayMacOSUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B664612DD69880A03901E611 /* RelayMacOSUI.framework */; };
+		0AD179FEEB36DBE54D59E18B /* RelayClientError.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB940157341424B1AC855130 /* RelayClientError.swift */; };
+		1085C10EACF72C8F550FF85F /* RelayAppModelDaemonNotificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F21A90CF12B38BA46952C31 /* RelayAppModelDaemonNotificationTests.swift */; };
+		16FF98B4E5D684E5F7654C28 /* ProfileDetailUsageCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2076AB303E815443D7BCDAD5 /* ProfileDetailUsageCard.swift */; };
+		17F207C8C83C3319E79781F8 /* ProfileListRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 831A713FEE83CB811617063C /* ProfileListRow.swift */; };
+		1B4FB2FE74618415AF93446C /* MenuBarUsageCardHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DEA52CDAF2CE515CDDF9AC7 /* MenuBarUsageCardHeaderView.swift */; };
+		1B5DF85B7392A78242EA715B /* RelayAppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFE8A5822499589EEE63DD6E /* RelayAppModelTests.swift */; };
+		1C3889D97902C5C5CE244CEF /* UsageToolbarRefreshScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3BFC2DD792DC8956DF55A2 /* UsageToolbarRefreshScope.swift */; };
+		1CA39C4E6E228DD1F47A7E3B /* RelayDaemonClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6ACCDC3A85E0DE8BCAFC4A0 /* RelayDaemonClient.swift */; };
+		203FE1102C6331E5BE81F7A9 /* ProfilesNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9695540A5E1D317A8356BEBB /* ProfilesNavigationTests.swift */; };
+		205425231D16E7ED303F769A /* MenuBarPresenterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A54E4C84F02434B098C5C73B /* MenuBarPresenterTests.swift */; };
+		23B973C75F8154F1DF677C2D /* SectionSurfaceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83836FB8525C6155C79C4579 /* SectionSurfaceCard.swift */; };
+		261ED7E5EDF7317853AEB702 /* ProfileEditorMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C86478F5FF638B5E9F94673B /* ProfileEditorMode.swift */; };
+		276C6D650299FFAEC8EEE54A /* ProfilesPaneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7850CF42B59D158890C17B9F /* ProfilesPaneModel.swift */; };
+		2847108F5E8A0D46ED7914CB /* ProfileEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCDD6A7FF6B2E01D5C54D01E /* ProfileEditorSheet.swift */; };
+		28FF4DDC61D3B7EFF8EDCF9A /* MenuBarCurrentProfileCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 255BD3F5D1FCFD94AF16C54B /* MenuBarCurrentProfileCard.swift */; };
+		2971DB5F23248019E6C65BD0 /* RelayMacOSUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B664612DD69880A03901E611 /* RelayMacOSUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		2FDBDE11C153A1B634EAC285 /* NativeStatusSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B9BA6224BE38D38DC007E7 /* NativeStatusSymbol.swift */; };
+		330F949920E2EFE4CC1BD879 /* MultiRingProgressAccessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7182B9833C7B57B375E17EC /* MultiRingProgressAccessibility.swift */; };
+		33F2B963ADF3D26918E1A13D /* AgentSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A709374CBACD5AF2F935DB7E /* AgentSettingsDetailView.swift */; };
+		37C3ACAE9D3CF18A054A28C9 /* MenuBarUsageStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F6E3CC9B4C00957DC8B792D /* MenuBarUsageStyle.swift */; };
+		38B15E45B7BA475EE759CA9B /* MenuBarMetricRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA9B068AE48B8887E739692E /* MenuBarMetricRow.swift */; };
+		3C30262DA51FE627EC67B204 /* UsageCardNoteResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99DB535361A739BAF3ECE10C /* UsageCardNoteResolver.swift */; };
+		3D5492BB99CD80B0044C023E /* ProfileDetailHeroSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95C00664D6CB41D4A28E952 /* ProfileDetailHeroSection.swift */; };
+		40BEF6AE4031D718CBB0FA58 /* RelayAppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 661BECF181F3A9E846E646B1 /* RelayAppModel.swift */; };
+		42AB03593E7706DADA84C286 /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = CE7E75657ABC887C614D1B55 /* LaunchAtLogin */; };
+		46B27DDE3F6A33A56848F50F /* ProfileHeroAgentIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = E43953E9AA83667DE47187E2 /* ProfileHeroAgentIcon.swift */; };
+		4737E6B36242FF889CDD62D4 /* RelayMacOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1CC5C656E3E0A10F303A0E4 /* RelayMacOSApp.swift */; };
+		47C3E9CE7F91F56258B6D225 /* MenuBarUsageCardSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58727AA533856163A444174F /* MenuBarUsageCardSectionView.swift */; };
+		4CF4158C982173AAAE4B9374 /* ProfileAgentLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C8BA9907389CF0DDC458F25 /* ProfileAgentLabel.swift */; };
+		509072D0EA20A0FEF310BEE2 /* ProfilesPresentationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25909D31E6257E58875A859B /* ProfilesPresentationState.swift */; };
+		568CE2F6F0F8205C056C70B4 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 7B2EDAAAF50F340F006C05F9 /* Defaults */; };
+		5AEF71EB19CDA7FDA66809B3 /* UsageAlertSeverity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26F4DB3A0860942AB8F3E719 /* UsageAlertSeverity.swift */; };
+		5CAC9BCA458603A651378CED /* UsageMetricRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A625265C94BAEF3798497537 /* UsageMetricRow.swift */; };
+		5D8FDD30546652B5EE11597A /* UsageRefreshButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC8E7E10A7FFE70EA08A33A3 /* UsageRefreshButton.swift */; };
+		5EC5BD95C26CD71B4BE61C61 /* ProfileRowContextMenuTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 250593F07253966F2670E681 /* ProfileRowContextMenuTests.swift */; };
+		5EE58564C0EC0F4F9E9246C6 /* ProviderIcon-codex.svg in Resources */ = {isa = PBXBuildFile; fileRef = 49302B57C388833013FD07A2 /* ProviderIcon-codex.svg */; };
+		5FB20764033370F7C47F73B3 /* MenuBarPresenter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0816B034DB56D0E8E0C733A7 /* MenuBarPresenter.swift */; };
+		62CE8CECD90095E715E91437 /* AddProfileCatalogProfileCountTextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 382083415C46A1DCFFB2EAD6 /* AddProfileCatalogProfileCountTextTests.swift */; };
+		6431F8733EAAD6F923F0CA7D /* ProfileListRowStatusIndicatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED39CFF8D2D3419ED43E4415 /* ProfileListRowStatusIndicatorTests.swift */; };
+		646FD8DD17DA6FA495C97967 /* AddProfileAgentRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBF6663DBBBF5FD320BE6671 /* AddProfileAgentRow.swift */; };
+		66534A21CDD17168317C92D2 /* UsageToolbarRefreshScopeResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D21F7EC05239F80B8989AA43 /* UsageToolbarRefreshScopeResolverTests.swift */; };
+		677A0E8EAC594853C701B5A0 /* ModelDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8550165DAB00B1CDDBD2F7D /* ModelDecodingTests.swift */; };
+		6CD4639B323D7DC86D59919E /* RelayDaemonClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C322786D287CA13AFA4991 /* RelayDaemonClientTests.swift */; };
+		6D60183FE225CD7ADC4CDB9A /* UsageCardNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850871398B5267E66839E5B6 /* UsageCardNote.swift */; };
+		6E88374B5E323E3E5FC1571D /* ProfileInfoBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5999E2FEBCD085C4DE80ABD /* ProfileInfoBadge.swift */; };
+		7172929FB5D0B1CB9C1CBD2C /* AddProfileLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E833AF4A630EC922F5101C4F /* AddProfileLoginView.swift */; };
+		717D2BE36FDA8BE69B8D542B /* NativeStepperRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384B454601CB89354144C1D9 /* NativeStepperRow.swift */; };
+		721479D52E1895D0125579CD /* MenuBarUsageIcon.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD6AA27A1DECE0A0B6D45505 /* MenuBarUsageIcon.swift */; };
+		727F061ED3864928E6669927 /* ProfileListRowStatusIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6527ADD23DC7EB1E50B45172 /* ProfileListRowStatusIndicator.swift */; };
+		754E8B514860450375A9EBB8 /* ProfileStateBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 056E6E6DC5118AB3DB9B0776 /* ProfileStateBadge.swift */; };
+		767CBF64FAA57C06924EBC9A /* MenuBarMetricRowModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF8643A392F23B38115AE358 /* MenuBarMetricRowModel.swift */; };
+		7EA7D5140F26D6C6529C985D /* GeneralSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F543A608E88C21114E336C8 /* GeneralSettingsDetailView.swift */; };
+		83D97DDA39B827D7E35F5C03 /* NativePaneScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E245E065CC53E558C516BE /* NativePaneScrollView.swift */; };
+		87040D8E5CBCE55DAA46806F /* AddProfileSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E358ADFDC7AF1B3FA87AADE /* AddProfileSheet.swift */; };
+		89F777F8728E87FD24FF4754 /* ProfilesSidebarItemLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B17D6784EAAC8B9B5B0E11B7 /* ProfilesSidebarItemLabel.swift */; };
+		8A27B0648EF283C166500223 /* UsageToolbarRefreshScopeResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98D49A42F82AEF8CF2A69E89 /* UsageToolbarRefreshScopeResolver.swift */; };
+		8B82ACE798B7AA23F2AB6DD5 /* WindowActionRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 315823C94C4210AEFADCADE8 /* WindowActionRegistry.swift */; };
+		8CCB0D0840E6622F5CC223A2 /* ProfilesContentToolbarTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF60A55F725033BD2ADFA402 /* ProfilesContentToolbarTitle.swift */; };
+		906BFF7273D1843EB2484743 /* NativeBadgeSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = C24BA2B2A03E714D60559F0D /* NativeBadgeSurface.swift */; };
+		909BDD4022E96766094DD789 /* ProfilesViewSemanticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FF332BED55371BDD76A4111 /* ProfilesViewSemanticsTests.swift */; };
+		928EF6F96D7BBE6AFC17A3A4 /* ProfileStatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5ABE736F7A0B2AFB6AE147 /* ProfileStatusBadge.swift */; };
+		92CE3A0CAAC6F8248AE2054D /* AgentSettingsCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14C633108720375961F9D1A /* AgentSettingsCatalog.swift */; };
+		945EA58B195F0ADB2EAFDE30 /* ProfileListUsageLine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92ADB034CF91CF936F2638E1 /* ProfileListUsageLine.swift */; };
+		94E0B93AE20E3911591C3473 /* SettingsPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB08E701E0705828BD29698E /* SettingsPaneView.swift */; };
+		9541A539200ECD9209DCE988 /* UsageBadgeViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FC5BD3733F06140AF232FA5 /* UsageBadgeViews.swift */; };
+		9897D9DC46EA4A7AC28011BC /* AddProfileLoginStatusCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44624E0783DC70AE9065AB9D /* AddProfileLoginStatusCard.swift */; };
+		99633A0AA5B4CA7F72548C25 /* MultiRingProgressViewTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A459E3A4C55021A5F50C0CB /* MultiRingProgressViewTests.swift */; };
+		9BA3658C0BD572993A076414 /* RelayStatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4109AACA6A8A4A399338640 /* RelayStatusItemController.swift */; };
+		9EE95C8B7F2B3981AAB0B66A /* ProfileRowContextMenuModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94F1A0B79250CD1FBE3B6580 /* ProfileRowContextMenuModel.swift */; };
+		A2778B8AD5518506EB3ABE69 /* ProfileCurrentStatusSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2ECC07A10467AB7E4FAA304 /* ProfileCurrentStatusSection.swift */; };
+		A31BCC4E230500B52C8FF025 /* NativePreferencesTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A267B3EC2D6550A174B295 /* NativePreferencesTheme.swift */; };
+		A583B62C1359149573CDF7EA /* ProfilesSettingsPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A2CF57A603746D1B525B57B /* ProfilesSettingsPaneView.swift */; };
+		A5DFDD8A59880C62A6B59C09 /* NativeDetailRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C153DC8E24F4721A6F695DD /* NativeDetailRow.swift */; };
+		AAB97E21374423B5099324D1 /* ProfilesContentColumn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6770450830E405BF3CFF9F76 /* ProfilesContentColumn.swift */; };
+		AE05A6BCE693042E78712247 /* SettingsPaneModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE9436FBBA69465E0E5AAE5C /* SettingsPaneModel.swift */; };
+		B1861869FC891AC5F7F1B6B5 /* RelayMacOSUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B664612DD69880A03901E611 /* RelayMacOSUI.framework */; };
+		B18FF5772CD01C3234E4E9BE /* MultiRingProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD36660633891A4BB609ABA /* MultiRingProgressView.swift */; };
+		B1C42199CF46ADF740E2A584 /* AddProfileSheetMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C36875D1E808677357C2F0CF /* AddProfileSheetMode.swift */; };
+		B5AC3FDF4D3A8ADD7708D0AA /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D8875ED9755C72D9C82530C /* APIModels.swift */; };
+		BEE578A35032961A90BA6622 /* RelayAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C912FF0FA74E0F9320EAA85F /* RelayAppDelegate.swift */; };
+		C009F845A6AEE3B1C975F44B /* UsageProgressLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 485D9BD69CA27A18C6F493D8 /* UsageProgressLayoutTests.swift */; };
+		C1F2552226D9FDA2DBB079BE /* MenuBarUsageIconTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFB9B1C5248867B64F67BA27 /* MenuBarUsageIconTests.swift */; };
+		C400EDC24DC4211E45B81791 /* AddProfileSheetFlowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB4C56531428C92B5810F89F /* AddProfileSheetFlowState.swift */; };
+		C49E5F32525F07466F33C13B /* MenuBarHighlightStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F510799CE221EDAEF31029D /* MenuBarHighlightStyle.swift */; };
+		C6189CF5B93501A1C2697588 /* ProfileListAgentLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = E928D9A423B60DA499ECD294 /* ProfileListAgentLabel.swift */; };
+		C708EADC10E05938B7786C8F /* ProfilesSelectionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 322FF31687FBF5B208FEAF77 /* ProfilesSelectionState.swift */; };
+		D009FAC2B26F6C54F8BE094F /* RelayMacOSUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B664612DD69880A03901E611 /* RelayMacOSUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		D9ADF9F4DB3077025195650C /* ProfilesSidebarColumn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B16C18D4D7B5C2C93D74D4D /* ProfilesSidebarColumn.swift */; };
+		E058B0397FAB7FCCD4C46C8A /* MenuBarUsageProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = E579937A49F755B78251E88A /* MenuBarUsageProgressBar.swift */; };
+		E1A4CB74203B8A5F0BA8DA5A /* AddProfileSheetFlowStateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 850A029D3504ACC72DA5B7F7 /* AddProfileSheetFlowStateTests.swift */; };
+		E4F0DB38276A92164E32E35A /* AddProfileCatalogProfileText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E0778592A9884E9BB14EFE7 /* AddProfileCatalogProfileText.swift */; };
+		E72217A5C05E390BA22E3E70 /* ProfilesDetailPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = B37C3AD5A054DAE549F1A04D /* ProfilesDetailPane.swift */; };
+		EE74DBA0136189C0C46D6F6C /* ResetRelativeDateText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B1A3741B0BA59B3FF28A285 /* ResetRelativeDateText.swift */; };
+		EED30FE92B03926110238CCA /* AppPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCE548E9E88E9FA8DB3D3CBE /* AppPreferences.swift */; };
+		EEDB08DA10E5D217DE1F73DB /* RelayNotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F868ECCA6CC1A1566DD3138 /* RelayNotificationService.swift */; };
+		F1A5841D9F2D37A94B47E50D /* NativeMetaText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 425CEC9A958433D49ABE1865 /* NativeMetaText.swift */; };
+		F50852D2EFB5ECAD50B6E8C2 /* AddAccountResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96404AB3A52F15DEB89F439F /* AddAccountResult.swift */; };
+		FB6D53D8FD196C2C10F4AC79 /* SettingsNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AB3977FA134C8C4FE36C749 /* SettingsNavigationTests.swift */; };
+		FC1573659A4A744A43828C79 /* AdaptiveRelativeDateText.swift in Sources */ = {isa = PBXBuildFile; fileRef = A687D08444D9C8E5C60E62D9 /* AdaptiveRelativeDateText.swift */; };
+		FCC360DFA6F77ABEB2DEA234 /* ProfilesActionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE363462A754310EC0EE170C /* ProfilesActionHandler.swift */; };
+		FEFF45C935374A0D300BB6C3 /* AddProfileCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA475003813D532DEEC4DB8 /* AddProfileCatalogView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		983EEF91C7900AE8A64518C2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B3791AC610DC5631ADAF898C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 176D55458DF119B4A47DB3AF;
+			remoteInfo = RelayMacOSUI;
+		};
+		AB39F6AD172D56660A9645C5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B3791AC610DC5631ADAF898C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 176D55458DF119B4A47DB3AF;
+			remoteInfo = RelayMacOSUI;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		2C63969D2A9A680F3B1AE881 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				2971DB5F23248019E6C65BD0 /* RelayMacOSUI.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5437190B0C827B96639C71E6 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				D009FAC2B26F6C54F8BE094F /* RelayMacOSUI.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		056E6E6DC5118AB3DB9B0776 /* ProfileStateBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStateBadge.swift; sourceTree = "<group>"; };
+		0816B034DB56D0E8E0C733A7 /* MenuBarPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPresenter.swift; sourceTree = "<group>"; };
+		0B16C18D4D7B5C2C93D74D4D /* ProfilesSidebarColumn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesSidebarColumn.swift; sourceTree = "<group>"; };
+		0D8875ED9755C72D9C82530C /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
+		0F868ECCA6CC1A1566DD3138 /* RelayNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayNotificationService.swift; sourceTree = "<group>"; };
+		1C8BA9907389CF0DDC458F25 /* ProfileAgentLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAgentLabel.swift; sourceTree = "<group>"; };
+		1E0778592A9884E9BB14EFE7 /* AddProfileCatalogProfileText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileCatalogProfileText.swift; sourceTree = "<group>"; };
+		2076AB303E815443D7BCDAD5 /* ProfileDetailUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDetailUsageCard.swift; sourceTree = "<group>"; };
+		24A267B3EC2D6550A174B295 /* NativePreferencesTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePreferencesTheme.swift; sourceTree = "<group>"; };
+		250593F07253966F2670E681 /* ProfileRowContextMenuTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileRowContextMenuTests.swift; sourceTree = "<group>"; };
+		255BD3F5D1FCFD94AF16C54B /* MenuBarCurrentProfileCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarCurrentProfileCard.swift; sourceTree = "<group>"; };
+		25909D31E6257E58875A859B /* ProfilesPresentationState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesPresentationState.swift; sourceTree = "<group>"; };
+		26F4DB3A0860942AB8F3E719 /* UsageAlertSeverity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageAlertSeverity.swift; sourceTree = "<group>"; };
+		2B1A3741B0BA59B3FF28A285 /* ResetRelativeDateText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetRelativeDateText.swift; sourceTree = "<group>"; };
+		2F6E3CC9B4C00957DC8B792D /* MenuBarUsageStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarUsageStyle.swift; sourceTree = "<group>"; };
+		2F9841A4A0180D5FD8DB1379 /* RelayMacOSTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RelayMacOSTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		315823C94C4210AEFADCADE8 /* WindowActionRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowActionRegistry.swift; sourceTree = "<group>"; };
+		322FF31687FBF5B208FEAF77 /* ProfilesSelectionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesSelectionState.swift; sourceTree = "<group>"; };
+		382083415C46A1DCFFB2EAD6 /* AddProfileCatalogProfileCountTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileCatalogProfileCountTextTests.swift; sourceTree = "<group>"; };
+		384B454601CB89354144C1D9 /* NativeStepperRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeStepperRow.swift; sourceTree = "<group>"; };
+		3A90F9D8CCC22A0E2CD93EF1 /* UsageCardNoteResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardNoteResolverTests.swift; sourceTree = "<group>"; };
+		425CEC9A958433D49ABE1865 /* NativeMetaText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeMetaText.swift; sourceTree = "<group>"; };
+		44624E0783DC70AE9065AB9D /* AddProfileLoginStatusCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileLoginStatusCard.swift; sourceTree = "<group>"; };
+		485D9BD69CA27A18C6F493D8 /* UsageProgressLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageProgressLayoutTests.swift; sourceTree = "<group>"; };
+		49302B57C388833013FD07A2 /* ProviderIcon-codex.svg */ = {isa = PBXFileReference; path = "ProviderIcon-codex.svg"; sourceTree = "<group>"; };
+		4A2CF57A603746D1B525B57B /* ProfilesSettingsPaneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesSettingsPaneView.swift; sourceTree = "<group>"; };
+		4A459E3A4C55021A5F50C0CB /* MultiRingProgressViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiRingProgressViewTests.swift; sourceTree = "<group>"; };
+		4C153DC8E24F4721A6F695DD /* NativeDetailRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeDetailRow.swift; sourceTree = "<group>"; };
+		4DEA52CDAF2CE515CDDF9AC7 /* MenuBarUsageCardHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarUsageCardHeaderView.swift; sourceTree = "<group>"; };
+		4F510799CE221EDAEF31029D /* MenuBarHighlightStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarHighlightStyle.swift; sourceTree = "<group>"; };
+		4FC5BD3733F06140AF232FA5 /* UsageBadgeViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageBadgeViews.swift; sourceTree = "<group>"; };
+		58727AA533856163A444174F /* MenuBarUsageCardSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarUsageCardSectionView.swift; sourceTree = "<group>"; };
+		6527ADD23DC7EB1E50B45172 /* ProfileListRowStatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileListRowStatusIndicator.swift; sourceTree = "<group>"; };
+		661BECF181F3A9E846E646B1 /* RelayAppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayAppModel.swift; sourceTree = "<group>"; };
+		6770450830E405BF3CFF9F76 /* ProfilesContentColumn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesContentColumn.swift; sourceTree = "<group>"; };
+		6AB3977FA134C8C4FE36C749 /* SettingsNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsNavigationTests.swift; sourceTree = "<group>"; };
+		7850CF42B59D158890C17B9F /* ProfilesPaneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesPaneModel.swift; sourceTree = "<group>"; };
+		7C5ABE736F7A0B2AFB6AE147 /* ProfileStatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStatusBadge.swift; sourceTree = "<group>"; };
+		7F21A90CF12B38BA46952C31 /* RelayAppModelDaemonNotificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayAppModelDaemonNotificationTests.swift; sourceTree = "<group>"; };
+		831A713FEE83CB811617063C /* ProfileListRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileListRow.swift; sourceTree = "<group>"; };
+		83836FB8525C6155C79C4579 /* SectionSurfaceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SectionSurfaceCard.swift; sourceTree = "<group>"; };
+		850871398B5267E66839E5B6 /* UsageCardNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardNote.swift; sourceTree = "<group>"; };
+		850A029D3504ACC72DA5B7F7 /* AddProfileSheetFlowStateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileSheetFlowStateTests.swift; sourceTree = "<group>"; };
+		8E358ADFDC7AF1B3FA87AADE /* AddProfileSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileSheet.swift; sourceTree = "<group>"; };
+		8F543A608E88C21114E336C8 /* GeneralSettingsDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsDetailView.swift; sourceTree = "<group>"; };
+		8FF332BED55371BDD76A4111 /* ProfilesViewSemanticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesViewSemanticsTests.swift; sourceTree = "<group>"; };
+		92ADB034CF91CF936F2638E1 /* ProfileListUsageLine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileListUsageLine.swift; sourceTree = "<group>"; };
+		944F8EC81F8288FCBF694592 /* MenuBarProfilePickerItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarProfilePickerItem.swift; sourceTree = "<group>"; };
+		94F1A0B79250CD1FBE3B6580 /* ProfileRowContextMenuModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileRowContextMenuModel.swift; sourceTree = "<group>"; };
+		9522291E7D66D3888CE7A932 /* ProfileAccountStatusDot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAccountStatusDot.swift; sourceTree = "<group>"; };
+		96404AB3A52F15DEB89F439F /* AddAccountResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddAccountResult.swift; sourceTree = "<group>"; };
+		9695540A5E1D317A8356BEBB /* ProfilesNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesNavigationTests.swift; sourceTree = "<group>"; };
+		98D49A42F82AEF8CF2A69E89 /* UsageToolbarRefreshScopeResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageToolbarRefreshScopeResolver.swift; sourceTree = "<group>"; };
+		99DB535361A739BAF3ECE10C /* UsageCardNoteResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardNoteResolver.swift; sourceTree = "<group>"; };
+		A0E245E065CC53E558C516BE /* NativePaneScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePaneScrollView.swift; sourceTree = "<group>"; };
+		A1CC5C656E3E0A10F303A0E4 /* RelayMacOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayMacOSApp.swift; sourceTree = "<group>"; };
+		A54E4C84F02434B098C5C73B /* MenuBarPresenterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPresenterTests.swift; sourceTree = "<group>"; };
+		A625265C94BAEF3798497537 /* UsageMetricRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageMetricRow.swift; sourceTree = "<group>"; };
+		A687D08444D9C8E5C60E62D9 /* AdaptiveRelativeDateText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveRelativeDateText.swift; sourceTree = "<group>"; };
+		A709374CBACD5AF2F935DB7E /* AgentSettingsDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSettingsDetailView.swift; sourceTree = "<group>"; };
+		AB08E701E0705828BD29698E /* SettingsPaneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPaneView.swift; sourceTree = "<group>"; };
+		B0C322786D287CA13AFA4991 /* RelayDaemonClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayDaemonClientTests.swift; sourceTree = "<group>"; };
+		B17D6784EAAC8B9B5B0E11B7 /* ProfilesSidebarItemLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesSidebarItemLabel.swift; sourceTree = "<group>"; };
+		B37C3AD5A054DAE549F1A04D /* ProfilesDetailPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesDetailPane.swift; sourceTree = "<group>"; };
+		B5999E2FEBCD085C4DE80ABD /* ProfileInfoBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileInfoBadge.swift; sourceTree = "<group>"; };
+		B664612DD69880A03901E611 /* RelayMacOSUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RelayMacOSUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		B6ACCDC3A85E0DE8BCAFC4A0 /* RelayDaemonClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayDaemonClient.swift; sourceTree = "<group>"; };
+		BCD36660633891A4BB609ABA /* MultiRingProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiRingProgressView.swift; sourceTree = "<group>"; };
+		C24BA2B2A03E714D60559F0D /* NativeBadgeSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBadgeSurface.swift; sourceTree = "<group>"; };
+		C2A586A533973BFB1218FB7A /* NativeToolbarSymbolButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeToolbarSymbolButton.swift; sourceTree = "<group>"; };
+		C36875D1E808677357C2F0CF /* AddProfileSheetMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileSheetMode.swift; sourceTree = "<group>"; };
+		C4109AACA6A8A4A399338640 /* RelayStatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayStatusItemController.swift; sourceTree = "<group>"; };
+		C86478F5FF638B5E9F94673B /* ProfileEditorMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorMode.swift; sourceTree = "<group>"; };
+		C912FF0FA74E0F9320EAA85F /* RelayAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayAppDelegate.swift; sourceTree = "<group>"; };
+		CB4C56531428C92B5810F89F /* AddProfileSheetFlowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileSheetFlowState.swift; sourceTree = "<group>"; };
+		CB940157341424B1AC855130 /* RelayClientError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayClientError.swift; sourceTree = "<group>"; };
+		CC3BFC2DD792DC8956DF55A2 /* UsageToolbarRefreshScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageToolbarRefreshScope.swift; sourceTree = "<group>"; };
+		CF8643A392F23B38115AE358 /* MenuBarMetricRowModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarMetricRowModel.swift; sourceTree = "<group>"; };
+		D18A249E3D6C21B3B0C79510 /* AgentRelay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentRelay.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D21F7EC05239F80B8989AA43 /* UsageToolbarRefreshScopeResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageToolbarRefreshScopeResolverTests.swift; sourceTree = "<group>"; };
+		D95C00664D6CB41D4A28E952 /* ProfileDetailHeroSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDetailHeroSection.swift; sourceTree = "<group>"; };
+		DCDD6A7FF6B2E01D5C54D01E /* ProfileEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorSheet.swift; sourceTree = "<group>"; };
+		DCE548E9E88E9FA8DB3D3CBE /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
+		DD6AA27A1DECE0A0B6D45505 /* MenuBarUsageIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarUsageIcon.swift; sourceTree = "<group>"; };
+		DEA475003813D532DEEC4DB8 /* AddProfileCatalogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileCatalogView.swift; sourceTree = "<group>"; };
+		E14C633108720375961F9D1A /* AgentSettingsCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSettingsCatalog.swift; sourceTree = "<group>"; };
+		E43953E9AA83667DE47187E2 /* ProfileHeroAgentIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileHeroAgentIcon.swift; sourceTree = "<group>"; };
+		E579937A49F755B78251E88A /* MenuBarUsageProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarUsageProgressBar.swift; sourceTree = "<group>"; };
+		E7B9BA6224BE38D38DC007E7 /* NativeStatusSymbol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeStatusSymbol.swift; sourceTree = "<group>"; };
+		E833AF4A630EC922F5101C4F /* AddProfileLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileLoginView.swift; sourceTree = "<group>"; };
+		E8550165DAB00B1CDDBD2F7D /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
+		E928D9A423B60DA499ECD294 /* ProfileListAgentLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileListAgentLabel.swift; sourceTree = "<group>"; };
+		ED39CFF8D2D3419ED43E4415 /* ProfileListRowStatusIndicatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileListRowStatusIndicatorTests.swift; sourceTree = "<group>"; };
+		EE9436FBBA69465E0E5AAE5C /* SettingsPaneModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsPaneModel.swift; sourceTree = "<group>"; };
+		EF60A55F725033BD2ADFA402 /* ProfilesContentToolbarTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesContentToolbarTitle.swift; sourceTree = "<group>"; };
+		F2ECC07A10467AB7E4FAA304 /* ProfileCurrentStatusSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileCurrentStatusSection.swift; sourceTree = "<group>"; };
+		F7182B9833C7B57B375E17EC /* MultiRingProgressAccessibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiRingProgressAccessibility.swift; sourceTree = "<group>"; };
+		FA9B068AE48B8887E739692E /* MenuBarMetricRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarMetricRow.swift; sourceTree = "<group>"; };
+		FBF6663DBBBF5FD320BE6671 /* AddProfileAgentRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileAgentRow.swift; sourceTree = "<group>"; };
+		FC8E7E10A7FFE70EA08A33A3 /* UsageRefreshButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageRefreshButton.swift; sourceTree = "<group>"; };
+		FE363462A754310EC0EE170C /* ProfilesActionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesActionHandler.swift; sourceTree = "<group>"; };
+		FFB9B1C5248867B64F67BA27 /* MenuBarUsageIconTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarUsageIconTests.swift; sourceTree = "<group>"; };
+		FFE8A5822499589EEE63DD6E /* RelayAppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayAppModelTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		99B3A35459C06F65B95D0432 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				568CE2F6F0F8205C056C70B4 /* Defaults in Frameworks */,
+				42AB03593E7706DADA84C286 /* LaunchAtLogin in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A5AB9246DFB5C4BE27025432 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				09A7C2838AE1898AF58F1884 /* RelayMacOSUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F12E0B654A68275A4A193050 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B1861869FC891AC5F7F1B6B5 /* RelayMacOSUI.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0CB20ABE968AEAAB4AF40745 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				0D8875ED9755C72D9C82530C /* APIModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		10A46AF83444B5C70A454838 /* General */ = {
+			isa = PBXGroup;
+			children = (
+				A709374CBACD5AF2F935DB7E /* AgentSettingsDetailView.swift */,
+				8F543A608E88C21114E336C8 /* GeneralSettingsDetailView.swift */,
+				AB08E701E0705828BD29698E /* SettingsPaneView.swift */,
+			);
+			path = General;
+			sourceTree = "<group>";
+		};
+		2868A8EBBB217B021A14085B /* MenuBar */ = {
+			isa = PBXGroup;
+			children = (
+				255BD3F5D1FCFD94AF16C54B /* MenuBarCurrentProfileCard.swift */,
+				4F510799CE221EDAEF31029D /* MenuBarHighlightStyle.swift */,
+				FA9B068AE48B8887E739692E /* MenuBarMetricRow.swift */,
+				CF8643A392F23B38115AE358 /* MenuBarMetricRowModel.swift */,
+				944F8EC81F8288FCBF694592 /* MenuBarProfilePickerItem.swift */,
+				4DEA52CDAF2CE515CDDF9AC7 /* MenuBarUsageCardHeaderView.swift */,
+				58727AA533856163A444174F /* MenuBarUsageCardSectionView.swift */,
+				DD6AA27A1DECE0A0B6D45505 /* MenuBarUsageIcon.swift */,
+				E579937A49F755B78251E88A /* MenuBarUsageProgressBar.swift */,
+				2F6E3CC9B4C00957DC8B792D /* MenuBarUsageStyle.swift */,
+				C4109AACA6A8A4A399338640 /* RelayStatusItemController.swift */,
+			);
+			path = MenuBar;
+			sourceTree = "<group>";
+		};
+		3583D228B4C2F7A9D294F64D /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				8E83633D0D27C1EAF98913D6 /* Common */,
+				10A46AF83444B5C70A454838 /* General */,
+				A92D94FBC46982D89B032966 /* Profiles */,
+				E14C633108720375961F9D1A /* AgentSettingsCatalog.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		4F6911F390771394D3C06874 /* RelayAppExecutable */ = {
+			isa = PBXGroup;
+			children = (
+				C912FF0FA74E0F9320EAA85F /* RelayAppDelegate.swift */,
+				A1CC5C656E3E0A10F303A0E4 /* RelayMacOSApp.swift */,
+				315823C94C4210AEFADCADE8 /* WindowActionRegistry.swift */,
+			);
+			path = RelayAppExecutable;
+			sourceTree = "<group>";
+		};
+		609C2894F079C47D8B605E2E /* RelayMacOSTests */ = {
+			isa = PBXGroup;
+			children = (
+				382083415C46A1DCFFB2EAD6 /* AddProfileCatalogProfileCountTextTests.swift */,
+				850A029D3504ACC72DA5B7F7 /* AddProfileSheetFlowStateTests.swift */,
+				A54E4C84F02434B098C5C73B /* MenuBarPresenterTests.swift */,
+				FFB9B1C5248867B64F67BA27 /* MenuBarUsageIconTests.swift */,
+				E8550165DAB00B1CDDBD2F7D /* ModelDecodingTests.swift */,
+				4A459E3A4C55021A5F50C0CB /* MultiRingProgressViewTests.swift */,
+				ED39CFF8D2D3419ED43E4415 /* ProfileListRowStatusIndicatorTests.swift */,
+				250593F07253966F2670E681 /* ProfileRowContextMenuTests.swift */,
+				9695540A5E1D317A8356BEBB /* ProfilesNavigationTests.swift */,
+				8FF332BED55371BDD76A4111 /* ProfilesViewSemanticsTests.swift */,
+				7F21A90CF12B38BA46952C31 /* RelayAppModelDaemonNotificationTests.swift */,
+				FFE8A5822499589EEE63DD6E /* RelayAppModelTests.swift */,
+				B0C322786D287CA13AFA4991 /* RelayDaemonClientTests.swift */,
+				6AB3977FA134C8C4FE36C749 /* SettingsNavigationTests.swift */,
+				3A90F9D8CCC22A0E2CD93EF1 /* UsageCardNoteResolverTests.swift */,
+				485D9BD69CA27A18C6F493D8 /* UsageProgressLayoutTests.swift */,
+				D21F7EC05239F80B8989AA43 /* UsageToolbarRefreshScopeResolverTests.swift */,
+			);
+			path = RelayMacOSTests;
+			sourceTree = "<group>";
+		};
+		62F630232139E0F8F79E227B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D18A249E3D6C21B3B0C79510 /* AgentRelay.app */,
+				2F9841A4A0180D5FD8DB1379 /* RelayMacOSTests.xctest */,
+				B664612DD69880A03901E611 /* RelayMacOSUI.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		8E83633D0D27C1EAF98913D6 /* Common */ = {
+			isa = PBXGroup;
+			children = (
+				4C153DC8E24F4721A6F695DD /* NativeDetailRow.swift */,
+				A0E245E065CC53E558C516BE /* NativePaneScrollView.swift */,
+				384B454601CB89354144C1D9 /* NativeStepperRow.swift */,
+				83836FB8525C6155C79C4579 /* SectionSurfaceCard.swift */,
+			);
+			path = Common;
+			sourceTree = "<group>";
+		};
+		A92D94FBC46982D89B032966 /* Profiles */ = {
+			isa = PBXGroup;
+			children = (
+				FBF6663DBBBF5FD320BE6671 /* AddProfileAgentRow.swift */,
+				1E0778592A9884E9BB14EFE7 /* AddProfileCatalogProfileText.swift */,
+				DEA475003813D532DEEC4DB8 /* AddProfileCatalogView.swift */,
+				44624E0783DC70AE9065AB9D /* AddProfileLoginStatusCard.swift */,
+				E833AF4A630EC922F5101C4F /* AddProfileLoginView.swift */,
+				8E358ADFDC7AF1B3FA87AADE /* AddProfileSheet.swift */,
+				CB4C56531428C92B5810F89F /* AddProfileSheetFlowState.swift */,
+				C36875D1E808677357C2F0CF /* AddProfileSheetMode.swift */,
+				9522291E7D66D3888CE7A932 /* ProfileAccountStatusDot.swift */,
+				1C8BA9907389CF0DDC458F25 /* ProfileAgentLabel.swift */,
+				F2ECC07A10467AB7E4FAA304 /* ProfileCurrentStatusSection.swift */,
+				D95C00664D6CB41D4A28E952 /* ProfileDetailHeroSection.swift */,
+				2076AB303E815443D7BCDAD5 /* ProfileDetailUsageCard.swift */,
+				C86478F5FF638B5E9F94673B /* ProfileEditorMode.swift */,
+				DCDD6A7FF6B2E01D5C54D01E /* ProfileEditorSheet.swift */,
+				E43953E9AA83667DE47187E2 /* ProfileHeroAgentIcon.swift */,
+				B5999E2FEBCD085C4DE80ABD /* ProfileInfoBadge.swift */,
+				E928D9A423B60DA499ECD294 /* ProfileListAgentLabel.swift */,
+				831A713FEE83CB811617063C /* ProfileListRow.swift */,
+				6527ADD23DC7EB1E50B45172 /* ProfileListRowStatusIndicator.swift */,
+				92ADB034CF91CF936F2638E1 /* ProfileListUsageLine.swift */,
+				94F1A0B79250CD1FBE3B6580 /* ProfileRowContextMenuModel.swift */,
+				FE363462A754310EC0EE170C /* ProfilesActionHandler.swift */,
+				6770450830E405BF3CFF9F76 /* ProfilesContentColumn.swift */,
+				EF60A55F725033BD2ADFA402 /* ProfilesContentToolbarTitle.swift */,
+				B37C3AD5A054DAE549F1A04D /* ProfilesDetailPane.swift */,
+				25909D31E6257E58875A859B /* ProfilesPresentationState.swift */,
+				322FF31687FBF5B208FEAF77 /* ProfilesSelectionState.swift */,
+				4A2CF57A603746D1B525B57B /* ProfilesSettingsPaneView.swift */,
+				0B16C18D4D7B5C2C93D74D4D /* ProfilesSidebarColumn.swift */,
+				B17D6784EAAC8B9B5B0E11B7 /* ProfilesSidebarItemLabel.swift */,
+				056E6E6DC5118AB3DB9B0776 /* ProfileStateBadge.swift */,
+				7C5ABE736F7A0B2AFB6AE147 /* ProfileStatusBadge.swift */,
+				26F4DB3A0860942AB8F3E719 /* UsageAlertSeverity.swift */,
+				850871398B5267E66839E5B6 /* UsageCardNote.swift */,
+				99DB535361A739BAF3ECE10C /* UsageCardNoteResolver.swift */,
+				A625265C94BAEF3798497537 /* UsageMetricRow.swift */,
+				CC3BFC2DD792DC8956DF55A2 /* UsageToolbarRefreshScope.swift */,
+				98D49A42F82AEF8CF2A69E89 /* UsageToolbarRefreshScopeResolver.swift */,
+			);
+			path = Profiles;
+			sourceTree = "<group>";
+		};
+		B699A2682CCD075085C17743 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				96404AB3A52F15DEB89F439F /* AddAccountResult.swift */,
+				DCE548E9E88E9FA8DB3D3CBE /* AppPreferences.swift */,
+				0816B034DB56D0E8E0C733A7 /* MenuBarPresenter.swift */,
+				7850CF42B59D158890C17B9F /* ProfilesPaneModel.swift */,
+				661BECF181F3A9E846E646B1 /* RelayAppModel.swift */,
+				EE9436FBBA69465E0E5AAE5C /* SettingsPaneModel.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		B828B28C538E56253C1D3277 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				CB940157341424B1AC855130 /* RelayClientError.swift */,
+				B6ACCDC3A85E0DE8BCAFC4A0 /* RelayDaemonClient.swift */,
+				0F868ECCA6CC1A1566DD3138 /* RelayNotificationService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		BC381DC5895E9F6161AA1859 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				49302B57C388833013FD07A2 /* ProviderIcon-codex.svg */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		C06991EA3CE0C689B6826AEB /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				609C2894F079C47D8B605E2E /* RelayMacOSTests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		C250CD8070AE32DBBCCC3EFA /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A687D08444D9C8E5C60E62D9 /* AdaptiveRelativeDateText.swift */,
+				F7182B9833C7B57B375E17EC /* MultiRingProgressAccessibility.swift */,
+				BCD36660633891A4BB609ABA /* MultiRingProgressView.swift */,
+				C24BA2B2A03E714D60559F0D /* NativeBadgeSurface.swift */,
+				425CEC9A958433D49ABE1865 /* NativeMetaText.swift */,
+				24A267B3EC2D6550A174B295 /* NativePreferencesTheme.swift */,
+				E7B9BA6224BE38D38DC007E7 /* NativeStatusSymbol.swift */,
+				C2A586A533973BFB1218FB7A /* NativeToolbarSymbolButton.swift */,
+				2B1A3741B0BA59B3FF28A285 /* ResetRelativeDateText.swift */,
+				4FC5BD3733F06140AF232FA5 /* UsageBadgeViews.swift */,
+				FC8E7E10A7FFE70EA08A33A3 /* UsageRefreshButton.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D89CBA5AE5A9DBB05F7474A6 = {
+			isa = PBXGroup;
+			children = (
+				F490C4497335BF7E27D46C84 /* RelayApp */,
+				4F6911F390771394D3C06874 /* RelayAppExecutable */,
+				C06991EA3CE0C689B6826AEB /* Tests */,
+				62F630232139E0F8F79E227B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F490C4497335BF7E27D46C84 /* RelayApp */ = {
+			isa = PBXGroup;
+			children = (
+				B699A2682CCD075085C17743 /* App */,
+				2868A8EBBB217B021A14085B /* MenuBar */,
+				0CB20ABE968AEAAB4AF40745 /* Models */,
+				BC381DC5895E9F6161AA1859 /* Resources */,
+				B828B28C538E56253C1D3277 /* Services */,
+				3583D228B4C2F7A9D294F64D /* Settings */,
+				C250CD8070AE32DBBCCC3EFA /* Views */,
+			);
+			path = RelayApp;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		176D55458DF119B4A47DB3AF /* RelayMacOSUI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C529920A18C797300E2F53F9 /* Build configuration list for PBXNativeTarget "RelayMacOSUI" */;
+			buildPhases = (
+				4DF51E90B732DD9F90D06C94 /* Sources */,
+				D6C822A0B73C05B0F4144BCA /* Resources */,
+				99B3A35459C06F65B95D0432 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RelayMacOSUI;
+			packageProductDependencies = (
+				7B2EDAAAF50F340F006C05F9 /* Defaults */,
+				CE7E75657ABC887C614D1B55 /* LaunchAtLogin */,
+			);
+			productName = RelayMacOSUI;
+			productReference = B664612DD69880A03901E611 /* RelayMacOSUI.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		56685C5C4225F77079D4F97B /* RelayMacOSTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DD9830031F16AF95416472B4 /* Build configuration list for PBXNativeTarget "RelayMacOSTests" */;
+			buildPhases = (
+				12A9A2AF84C7114A5455CBBE /* Sources */,
+				F12E0B654A68275A4A193050 /* Frameworks */,
+				2C63969D2A9A680F3B1AE881 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				470181F2CD0C63965B814F2D /* PBXTargetDependency */,
+			);
+			name = RelayMacOSTests;
+			packageProductDependencies = (
+			);
+			productName = RelayMacOSTests;
+			productReference = 2F9841A4A0180D5FD8DB1379 /* RelayMacOSTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		8863E2F49DE62333ED259B50 /* AgentRelay */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AB7FA51DAC60D7E980B72978 /* Build configuration list for PBXNativeTarget "AgentRelay" */;
+			buildPhases = (
+				A0302F4580831D661B86C592 /* Sources */,
+				A5AB9246DFB5C4BE27025432 /* Frameworks */,
+				5437190B0C827B96639C71E6 /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B89FCEC1B1F352F11A951A2E /* PBXTargetDependency */,
+			);
+			name = AgentRelay;
+			packageProductDependencies = (
+			);
+			productName = AgentRelay;
+			productReference = D18A249E3D6C21B3B0C79510 /* AgentRelay.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B3791AC610DC5631ADAF898C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					8863E2F49DE62333ED259B50 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 9FDA22DEAC14A617B3DE75F2 /* Build configuration list for PBXProject "AgentRelay" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = D89CBA5AE5A9DBB05F7474A6;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				11AFA48E455E3778C2228AF0 /* XCRemoteSwiftPackageReference "Defaults" */,
+				496A66BCE125CBD3B22E4F35 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 62F630232139E0F8F79E227B /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8863E2F49DE62333ED259B50 /* AgentRelay */,
+				56685C5C4225F77079D4F97B /* RelayMacOSTests */,
+				176D55458DF119B4A47DB3AF /* RelayMacOSUI */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		D6C822A0B73C05B0F4144BCA /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5EE58564C0EC0F4F9E9246C6 /* ProviderIcon-codex.svg in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		12A9A2AF84C7114A5455CBBE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				62CE8CECD90095E715E91437 /* AddProfileCatalogProfileCountTextTests.swift in Sources */,
+				E1A4CB74203B8A5F0BA8DA5A /* AddProfileSheetFlowStateTests.swift in Sources */,
+				205425231D16E7ED303F769A /* MenuBarPresenterTests.swift in Sources */,
+				C1F2552226D9FDA2DBB079BE /* MenuBarUsageIconTests.swift in Sources */,
+				677A0E8EAC594853C701B5A0 /* ModelDecodingTests.swift in Sources */,
+				99633A0AA5B4CA7F72548C25 /* MultiRingProgressViewTests.swift in Sources */,
+				6431F8733EAAD6F923F0CA7D /* ProfileListRowStatusIndicatorTests.swift in Sources */,
+				5EC5BD95C26CD71B4BE61C61 /* ProfileRowContextMenuTests.swift in Sources */,
+				203FE1102C6331E5BE81F7A9 /* ProfilesNavigationTests.swift in Sources */,
+				909BDD4022E96766094DD789 /* ProfilesViewSemanticsTests.swift in Sources */,
+				1085C10EACF72C8F550FF85F /* RelayAppModelDaemonNotificationTests.swift in Sources */,
+				1B5DF85B7392A78242EA715B /* RelayAppModelTests.swift in Sources */,
+				6CD4639B323D7DC86D59919E /* RelayDaemonClientTests.swift in Sources */,
+				FB6D53D8FD196C2C10F4AC79 /* SettingsNavigationTests.swift in Sources */,
+				025C7537A73BB5DBCCBE1CCE /* UsageCardNoteResolverTests.swift in Sources */,
+				C009F845A6AEE3B1C975F44B /* UsageProgressLayoutTests.swift in Sources */,
+				66534A21CDD17168317C92D2 /* UsageToolbarRefreshScopeResolverTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		4DF51E90B732DD9F90D06C94 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B5AC3FDF4D3A8ADD7708D0AA /* APIModels.swift in Sources */,
+				FC1573659A4A744A43828C79 /* AdaptiveRelativeDateText.swift in Sources */,
+				F50852D2EFB5ECAD50B6E8C2 /* AddAccountResult.swift in Sources */,
+				646FD8DD17DA6FA495C97967 /* AddProfileAgentRow.swift in Sources */,
+				E4F0DB38276A92164E32E35A /* AddProfileCatalogProfileText.swift in Sources */,
+				FEFF45C935374A0D300BB6C3 /* AddProfileCatalogView.swift in Sources */,
+				9897D9DC46EA4A7AC28011BC /* AddProfileLoginStatusCard.swift in Sources */,
+				7172929FB5D0B1CB9C1CBD2C /* AddProfileLoginView.swift in Sources */,
+				87040D8E5CBCE55DAA46806F /* AddProfileSheet.swift in Sources */,
+				C400EDC24DC4211E45B81791 /* AddProfileSheetFlowState.swift in Sources */,
+				B1C42199CF46ADF740E2A584 /* AddProfileSheetMode.swift in Sources */,
+				92CE3A0CAAC6F8248AE2054D /* AgentSettingsCatalog.swift in Sources */,
+				33F2B963ADF3D26918E1A13D /* AgentSettingsDetailView.swift in Sources */,
+				EED30FE92B03926110238CCA /* AppPreferences.swift in Sources */,
+				7EA7D5140F26D6C6529C985D /* GeneralSettingsDetailView.swift in Sources */,
+				28FF4DDC61D3B7EFF8EDCF9A /* MenuBarCurrentProfileCard.swift in Sources */,
+				C49E5F32525F07466F33C13B /* MenuBarHighlightStyle.swift in Sources */,
+				38B15E45B7BA475EE759CA9B /* MenuBarMetricRow.swift in Sources */,
+				767CBF64FAA57C06924EBC9A /* MenuBarMetricRowModel.swift in Sources */,
+				5FB20764033370F7C47F73B3 /* MenuBarPresenter.swift in Sources */,
+				012B475EFDC7338790C37269 /* MenuBarProfilePickerItem.swift in Sources */,
+				1B4FB2FE74618415AF93446C /* MenuBarUsageCardHeaderView.swift in Sources */,
+				47C3E9CE7F91F56258B6D225 /* MenuBarUsageCardSectionView.swift in Sources */,
+				721479D52E1895D0125579CD /* MenuBarUsageIcon.swift in Sources */,
+				E058B0397FAB7FCCD4C46C8A /* MenuBarUsageProgressBar.swift in Sources */,
+				37C3ACAE9D3CF18A054A28C9 /* MenuBarUsageStyle.swift in Sources */,
+				330F949920E2EFE4CC1BD879 /* MultiRingProgressAccessibility.swift in Sources */,
+				B18FF5772CD01C3234E4E9BE /* MultiRingProgressView.swift in Sources */,
+				906BFF7273D1843EB2484743 /* NativeBadgeSurface.swift in Sources */,
+				A5DFDD8A59880C62A6B59C09 /* NativeDetailRow.swift in Sources */,
+				F1A5841D9F2D37A94B47E50D /* NativeMetaText.swift in Sources */,
+				83D97DDA39B827D7E35F5C03 /* NativePaneScrollView.swift in Sources */,
+				A31BCC4E230500B52C8FF025 /* NativePreferencesTheme.swift in Sources */,
+				2FDBDE11C153A1B634EAC285 /* NativeStatusSymbol.swift in Sources */,
+				717D2BE36FDA8BE69B8D542B /* NativeStepperRow.swift in Sources */,
+				03F26F2E40694961FA74B8D9 /* NativeToolbarSymbolButton.swift in Sources */,
+				06A35A32A78C6118E66137D1 /* ProfileAccountStatusDot.swift in Sources */,
+				4CF4158C982173AAAE4B9374 /* ProfileAgentLabel.swift in Sources */,
+				A2778B8AD5518506EB3ABE69 /* ProfileCurrentStatusSection.swift in Sources */,
+				3D5492BB99CD80B0044C023E /* ProfileDetailHeroSection.swift in Sources */,
+				16FF98B4E5D684E5F7654C28 /* ProfileDetailUsageCard.swift in Sources */,
+				261ED7E5EDF7317853AEB702 /* ProfileEditorMode.swift in Sources */,
+				2847108F5E8A0D46ED7914CB /* ProfileEditorSheet.swift in Sources */,
+				46B27DDE3F6A33A56848F50F /* ProfileHeroAgentIcon.swift in Sources */,
+				6E88374B5E323E3E5FC1571D /* ProfileInfoBadge.swift in Sources */,
+				C6189CF5B93501A1C2697588 /* ProfileListAgentLabel.swift in Sources */,
+				17F207C8C83C3319E79781F8 /* ProfileListRow.swift in Sources */,
+				727F061ED3864928E6669927 /* ProfileListRowStatusIndicator.swift in Sources */,
+				945EA58B195F0ADB2EAFDE30 /* ProfileListUsageLine.swift in Sources */,
+				9EE95C8B7F2B3981AAB0B66A /* ProfileRowContextMenuModel.swift in Sources */,
+				754E8B514860450375A9EBB8 /* ProfileStateBadge.swift in Sources */,
+				928EF6F96D7BBE6AFC17A3A4 /* ProfileStatusBadge.swift in Sources */,
+				FCC360DFA6F77ABEB2DEA234 /* ProfilesActionHandler.swift in Sources */,
+				AAB97E21374423B5099324D1 /* ProfilesContentColumn.swift in Sources */,
+				8CCB0D0840E6622F5CC223A2 /* ProfilesContentToolbarTitle.swift in Sources */,
+				E72217A5C05E390BA22E3E70 /* ProfilesDetailPane.swift in Sources */,
+				276C6D650299FFAEC8EEE54A /* ProfilesPaneModel.swift in Sources */,
+				509072D0EA20A0FEF310BEE2 /* ProfilesPresentationState.swift in Sources */,
+				C708EADC10E05938B7786C8F /* ProfilesSelectionState.swift in Sources */,
+				A583B62C1359149573CDF7EA /* ProfilesSettingsPaneView.swift in Sources */,
+				D9ADF9F4DB3077025195650C /* ProfilesSidebarColumn.swift in Sources */,
+				89F777F8728E87FD24FF4754 /* ProfilesSidebarItemLabel.swift in Sources */,
+				40BEF6AE4031D718CBB0FA58 /* RelayAppModel.swift in Sources */,
+				0AD179FEEB36DBE54D59E18B /* RelayClientError.swift in Sources */,
+				1CA39C4E6E228DD1F47A7E3B /* RelayDaemonClient.swift in Sources */,
+				EEDB08DA10E5D217DE1F73DB /* RelayNotificationService.swift in Sources */,
+				9BA3658C0BD572993A076414 /* RelayStatusItemController.swift in Sources */,
+				EE74DBA0136189C0C46D6F6C /* ResetRelativeDateText.swift in Sources */,
+				23B973C75F8154F1DF677C2D /* SectionSurfaceCard.swift in Sources */,
+				AE05A6BCE693042E78712247 /* SettingsPaneModel.swift in Sources */,
+				94E0B93AE20E3911591C3473 /* SettingsPaneView.swift in Sources */,
+				5AEF71EB19CDA7FDA66809B3 /* UsageAlertSeverity.swift in Sources */,
+				9541A539200ECD9209DCE988 /* UsageBadgeViews.swift in Sources */,
+				6D60183FE225CD7ADC4CDB9A /* UsageCardNote.swift in Sources */,
+				3C30262DA51FE627EC67B204 /* UsageCardNoteResolver.swift in Sources */,
+				5CAC9BCA458603A651378CED /* UsageMetricRow.swift in Sources */,
+				5D8FDD30546652B5EE11597A /* UsageRefreshButton.swift in Sources */,
+				1C3889D97902C5C5CE244CEF /* UsageToolbarRefreshScope.swift in Sources */,
+				8A27B0648EF283C166500223 /* UsageToolbarRefreshScopeResolver.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A0302F4580831D661B86C592 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEE578A35032961A90BA6622 /* RelayAppDelegate.swift in Sources */,
+				4737E6B36242FF889CDD62D4 /* RelayMacOSApp.swift in Sources */,
+				8B82ACE798B7AA23F2AB6DD5 /* WindowActionRegistry.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		470181F2CD0C63965B814F2D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 176D55458DF119B4A47DB3AF /* RelayMacOSUI */;
+			targetProxy = 983EEF91C7900AE8A64518C2 /* PBXContainerItemProxy */;
+		};
+		B89FCEC1B1F352F11A951A2E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 176D55458DF119B4A47DB3AF /* RelayMacOSUI */;
+			targetProxy = AB39F6AD172D56660A9645C5 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		05266D968AA14E48DA037DA0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RelayApp/Resources/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.agentrelay.macos.ui;
+				PRODUCT_MODULE_NAME = RelayMacOSUI;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Release;
+		};
+		37142B5A14550DFF9751B10A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = RelayApp/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.agentrelay.macos;
+				PRODUCT_MODULE_NAME = AgentRelay;
+				PRODUCT_NAME = AgentRelay;
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+			};
+			name = Release;
+		};
+		41BF710DD1F1FCD7C23243C8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.agentrelay.macos.tests;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		45379604EC049A96DC36AA2F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = RelayApp/Resources/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.agentrelay.macos.ui;
+				PRODUCT_MODULE_NAME = RelayMacOSUI;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
+		7CCF8500DA427A60908D7545 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		AE9CECEB0C484ED2ED36B9EA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = RelayApp/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.agentrelay.macos;
+				PRODUCT_MODULE_NAME = AgentRelay;
+				PRODUCT_NAME = AgentRelay;
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+			};
+			name = Debug;
+		};
+		DB6CAC023CE8E08959F7EAFD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.agentrelay.macos.tests;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		FBB68857FCF8B08E1EC8B38A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		9FDA22DEAC14A617B3DE75F2 /* Build configuration list for PBXProject "AgentRelay" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FBB68857FCF8B08E1EC8B38A /* Debug */,
+				7CCF8500DA427A60908D7545 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AB7FA51DAC60D7E980B72978 /* Build configuration list for PBXNativeTarget "AgentRelay" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AE9CECEB0C484ED2ED36B9EA /* Debug */,
+				37142B5A14550DFF9751B10A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C529920A18C797300E2F53F9 /* Build configuration list for PBXNativeTarget "RelayMacOSUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				45379604EC049A96DC36AA2F /* Debug */,
+				05266D968AA14E48DA037DA0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DD9830031F16AF95416472B4 /* Build configuration list for PBXNativeTarget "RelayMacOSTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				41BF710DD1F1FCD7C23243C8 /* Debug */,
+				DB6CAC023CE8E08959F7EAFD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		11AFA48E455E3778C2228AF0 /* XCRemoteSwiftPackageReference "Defaults" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/Defaults";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.0.0;
+			};
+		};
+		496A66BCE125CBD3B22E4F35 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sindresorhus/LaunchAtLogin-Modern";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7B2EDAAAF50F340F006C05F9 /* Defaults */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 11AFA48E455E3778C2228AF0 /* XCRemoteSwiftPackageReference "Defaults" */;
+			productName = Defaults;
+		};
+		CE7E75657ABC887C614D1B55 /* LaunchAtLogin */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 496A66BCE125CBD3B22E4F35 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */;
+			productName = LaunchAtLogin;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = B3791AC610DC5631ADAF898C /* Project object */;
+}
