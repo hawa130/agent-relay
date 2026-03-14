@@ -25,6 +25,7 @@ XCODE_PACKAGE_ARGS=(
 )
 
 mkdir -p "$CACHE_DIR/clang" "$CACHE_DIR/swiftpm" "$CACHE_DIR/home" "$PRODUCT_DIR"
+rm -rf "$XCODE_BUILD_DIR"
 
 if [[ -n "$ORIGINAL_HOME" ]]; then
   export RUSTUP_HOME="${RUSTUP_HOME:-$ORIGINAL_HOME/.rustup}"
@@ -44,6 +45,7 @@ xcodebuild \
   -destination "$XCODE_DESTINATION" \
   -derivedDataPath "$XCODE_BUILD_DIR" \
   "${XCODE_PACKAGE_ARGS[@]}" \
+  ENABLE_HARDENED_RUNTIME=NO \
   build
 
 XCODE_APP_BUNDLE="$XCODE_BUILD_DIR/Build/Products/${XCODE_CONFIGURATION}/${APP_NAME}.app"
