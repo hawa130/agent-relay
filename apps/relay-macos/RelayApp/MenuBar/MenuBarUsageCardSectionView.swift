@@ -13,7 +13,8 @@ struct MenuBarUsageCardSectionView: View {
 
             if !usageNotes.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
-                    ForEach(Array(usageNotes.enumerated()), id: \.offset) { _, note in
+                    ForEach(usageNotes.indices, id: \.self) { index in
+                        let note = usageNotes[index]
                         Text(note.text)
                             .font(.system(size: 10.5))
                             .foregroundStyle(MenuBarHighlightStyle.note(isHighlighted, note: note))

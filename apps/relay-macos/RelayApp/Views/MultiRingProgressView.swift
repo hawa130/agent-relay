@@ -182,9 +182,8 @@ public struct MultiRingProgressView<CenterContent: View>: View {
 
     public var body: some View {
         ZStack {
-            ForEach(Array(items.enumerated()), id: \.offset) { pair in
-                let index = pair.offset
-                let item = pair.element
+            ForEach(items.indices, id: \.self) { index in
+                let item = items[index]
                 let diameter = RingProgressLayout.ringDiameter(size: size, ringIndex: index)
 
                 Circle()

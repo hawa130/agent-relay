@@ -13,7 +13,7 @@ struct AdaptiveRelativeDateText: View {
     var body: some View {
         switch style {
         case .automatic:
-            Text(prefix) + Text(date, style: .relative)
+            Text("\(prefix)\(Text(date, style: .relative))")
         case .named:
             TimelineView(AdaptiveRelativeTimelineSchedule(targetDate: date)) { context in
                 Text(prefix + namedRelativeText(relativeTo: context.date))

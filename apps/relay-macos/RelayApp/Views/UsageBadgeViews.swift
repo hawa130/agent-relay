@@ -27,7 +27,7 @@ struct UsageBadge: View {
 
     private var label: String {
         if let usedPercent = window.usedPercent {
-            return String(format: "%.0f%%", usedPercent)
+            return usedPercent.percentDisplay
         }
         return window.status.shortLabel
     }
@@ -82,7 +82,7 @@ extension UsageWindow {
 
     var ringValueText: String {
         if let usedPercent {
-            return String(format: "%.0f%%", usedPercent)
+            return usedPercent.percentDisplay
         }
 
         return status.shortLabel
@@ -124,5 +124,11 @@ extension UsageStatus {
         case .unknown:
             .neutral
         }
+    }
+}
+
+private extension Double {
+    var percentDisplay: String {
+        formatted(.number.precision(.fractionLength(0))) + "%"
     }
 }

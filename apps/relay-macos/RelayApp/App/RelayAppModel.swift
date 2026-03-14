@@ -629,21 +629,22 @@ public final class RelayAppModel: ObservableObject {
     }
 
     private func waitForCurrentLoginTaskID(
-        timeoutNanoseconds: UInt64 = 2_000_000_000) async -> String?
+        timeout: Duration = .seconds(2)) async -> String?
     {
         if let currentLoginTaskID {
             return currentLoginTaskID
         }
 
-        let deadline = DispatchTime.now().uptimeNanoseconds + timeoutNanoseconds
-        while DispatchTime.now().uptimeNanoseconds < deadline {
+        let clock = ContinuousClock()
+        let deadline = clock.now + timeout
+        while clock.now < deadline {
             if let currentLoginTaskID {
                 return currentLoginTaskID
             }
             if !mutationPending.contains(.loginTask) {
                 return nil
             }
-            try? await Task.sleep(nanoseconds: 20_000_000)
+            try? await Task.sleep(for: .milliseconds(20))
         }
         return currentLoginTaskID
     }
