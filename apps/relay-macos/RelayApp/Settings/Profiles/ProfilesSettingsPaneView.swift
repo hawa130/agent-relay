@@ -26,8 +26,16 @@ public struct ProfilesSettingsPaneView: View {
                 usageSnapshot: model.usageSnapshot(for:),
                 isFetchingUsage: model.isFetchingUsage(profileId:),
                 usageRefreshError: model.usageRefreshError(profileId:),
+                isMutatingProfiles: model.isMutatingProfiles,
+                isSwitching: model.isSwitching,
                 onRefreshUsage: actionHandler.refreshUsageFromToolbar,
-                onAddProfile: actionHandler.showAddProfile)
+                onAddProfile: actionHandler.showAddProfile,
+                onMakeCurrentProfile: actionHandler.switchToProfile,
+                onEditProfile: actionHandler.showEditProfile,
+                onToggleProfileEnabled: { profile in
+                    actionHandler.setProfileEnabled(profile, enabled: !profile.enabled)
+                },
+                onDeleteProfile: actionHandler.stageDeleteProfile)
         } detail: {
             ProfilesDetailPane(
                 selectedProfile: selectionState.selectedProfile,
@@ -202,6 +210,7 @@ public struct ProfilesSettingsPaneView: View {
         ProfilesActionHandler(
             model: model,
             selectedProfile: { selectionState.selectedProfile },
-            setDeletingProfile: { deletingProfile = $0 })
+            setDeletingProfile: { deletingProfile = $0 },
+            selectProfile: model.selectProfile)
     }
 }

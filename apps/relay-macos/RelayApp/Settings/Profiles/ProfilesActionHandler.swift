@@ -6,6 +6,7 @@ struct ProfilesActionHandler {
     let model: ProfilesPaneModel
     let selectedProfile: () -> Profile?
     let setDeletingProfile: (Profile?) -> Void
+    let selectProfile: (String?) -> Void
 
     func showAddProfile() {
         model.presentAddSheet()
@@ -15,8 +16,32 @@ struct ProfilesActionHandler {
         model.presentEditForSelectedProfile()
     }
 
+    func showEditProfile(_ profile: Profile) {
+        selectProfile(profile.id)
+        model.presentEditForSelectedProfile()
+    }
+
     func stageDeleteSelectedProfile() {
         setDeletingProfile(selectedProfile())
+    }
+
+    func stageDeleteProfile(_ profile: Profile) {
+        selectProfile(profile.id)
+        setDeletingProfile(profile)
+    }
+
+    func switchToProfile(_ profile: Profile) {
+        selectProfile(profile.id)
+        Task {
+            await model.switchToProfile(profile.id)
+        }
+    }
+
+    func setProfileEnabled(_ profile: Profile, enabled: Bool) {
+        selectProfile(profile.id)
+        Task {
+            await model.setProfileEnabled(profile.id, enabled: enabled)
+        }
     }
 
     func refreshUsageFromToolbar() {
