@@ -10,9 +10,9 @@ Do not use it as a project status board, backlog dump, or feature snapshot. Keep
 
 Use these documents as the long-lived sources of truth:
 
-- [`README.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/README.md) for project overview, command surface, and quick start
+- [`README.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/README.md) for product overview and documentation entrypoints
 - [`docs/architecture.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/architecture.md) for runtime boundaries and module responsibilities
-- [`docs/install.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/install.md) for installation and operator usage
+- [`docs/install.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/install.md) for installation, quick start, command surface, and operator usage
 - [`docs/development.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/development.md) for contributor workflows and release checks
 - [`docs/sqlite-schema.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/sqlite-schema.md) for SQLite schema workflow and bootstrap expectations
 - [`docs/linux-support.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/linux-support.md) for Linux scope and test expectations

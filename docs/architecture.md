@@ -147,6 +147,16 @@ SQLite is the durable source of truth. File-backed state is limited to caches an
 5. run post-switch validation
 6. commit state on success or roll back and emit failure state on error
 
+### Managed Live Files
+
+AgentRelay does not replace the entire `~/.codex` directory during activation. It manages only the live file set required for Codex profile switching:
+
+- `config.toml`
+- `auth.json`
+- `version.json`
+
+This keeps live mutation recoverable and avoids copying unrelated history, logs, caches, or other session artifacts into the active home.
+
 ## Engineering Invariants
 
 - every user-visible command supports `--json`
