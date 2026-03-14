@@ -81,4 +81,7 @@ cp "$RELAY_BINARY_PATH" "$APP_BUNDLE/Contents/Resources/bin/agrelay"
 
 chmod +x "$APP_BUNDLE/Contents/Resources/bin/agrelay"
 
+codesign --force --sign - --timestamp=none "$APP_BUNDLE/Contents/Resources/bin/agrelay"
+codesign --force --sign - --timestamp=none --deep "$APP_BUNDLE"
+
 echo "built app bundle: $APP_BUNDLE"
