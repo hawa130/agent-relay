@@ -26,7 +26,7 @@ let package = Package(
                 .product(name: "LaunchAtLogin", package: "LaunchAtLogin-Modern")
             ],
             path: "RelayApp",
-            exclude: ["Resources/README.md", "Resources/Info.plist"],
+            exclude: ["Resources/README.md"],
             resources: [
                 .process("Resources")
             ]),
@@ -36,7 +36,8 @@ let package = Package(
                 "RelayMacOSUI",
                 "Defaults"
             ],
-            path: "RelayAppExecutable"),
+            path: "RelayAppExecutable",
+            exclude: ["Resources/Info.plist"]),
         .testTarget(
             name: "RelayMacOSTests",
             dependencies: ["RelayMacOSUI"],

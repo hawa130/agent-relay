@@ -23,15 +23,6 @@ XCODE_PACKAGE_ARGS=(
   -disableAutomaticPackageResolution
   -onlyUsePackageVersionsFromResolvedFile
 )
-RUST_PROFILE="release"
-CARGO_ARGS=(--release)
-RELAY_BINARY_PATH="$WORKSPACE_ROOT/target/$RUST_PROFILE/agrelay"
-
-if [[ "$CONFIGURATION" == "debug" ]]; then
-  RUST_PROFILE="debug"
-  CARGO_ARGS=()
-  RELAY_BINARY_PATH="$WORKSPACE_ROOT/target/$RUST_PROFILE/agrelay"
-fi
 
 mkdir -p "$CACHE_DIR/clang" "$CACHE_DIR/swiftpm" "$CACHE_DIR/home" "$PRODUCT_DIR"
 
@@ -54,10 +45,10 @@ xcodebuild \
   -derivedDataPath "$XCODE_BUILD_DIR" \
   "${XCODE_PACKAGE_ARGS[@]}" \
   build
-cargo build -p agrelay-cli --bin agrelay "${CARGO_ARGS[@]}"
 
 XCODE_APP_BUNDLE="$XCODE_BUILD_DIR/Build/Products/${XCODE_CONFIGURATION}/${APP_NAME}.app"
 EXECUTABLE_PATH="$XCODE_APP_BUNDLE/Contents/MacOS/${APP_NAME}"
+BUNDLED_RELAY_PATH="$XCODE_APP_BUNDLE/Contents/Helpers/agrelay"
 
 if [[ ! -d "$XCODE_APP_BUNDLE" ]]; then
   echo "expected app bundle not found at $XCODE_APP_BUNDLE" >&2
@@ -69,19 +60,12 @@ if [[ ! -x "$EXECUTABLE_PATH" ]]; then
   exit 1
 fi
 
-if [[ ! -x "$RELAY_BINARY_PATH" ]]; then
-  echo "expected agrelay binary not found at $RELAY_BINARY_PATH" >&2
+if [[ ! -x "$BUNDLED_RELAY_PATH" ]]; then
+  echo "expected bundled agrelay not found at $BUNDLED_RELAY_PATH" >&2
   exit 1
 fi
 
 rm -rf "$APP_BUNDLE"
 cp -R "$XCODE_APP_BUNDLE" "$APP_BUNDLE"
-mkdir -p "$APP_BUNDLE/Contents/Resources/bin"
-cp "$RELAY_BINARY_PATH" "$APP_BUNDLE/Contents/Resources/bin/agrelay"
-
-chmod +x "$APP_BUNDLE/Contents/Resources/bin/agrelay"
-
-codesign --force --sign - --timestamp=none "$APP_BUNDLE/Contents/Resources/bin/agrelay"
-codesign --force --sign - --timestamp=none --deep "$APP_BUNDLE"
 
 echo "built app bundle: $APP_BUNDLE"
