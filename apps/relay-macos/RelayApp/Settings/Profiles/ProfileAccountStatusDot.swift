@@ -1,12 +1,14 @@
 import SwiftUI
 
 struct ProfileAccountStatusDot: View {
+    nonisolated static let symbolName = "circle.fill"
+
     let accountState: ProfileAccountState
     let diameter: CGFloat
 
     var body: some View {
-        Image(systemName: accountStatusSymbol)
-            .font(.system(size: diameter, weight: .bold))
+        Image(systemName: Self.symbolName)
+            .font(.system(size: diameter))
             .foregroundStyle(accountStatusColor)
             .frame(width: diameter + 4, height: diameter + 4)
             .help(accountStatusHelp)
@@ -28,15 +30,6 @@ struct ProfileAccountStatusDot: View {
             "Account status healthy"
         case .accountUnavailable:
             "Account status unavailable for auto-switch"
-        }
-    }
-
-    private var accountStatusSymbol: String {
-        switch accountState {
-        case .healthy:
-            "checkmark.circle.fill"
-        case .accountUnavailable:
-            "exclamationmark.circle.fill"
         }
     }
 }

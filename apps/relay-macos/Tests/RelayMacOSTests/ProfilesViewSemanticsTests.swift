@@ -2,6 +2,20 @@
 import XCTest
 
 final class ProfilesViewSemanticsTests: XCTestCase {
+    func testUsageRefreshButtonToolbarVariantUsesIconOnlyControlWidth() {
+        XCTAssertEqual(
+            UsageRefreshButton.Variant.toolbar.iconFrameWidth,
+            28,
+            accuracy: 0.001)
+    }
+
+    func testUsageRefreshButtonCardVariantUsesCompactIconWidth() {
+        XCTAssertEqual(
+            UsageRefreshButton.Variant.card.iconFrameWidth,
+            14,
+            accuracy: 0.001)
+    }
+
     @MainActor
     func testActivateProfileActionLabelReflectsCurrentState() {
         XCTAssertEqual(
@@ -35,5 +49,9 @@ final class ProfilesViewSemanticsTests: XCTestCase {
         XCTAssertEqual(
             NativeStepperRow.accessibilityValueText("15 minutes"),
             "15 minutes")
+    }
+
+    func testProfileAccountStatusDotUsesPlainCircleWithoutSymbolGlyphs() {
+        XCTAssertEqual(ProfileAccountStatusDot.symbolName, "circle.fill")
     }
 }

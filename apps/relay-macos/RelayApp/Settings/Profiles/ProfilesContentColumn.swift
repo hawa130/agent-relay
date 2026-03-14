@@ -55,11 +55,13 @@ struct ProfilesContentColumn: View {
                 if isFetchingEnabledUsage {
                     UsageRefreshButton(
                         isRefreshing: true,
+                        variant: .toolbar,
                         helpText: "Refresh Usage For Enabled Profiles. Option-click to refresh all profiles.",
                         action: onRefreshUsage)
                 } else {
                     UsageRefreshButton(
                         isRefreshing: false,
+                        variant: .toolbar,
                         helpText: "Refresh Usage For Enabled Profiles. Option-click to refresh all profiles.",
                         action: onRefreshUsage)
                 }
