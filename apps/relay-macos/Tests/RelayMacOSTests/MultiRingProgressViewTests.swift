@@ -2,6 +2,37 @@
 import XCTest
 
 final class MultiRingProgressViewTests: XCTestCase {
+    func testAccessibilitySummaryUsesAllRingValuesWhenPresent() {
+        let items = [
+            RingProgressItem(
+                id: "session",
+                label: "Session",
+                shortLabel: "S",
+                progress: 0.54,
+                tone: .positive,
+                valueText: "54%",
+                detailText: "Resets in 2h"),
+            RingProgressItem(
+                id: "weekly",
+                label: "Weekly",
+                shortLabel: "W",
+                progress: 0.92,
+                tone: .warning,
+                valueText: "92%",
+                detailText: "Resets tomorrow")
+        ]
+
+        XCTAssertEqual(
+            MultiRingProgressAccessibility.summary(for: items),
+            "Session 54%, Resets in 2h; Weekly 92%, Resets tomorrow")
+    }
+
+    func testAccessibilitySummaryFallsBackWhenNoItemsExist() {
+        XCTAssertEqual(
+            MultiRingProgressAccessibility.summary(for: []),
+            "Progress unavailable")
+    }
+
     func testRingLayoutUsesExpectedDiametersForRegularSize() {
         XCTAssertEqual(
             RingProgressLayout.ringDiameter(size: .regular, ringIndex: 0),

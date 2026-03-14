@@ -50,14 +50,14 @@ struct ProfilesDetailPane: View {
             ToolbarItemGroup(placement: .primaryAction) {
                 Toggle(isOn: selectedProfileActive) {
                     Label(
-                        selectedProfileIsActive ? "Profile is active" : "Activate Profile",
-                        systemImage: selectedProfileIsActive ? "checkmark.circle.fill" : "checkmark.circle")
+                        Self.activateProfileLabel(isActive: selectedProfileIsActive),
+                        systemImage: Self.activateProfileSymbol(isActive: selectedProfileIsActive))
                 }
-                .labelStyle(.iconOnly)
                 .toggleStyle(.button)
+                .buttonStyle(.bordered)
                 .disabled(isActiveToggleDisabled)
-                .help(selectedProfileIsActive ? "Profile is active" : "Activate Profile")
-                .accessibilityLabel(selectedProfileIsActive ? "Profile is active" : "Activate Profile")
+                .help(Self.activateProfileLabel(isActive: selectedProfileIsActive))
+                .accessibilityLabel(Self.activateProfileLabel(isActive: selectedProfileIsActive))
             }
 
             ToolbarItemGroup(placement: .confirmationAction) {
@@ -75,5 +75,13 @@ struct ProfilesDetailPane: View {
                     action: onDeleteProfile)
             }
         }
+    }
+
+    nonisolated static func activateProfileLabel(isActive: Bool) -> String {
+        isActive ? "Profile is active" : "Activate Profile"
+    }
+
+    nonisolated static func activateProfileSymbol(isActive: Bool) -> String {
+        isActive ? "checkmark.circle.fill" : "checkmark.circle"
     }
 }

@@ -10,23 +10,7 @@ struct ProfileDetailUsageCard: View {
         SectionSurfaceCard(
             "Usage",
             headerAccessory: {
-                Button {
-                    onRefresh()
-                } label: {
-                    Group {
-                        if isFetchingUsage {
-                            ProgressView()
-                                .controlSize(.small)
-                        } else {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                    }
-                    .frame(width: 14, height: 14)
-                }
-                .buttonStyle(.bordered)
-                .disabled(isFetchingUsage)
-                .help("Refresh Usage")
-                .accessibilityLabel("Refresh Usage")
+                UsageRefreshButton(isRefreshing: isFetchingUsage, action: onRefresh)
             },
             content: {
                 Group {

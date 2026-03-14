@@ -16,23 +16,26 @@ struct ProfilesContentColumn: View {
     let onAddProfile: () -> Void
 
     var body: some View {
-        List(selection: selectedProfile) {
-            ForEach(filteredProfiles) { profile in
-                ProfileListRow(
-                    profile: profile,
-                    usage: usageSnapshot(profile.id),
-                    isActive: activeProfileId == profile.id,
-                    isFetchingUsage: isFetchingUsage(profile.id),
-                    usageRefreshError: usageRefreshError(profile.id))
-                    .tag(Optional(profile.id))
-            }
-
+        Group {
             if filteredProfiles.isEmpty {
                 ContentUnavailableView(
                     "No Profiles",
                     systemImage: "person.crop.square",
                     description: Text(emptyStateDescription))
-                    .disabled(true)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(NativePreferencesTheme.Colors.paneBackground)
+            } else {
+                List(selection: selectedProfile) {
+                    ForEach(filteredProfiles) { profile in
+                        ProfileListRow(
+                            profile: profile,
+                            usage: usageSnapshot(profile.id),
+                            isActive: activeProfileId == profile.id,
+                            isFetchingUsage: isFetchingUsage(profile.id),
+                            usageRefreshError: usageRefreshError(profile.id))
+                            .tag(Optional(profile.id))
+                    }
+                }
             }
         }
         .listStyle(.inset)
@@ -50,18 +53,15 @@ struct ProfilesContentColumn: View {
 
             ToolbarItemGroup(placement: .confirmationAction) {
                 if isFetchingEnabledUsage {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(width: 28, height: 28)
-                        .help("Refreshing usage")
-                } else {
-                    NativeToolbarSymbolButton(
-                        "Refresh Usage",
-                        systemImage: "arrow.clockwise",
+                    UsageRefreshButton(
+                        isRefreshing: true,
                         helpText: "Refresh Usage For Enabled Profiles. Option-click to refresh all profiles.",
                         action: onRefreshUsage)
-                        .labelStyle(.iconOnly)
-                        .buttonStyle(.bordered)
+                } else {
+                    UsageRefreshButton(
+                        isRefreshing: false,
+                        helpText: "Refresh Usage For Enabled Profiles. Option-click to refresh all profiles.",
+                        action: onRefreshUsage)
                 }
 
                 NativeToolbarSymbolButton("Add Profile", systemImage: "plus", action: onAddProfile)
