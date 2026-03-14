@@ -46,11 +46,9 @@ struct ProfileDetailUsageCard: View {
                                 Spacer(minLength: 0)
 
                                 VStack(alignment: .trailing, spacing: 2) {
-                                    Text("Source: \(usage.source.displayName)")
-                                    Text("Updated: \(usage.lastRefreshedAt.formatted(date: .abbreviated, time: .standard))")
+                                    NativeMetaText(text: "Source: \(usage.source.displayName)")
+                                    NativeMetaText(text: "Updated: \(usage.lastRefreshedAt.formatted(date: .abbreviated, time: .standard))")
                                 }
-                                .font(.system(size: 10))
-                                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
                             }
                         }
                     } else {

@@ -32,6 +32,9 @@ public enum NativePreferencesTheme {
         public static let sectionLabel = Font.system(size: 11, weight: .semibold)
         public static let body = Font.system(size: 13)
         public static let detail = Font.system(size: 11)
+        public static let meta = Font.system(size: 10)
+        public static let badge = Font.system(size: 10, weight: .semibold)
+        public static let badgeValue = Font.system(size: 10, weight: .regular)
     }
 
     public enum Colors {

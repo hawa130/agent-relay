@@ -7,9 +7,11 @@ struct ProfileCurrentStatusSection: View {
         SectionSurfaceCard("Status") {
             ForEach(events) { event in
                 HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(NativePreferencesTheme.Colors.statusIcon(.warning))
+                    NativeStatusSymbol(
+                        systemName: "exclamationmark.triangle.fill",
+                        color: NativePreferencesTheme.Colors.statusIcon(.warning),
+                        accessibilityLabel: event.reason.displayName,
+                        font: .system(size: 11, weight: .semibold))
                         .padding(.top, 2)
 
                     VStack(alignment: .leading, spacing: 3) {
@@ -20,9 +22,7 @@ struct ProfileCurrentStatusSection: View {
                             .font(NativePreferencesTheme.Typography.detail)
                             .foregroundStyle(.secondary)
 
-                        Text(event.createdAt.formatted(date: .abbreviated, time: .standard))
-                            .font(.system(size: 10))
-                            .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+                        NativeMetaText(text: event.createdAt.formatted(date: .abbreviated, time: .standard))
                     }
                 }
             }

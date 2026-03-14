@@ -7,15 +7,13 @@ struct ProfileListUsageLine: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("\(title) \(value)")
-                .font(.system(size: 10))
-                .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
+            NativeMetaText(text: "\(title) \(value)")
 
             Spacer(minLength: 2)
 
             if let resetDate {
                 ResetRelativeDateText(date: resetDate)
-                    .font(.system(size: 10))
+                    .font(NativePreferencesTheme.Typography.meta)
                     .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
             }
         }
