@@ -1,4 +1,4 @@
-@testable import RelayMacOSUI
+@testable import AgentRelayUI
 import XCTest
 
 final class ProfilesViewSemanticsTests: XCTestCase {

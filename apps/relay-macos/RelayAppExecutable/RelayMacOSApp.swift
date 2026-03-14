@@ -1,4 +1,4 @@
-import RelayMacOSUI
+import AgentRelayUI
 import SwiftUI
 
 @main

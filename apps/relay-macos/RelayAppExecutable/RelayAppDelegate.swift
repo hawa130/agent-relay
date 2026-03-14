@@ -1,5 +1,5 @@
 import AppKit
-import RelayMacOSUI
+import AgentRelayUI
 
 @MainActor
 final class RelayAppDelegate: NSObject, NSApplicationDelegate {
