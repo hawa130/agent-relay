@@ -12,4 +12,6 @@
 .swift-cache/
 apps/relay-macos/dist/
 apps/relay-macos/.xcode-build/
+apps/relay-macos/AgentRelay.xcodeproj/xcuserdata/
+apps/relay-macos/AgentRelay.xcodeproj/project.xcworkspace/xcuserdata/
 .env

@@ -28,6 +28,7 @@
 		2847108F5E8A0D46ED7914CB /* ProfileEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCDD6A7FF6B2E01D5C54D01E /* ProfileEditorSheet.swift */; };
 		28FF4DDC61D3B7EFF8EDCF9A /* MenuBarCurrentProfileCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 255BD3F5D1FCFD94AF16C54B /* MenuBarCurrentProfileCard.swift */; };
 		2971DB5F23248019E6C65BD0 /* RelayMacOSUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = B664612DD69880A03901E611 /* RelayMacOSUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		2A262D769DBFEA825FAFD7BA /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = BF85C47B856546F1A24EFD6E /* Assets.xcassets */; };
 		2FDBDE11C153A1B634EAC285 /* NativeStatusSymbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7B9BA6224BE38D38DC007E7 /* NativeStatusSymbol.swift */; };
 		330F949920E2EFE4CC1BD879 /* MultiRingProgressAccessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7182B9833C7B57B375E17EC /* MultiRingProgressAccessibility.swift */; };
 		33F2B963ADF3D26918E1A13D /* AgentSettingsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A709374CBACD5AF2F935DB7E /* AgentSettingsDetailView.swift */; };
@@ -185,6 +186,7 @@
 		49302B57C388833013FD07A2 /* ProviderIcon-codex.svg */ = {isa = PBXFileReference; path = "ProviderIcon-codex.svg"; sourceTree = "<group>"; };
 		4A2CF57A603746D1B525B57B /* ProfilesSettingsPaneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesSettingsPaneView.swift; sourceTree = "<group>"; };
 		4A459E3A4C55021A5F50C0CB /* MultiRingProgressViewTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiRingProgressViewTests.swift; sourceTree = "<group>"; };
+		4AE07110B7C37D917B581EE6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4C153DC8E24F4721A6F695DD /* NativeDetailRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeDetailRow.swift; sourceTree = "<group>"; };
 		4DEA52CDAF2CE515CDDF9AC7 /* MenuBarUsageCardHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarUsageCardHeaderView.swift; sourceTree = "<group>"; };
 		4F510799CE221EDAEF31029D /* MenuBarHighlightStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarHighlightStyle.swift; sourceTree = "<group>"; };
@@ -226,6 +228,7 @@
 		B664612DD69880A03901E611 /* RelayMacOSUI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RelayMacOSUI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		B6ACCDC3A85E0DE8BCAFC4A0 /* RelayDaemonClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayDaemonClient.swift; sourceTree = "<group>"; };
 		BCD36660633891A4BB609ABA /* MultiRingProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiRingProgressView.swift; sourceTree = "<group>"; };
+		BF85C47B856546F1A24EFD6E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C24BA2B2A03E714D60559F0D /* NativeBadgeSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBadgeSurface.swift; sourceTree = "<group>"; };
 		C2A586A533973BFB1218FB7A /* NativeToolbarSymbolButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeToolbarSymbolButton.swift; sourceTree = "<group>"; };
 		C36875D1E808677357C2F0CF /* AddProfileSheetMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileSheetMode.swift; sourceTree = "<group>"; };
@@ -342,6 +345,7 @@
 		4F6911F390771394D3C06874 /* RelayAppExecutable */ = {
 			isa = PBXGroup;
 			children = (
+				DA2F739F962FED145BCD1799 /* Resources */,
 				C912FF0FA74E0F9320EAA85F /* RelayAppDelegate.swift */,
 				A1CC5C656E3E0A10F303A0E4 /* RelayMacOSApp.swift */,
 				315823C94C4210AEFADCADE8 /* WindowActionRegistry.swift */,
@@ -466,6 +470,7 @@
 		BC381DC5895E9F6161AA1859 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
+				BF85C47B856546F1A24EFD6E /* Assets.xcassets */,
 				49302B57C388833013FD07A2 /* ProviderIcon-codex.svg */,
 			);
 			path = Resources;
@@ -505,6 +510,14 @@
 				C06991EA3CE0C689B6826AEB /* Tests */,
 				62F630232139E0F8F79E227B /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		DA2F739F962FED145BCD1799 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				4AE07110B7C37D917B581EE6 /* Info.plist */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		F490C4497335BF7E27D46C84 /* RelayApp */ = {
@@ -572,6 +585,7 @@
 				A0302F4580831D661B86C592 /* Sources */,
 				A5AB9246DFB5C4BE27025432 /* Frameworks */,
 				5437190B0C827B96639C71E6 /* Embed Frameworks */,
+				712FCDC792DB2814FD565209 /* Package agrelay CLI */,
 			);
 			buildRules = (
 			);
@@ -630,11 +644,40 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2A262D769DBFEA825FAFD7BA /* Assets.xcassets in Resources */,
 				5EE58564C0EC0F4F9E9246C6 /* ProviderIcon-codex.svg in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		712FCDC792DB2814FD565209 /* Package agrelay CLI */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/../../Cargo.toml",
+				"$(SRCROOT)/../../Cargo.lock",
+				"$(SRCROOT)/../../apps/relay-cli/Cargo.toml",
+				"$(SRCROOT)/Package.resolved",
+			);
+			name = "Package agrelay CLI";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Helpers/agrelay",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "#!/usr/bin/env bash\n\nset -euo pipefail\n\nROOT_DIR=\"${SRCROOT:-$(cd \"$(dirname \"$0\")/..\" && pwd)}\"\nWORKSPACE_ROOT=\"$(cd \"$ROOT_DIR/../..\" && pwd)\"\nAPP_CONTENTS_PATH=\"${1:-${TARGET_BUILD_DIR:-}${CONTENTS_FOLDER_PATH:+/$CONTENTS_FOLDER_PATH}}\"\nBUILD_CONFIGURATION=\"${2:-${CONFIGURATION:-Release}}\"\nCACHE_DIR=\"$ROOT_DIR/.swift-cache\"\nORIGINAL_HOME=\"${HOME:-}\"\n\nif [[ -z \"$APP_CONTENTS_PATH\" ]]; then\n  printf 'usage: %s <app-bundle-path> [configuration]\\n' \"$0\" >&2\n  exit 1\nfi\n\ncase \"$BUILD_CONFIGURATION\" in\n  [Dd]ebug)\n    RUST_PROFILE=\"debug\"\n    CARGO_ARGS=()\n    ;;\n  *)\n    RUST_PROFILE=\"release\"\n    CARGO_ARGS=(--release)\n    ;;\nesac\n\nmkdir -p \"$CACHE_DIR/clang\" \"$CACHE_DIR/swiftpm\" \"$CACHE_DIR/home\"\n\nif [[ -n \"$ORIGINAL_HOME\" ]]; then\n  export RUSTUP_HOME=\"${RUSTUP_HOME:-$ORIGINAL_HOME/.rustup}\"\n  export CARGO_HOME=\"${CARGO_HOME:-$ORIGINAL_HOME/.cargo}\"\nfi\n\nexport HOME=\"$CACHE_DIR/home\"\nexport SWIFTPM_MODULECACHE_OVERRIDE=\"$CACHE_DIR/swiftpm\"\nexport CLANG_MODULE_CACHE_PATH=\"$CACHE_DIR/clang\"\n\nif [[ -n \"${CARGO_HOME:-}\" ]]; then\n  export PATH=\"$CARGO_HOME/bin:$PATH\"\nelif [[ -n \"$ORIGINAL_HOME\" && -d \"$ORIGINAL_HOME/.cargo/bin\" ]]; then\n  export PATH=\"$ORIGINAL_HOME/.cargo/bin:$PATH\"\nfi\n\nif ! command -v cargo >/dev/null 2>&1; then\n  echo \"cargo executable not found; install Rust or configure CARGO_HOME before building AgentRelay\" >&2\n  exit 1\nfi\n\ncd \"$WORKSPACE_ROOT\"\ncargo build -p agrelay-cli --bin agrelay \"${CARGO_ARGS[@]}\"\n\nRELAY_BINARY_PATH=\"$WORKSPACE_ROOT/target/$RUST_PROFILE/agrelay\"\nDESTINATION_DIR=\"$APP_CONTENTS_PATH/Helpers\"\nDESTINATION_PATH=\"$DESTINATION_DIR/agrelay\"\n\nif [[ ! -x \"$RELAY_BINARY_PATH\" ]]; then\n  echo \"expected agrelay binary not found at $RELAY_BINARY_PATH\" >&2\n  exit 1\nfi\n\nmkdir -p \"$DESTINATION_DIR\"\ncp \"$RELAY_BINARY_PATH\" \"$DESTINATION_PATH\"\nchmod +x \"$DESTINATION_PATH\"\n\nSIGN_IDENTITY=\"-\"\nif [[ \"${CODE_SIGNING_ALLOWED:-NO}\" == \"YES\" && -n \"${EXPANDED_CODE_SIGN_IDENTITY:-}\" ]]; then\n  SIGN_IDENTITY=\"$EXPANDED_CODE_SIGN_IDENTITY\"\nfi\n\ncodesign --force --sign \"$SIGN_IDENTITY\" --timestamp=none \"$DESTINATION_PATH\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		12A9A2AF84C7114A5455CBBE /* Sources */ = {
@@ -784,7 +827,6 @@
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = RelayApp/Resources/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -802,12 +844,14 @@
 		37142B5A14550DFF9751B10A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = RelayApp/Resources/Info.plist;
+				INFOPLIST_FILE = RelayAppExecutable/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -847,7 +891,6 @@
 				DYLIB_CURRENT_VERSION = 1;
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = RelayApp/Resources/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -923,12 +966,14 @@
 		AE9CECEB0C484ED2ED36B9EA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = RelayApp/Resources/Info.plist;
+				INFOPLIST_FILE = RelayAppExecutable/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
