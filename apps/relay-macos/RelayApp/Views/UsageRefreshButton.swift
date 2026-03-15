@@ -53,6 +53,14 @@ struct UsageRefreshButton: View {
         isRefreshing ? "Refreshing usage" : "Refresh Usage"
     }
 
+    nonisolated static func labelOpacity(isRefreshing: Bool) -> Double {
+        isRefreshing ? 0 : 1
+    }
+
+    nonisolated static func progressOpacity(isRefreshing: Bool) -> Double {
+        isRefreshing ? 1 : 0
+    }
+
     @ViewBuilder
     private var configuredButton: some View {
         if variant.usesIconOnlyLabel {
@@ -65,11 +73,11 @@ struct UsageRefreshButton: View {
     private var button: some View {
         Button(action: action) {
             Label(Self.accessibilityLabel(isRefreshing: isRefreshing), systemImage: "arrow.clockwise")
+                .opacity(Self.labelOpacity(isRefreshing: isRefreshing))
                 .overlay {
-                    if isRefreshing {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
+                    ProgressView()
+                        .controlSize(.small)
+                        .opacity(Self.progressOpacity(isRefreshing: isRefreshing))
                 }
                 .frame(width: variant.iconFrameWidth, height: 14)
         }
