@@ -1,5 +1,5 @@
-import Foundation
 @testable import AgentRelayUI
+import Foundation
 import XCTest
 
 @MainActor

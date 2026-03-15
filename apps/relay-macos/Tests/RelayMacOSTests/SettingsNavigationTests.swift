@@ -1,5 +1,5 @@
-import AppKit
 @testable import AgentRelayUI
+import AppKit
 import XCTest
 
 final class SettingsNavigationTests: XCTestCase {
