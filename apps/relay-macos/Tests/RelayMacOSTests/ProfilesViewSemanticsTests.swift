@@ -47,6 +47,25 @@ final class ProfilesViewSemanticsTests: XCTestCase {
             "Refreshing usage")
     }
 
+    func testUsageRefreshButtonSwitchesFromIconToLoaderWhenRefreshing() {
+        XCTAssertEqual(
+            UsageRefreshButton.labelOpacity(isRefreshing: false),
+            1,
+            accuracy: 0.001)
+        XCTAssertEqual(
+            UsageRefreshButton.progressOpacity(isRefreshing: false),
+            0,
+            accuracy: 0.001)
+        XCTAssertEqual(
+            UsageRefreshButton.labelOpacity(isRefreshing: true),
+            0,
+            accuracy: 0.001)
+        XCTAssertEqual(
+            UsageRefreshButton.progressOpacity(isRefreshing: true),
+            1,
+            accuracy: 0.001)
+    }
+
     func testStepperAccessibilityValueUsesCurrentValueText() {
         XCTAssertEqual(
             NativeStepperRow.accessibilityValueText("15 minutes"),
