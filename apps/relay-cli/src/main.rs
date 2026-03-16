@@ -10,8 +10,8 @@ use relay_core::{
     AgentLoginMode, AgentLoginRequest, AppSettings, AuthMode, BootstrapMode, CodexSettings,
     CodexSettingsUpdateRequest, DiagnosticsExport, DoctorReport, EditProfileRequest, FailureEvent,
     FailureReason, ImportProfileRequest, LogTail, ProbeProvider, Profile, ProfileDetail,
-    ProfileProbeIdentity, ProfileRecoveryReport, RelayApp, RelayError, SwitchOutcome, SwitchReport,
-    SystemSettingsUpdateRequest, SystemStatusReport, UsageSnapshot, UsageSourceMode, UsageStatus,
+    ProfileProbeIdentity, ProfileRecoveryReport, RelayApp, RelayError, StatusReport, SwitchOutcome,
+    SwitchReport, SystemSettingsUpdateRequest, UsageSnapshot, UsageSourceMode, UsageStatus,
     UsageWindow,
 };
 use serde::{Deserialize, Serialize};
@@ -76,7 +76,7 @@ enum Commands {
 
 #[derive(Debug, Args)]
 struct DaemonCommand {
-    #[arg(long, help = "Serve the daemon over stdio JSON-RPC")]
+    #[arg(long, required = true, help = "Serve the daemon over stdio JSON-RPC")]
     stdio: bool,
 }
 

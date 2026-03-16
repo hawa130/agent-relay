@@ -97,7 +97,7 @@ impl AdapterRegistry {
     }
 
     pub fn primary_kind(&self) -> AgentKind {
-        self.primary_kind.clone()
+        self.primary_kind
     }
 
     pub fn primary(&self) -> &dyn AgentAdapter {
@@ -127,7 +127,7 @@ impl AdapterRegistry {
 impl Clone for AdapterRegistry {
     fn clone(&self) -> Self {
         Self {
-            primary_kind: self.primary_kind.clone(),
+            primary_kind: self.primary_kind,
             entries: self.entries.clone(),
         }
     }

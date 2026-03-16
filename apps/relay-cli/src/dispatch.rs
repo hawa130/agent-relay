@@ -57,29 +57,32 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
         Commands::Daemon(_) => unreachable!("daemon command is handled before CLI dispatch entry"),
         Commands::Doctor => {
             let report = app.doctor_report()?;
+            let rendered = render_doctor_report(&report);
             Ok(Output::success_rendered(
                 "doctor completed",
-                report.clone(),
-                render_doctor_report(&report),
+                report,
+                rendered,
                 cli.json,
             ))
         }
         Commands::Status => {
-            let report = app.system_status().await?;
+            let report = app.status_report().await?;
+            let rendered = render_status_report(&report);
             Ok(Output::success_rendered(
                 "status loaded",
-                report.clone(),
-                render_status_report(&report),
+                report,
+                rendered,
                 cli.json,
             ))
         }
         Commands::Settings(command) => match command.command {
             None | Some(SettingsSubcommand::Show) => {
                 let settings = app.settings().await?;
+                let rendered = render_settings(&settings);
                 Ok(Output::success_rendered(
                     "settings loaded",
-                    settings.clone(),
-                    render_settings(&settings),
+                    settings,
+                    rendered,
                     cli.json,
                 ))
             }
@@ -87,10 +90,11 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 let settings = app
                     .update_system_settings(settings_request_from_args(args)?)
                     .await?;
+                let rendered = render_settings(&settings);
                 Ok(Output::success_rendered(
                     "settings updated",
-                    settings.clone(),
-                    render_settings(&settings),
+                    settings,
+                    rendered,
                     cli.json,
                 ))
             }
@@ -101,29 +105,32 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 ShowTarget::Current => app.current_profile_detail().await?,
                 ShowTarget::Profile(id) => app.profile_detail(&id).await?,
             };
+            let rendered = render_profile_summary(&detail);
             Ok(Output::success_rendered(
                 "profile detail loaded",
-                detail.clone(),
-                render_profile_summary(&detail),
+                detail,
+                rendered,
                 cli.json,
             ))
         }
         Commands::Edit(args) => {
             let (id, request) = edit_profile_request_from_args(args)?;
             let profile = app.edit_profile(&id, request).await?;
+            let rendered = render_profile_detail(&profile);
             Ok(Output::success_rendered(
                 "profile updated",
-                profile.clone(),
-                render_profile_detail(&profile),
+                profile,
+                rendered,
                 cli.json,
             ))
         }
         Commands::Remove(args) => {
             let profile = app.remove_profile(&profile_id_from_args(args)?).await?;
+            let rendered = render_profile_detail(&profile);
             Ok(Output::success_rendered(
                 "profile removed",
-                profile.clone(),
-                render_profile_detail(&profile),
+                profile,
+                rendered,
                 cli.json,
             ))
         }
@@ -131,10 +138,11 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
             let profile = app
                 .set_profile_enabled(&profile_id_from_args(args)?, true)
                 .await?;
+            let rendered = render_profile_detail(&profile);
             Ok(Output::success_rendered(
                 "profile enabled",
-                profile.clone(),
-                render_profile_detail(&profile),
+                profile,
+                rendered,
                 cli.json,
             ))
         }
@@ -142,10 +150,11 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
             let profile = app
                 .set_profile_enabled(&profile_id_from_args(args)?, false)
                 .await?;
+            let rendered = render_profile_detail(&profile);
             Ok(Output::success_rendered(
                 "profile disabled",
-                profile.clone(),
-                render_profile_detail(&profile),
+                profile,
+                rendered,
                 cli.json,
             ))
         }
@@ -154,40 +163,44 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 SwitchTarget::Next => app.switch_next_profile().await?,
                 SwitchTarget::Profile(id) => app.switch_to_profile(&id).await?,
             };
+            let rendered = render_switch_report(&report);
             Ok(Output::success_rendered(
                 "switch completed",
-                report.clone(),
-                render_switch_report(&report),
+                report,
+                rendered,
                 cli.json,
             ))
         }
         Commands::Refresh(command) => match refresh_target_from_args(command)? {
             RefreshTarget::Profile(id) => {
                 let snapshot = app.refresh_usage_profile(&id).await?;
+                let rendered = render_usage_detail(&snapshot);
                 Ok(Output::success_rendered(
                     "profile refreshed",
-                    snapshot.clone(),
-                    render_usage_detail(&snapshot),
+                    snapshot,
+                    rendered,
                     cli.json,
                 ))
             }
             RefreshTarget::Enabled => {
                 let snapshots = app.refresh_enabled_usage_reports().await?;
                 let items = app.list_profiles_with_usage().await?;
+                let rendered = render_usage_list(&snapshots, &items);
                 Ok(Output::success_rendered(
                     "enabled profiles refreshed",
-                    snapshots.clone(),
-                    render_usage_list(&snapshots, &items),
+                    snapshots,
+                    rendered,
                     cli.json,
                 ))
             }
             RefreshTarget::All => {
                 let snapshots = app.refresh_all_usage_reports().await?;
                 let items = app.list_profiles_with_usage().await?;
+                let rendered = render_usage_list(&snapshots, &items);
                 Ok(Output::success_rendered(
                     "all profiles refreshed",
-                    snapshots.clone(),
-                    render_usage_list(&snapshots, &items),
+                    snapshots,
+                    rendered,
                     cli.json,
                 ))
             }
@@ -195,28 +208,31 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
         Commands::Autoswitch(command) => match command.command {
             None | Some(AutoswitchSubcommand::Show) => {
                 let settings = app.settings().await?;
+                let rendered = render_autoswitch_settings(&settings);
                 Ok(Output::success_rendered(
                     "autoswitch status loaded",
-                    settings.clone(),
-                    render_autoswitch_settings(&settings),
+                    settings,
+                    rendered,
                     cli.json,
                 ))
             }
             Some(AutoswitchSubcommand::Enable) => {
                 let settings = app.set_auto_switch_enabled(true).await?;
+                let rendered = render_autoswitch_settings(&settings);
                 Ok(Output::success_rendered(
                     "autoswitch enabled",
-                    settings.clone(),
-                    render_autoswitch_settings(&settings),
+                    settings,
+                    rendered,
                     cli.json,
                 ))
             }
             Some(AutoswitchSubcommand::Disable) => {
                 let settings = app.set_auto_switch_enabled(false).await?;
+                let rendered = render_autoswitch_settings(&settings);
                 Ok(Output::success_rendered(
                     "autoswitch disabled",
-                    settings.clone(),
-                    render_autoswitch_settings(&settings),
+                    settings,
+                    rendered,
                     cli.json,
                 ))
             }
@@ -224,10 +240,11 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                 let settings = app
                     .update_system_settings(system_settings_request_from_args(args)?)
                     .await?;
+                let rendered = render_autoswitch_settings(&settings);
                 Ok(Output::success_rendered(
                     "autoswitch updated",
-                    settings.clone(),
-                    render_autoswitch_settings(&settings),
+                    settings,
+                    rendered,
                     cli.json,
                 ))
             }
@@ -238,21 +255,23 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                     let query = activity_events_query_from_args(args)?;
                     let events = app.list_activity_events(query).await?;
                     let items = app.list_profiles_with_usage().await?;
+                    let rendered = render_failure_events(&events, &items);
                     Ok(Output::success_rendered(
                         "activity events loaded",
-                        events.clone(),
-                        render_failure_events(&events, &items),
+                        events,
+                        rendered,
                         cli.json,
                     ))
                 }
             },
             ActivitySubcommand::Logs(command) => match command.command {
                 LogsSubcommand::Tail(args) => {
-                    let logs = app.logs_tail(log_lines_from_args(args)?)?;
+                    let logs = app.logs_tail(log_lines_from_args(args)?).await?;
+                    let rendered = render_log_tail(&logs);
                     Ok(Output::success_rendered(
                         "activity logs loaded",
-                        logs.clone(),
-                        render_log_tail(&logs),
+                        logs,
+                        rendered,
                         cli.json,
                     ))
                 }
@@ -260,10 +279,11 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
             ActivitySubcommand::Diagnostics(command) => match command.command {
                 DiagnosticsSubcommand::Export => {
                     let export = app.diagnostics_export().await?;
+                    let rendered = render_diagnostics_export(&export);
                     Ok(Output::success_rendered(
                         "activity diagnostics exported",
-                        export.clone(),
-                        render_diagnostics_export(&export),
+                        export,
+                        rendered,
                         cli.json,
                     ))
                 }
@@ -272,59 +292,65 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
         Commands::Codex(command) => match command.command {
             CodexSubcommand::Add(args) => {
                 let profile = app.add_profile(codex_add_request_from_args(args)?).await?;
+                let rendered = render_profile_detail(&profile);
                 Ok(Output::success_rendered(
                     "codex profile created",
-                    profile.clone(),
-                    render_profile_detail(&profile),
+                    profile,
+                    rendered,
                     cli.json,
                 ))
             }
             CodexSubcommand::Import(args) => {
                 let payload = codex_import_request_from_args(args)?;
                 let profile = app.import_profile(payload).await?;
+                let rendered = render_profile_detail(&profile);
                 Ok(Output::success_rendered(
                     "codex profile imported",
-                    profile.clone(),
-                    render_profile_detail(&profile),
+                    profile,
+                    rendered,
                     cli.json,
                 ))
             }
             CodexSubcommand::Login(args) => {
                 let payload = codex_login_request_from_args(args)?;
                 let result = app.login_profile(payload).await?;
+                let rendered = render_agent_link_result(&result);
                 Ok(Output::success_rendered(
                     "codex login profile created",
-                    result.clone(),
-                    render_agent_link_result(&result),
+                    result,
+                    rendered,
                     cli.json,
                 ))
             }
             CodexSubcommand::Recover => {
                 let report = app.recover_profiles(AgentKind::Codex).await?;
+                let rendered = render_profile_recovery_report(&report);
                 Ok(Output::success_rendered(
                     "codex profiles recovered",
-                    report.clone(),
-                    render_profile_recovery_report(&report),
+                    report,
+                    rendered,
                     cli.json,
                 ))
             }
             CodexSubcommand::Relink(args) => {
                 let id = profile_id_from_args(args)?;
                 let identity = app.relink_profile(AgentKind::Codex, &id).await?;
+                let rendered = render_probe_identity(&identity);
                 Ok(Output::success_rendered(
                     "codex profile relinked",
-                    identity.clone(),
-                    render_probe_identity(&identity),
+                    identity,
+                    rendered,
                     cli.json,
                 ))
             }
             CodexSubcommand::Settings(command) => match command.command {
                 None | Some(CodexSettingsSubcommand::Show) => {
                     let settings = app.codex_settings().await?;
+                    let rendered = render_codex_settings(&settings);
                     Ok(Output::success_rendered(
                         "codex settings loaded",
-                        settings.clone(),
-                        render_codex_settings(&settings),
+                        settings,
+                        rendered,
                         cli.json,
                     ))
                 }
@@ -332,10 +358,11 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
                     let settings = app
                         .update_codex_settings(codex_settings_request_from_args(args)?)
                         .await?;
+                    let rendered = render_codex_settings(&settings);
                     Ok(Output::success_rendered(
                         "codex settings updated",
-                        settings.clone(),
-                        render_codex_settings(&settings),
+                        settings,
+                        rendered,
                         cli.json,
                     ))
                 }
@@ -346,10 +373,11 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
 
 async fn list_output(app: &RelayApp, json: bool) -> Result<Output, RelayError> {
     let items = app.list_profiles_with_usage().await?;
+    let rendered = render_profiles_list(&items);
     Ok(Output::success_rendered(
         "profiles loaded",
-        items.clone(),
-        render_profiles_list(&items),
+        items,
+        rendered,
         json,
     ))
 }
@@ -357,8 +385,8 @@ async fn list_output(app: &RelayApp, json: bool) -> Result<Output, RelayError> {
 pub(super) struct Output {
     json: bool,
     text: String,
-    body: String,
-    rendered_body: Option<String>,
+    data: serde_json::Value,
+    rendered_body: String,
 }
 
 impl Output {
@@ -368,26 +396,27 @@ impl Output {
         rendered_body: String,
         json: bool,
     ) -> Self {
-        let body = serde_json::to_string_pretty(&data).unwrap_or_else(|_| "{}".to_string());
+        let data = if json {
+            serde_json::to_value(&data).unwrap_or(serde_json::Value::Object(Default::default()))
+        } else {
+            serde_json::Value::Null
+        };
         Self {
             json,
             text: message.to_string(),
-            body,
-            rendered_body: (!rendered_body.is_empty()).then_some(rendered_body),
+            data,
+            rendered_body,
         }
     }
 
     pub(super) fn write(self) -> Result<(), RelayError> {
         if self.json {
-            let value: serde_json::Value = serde_json::from_str(&self.body)
-                .map_err(|error| RelayError::Internal(error.to_string()))?;
-            JsonResponse::success(self.text, value).write_json()?;
+            JsonResponse::success(self.text, self.data).write_json()?;
+            Ok(())
+        } else if !self.rendered_body.is_empty() {
+            print!("{}", self.rendered_body);
             Ok(())
         } else {
-            print!(
-                "{}",
-                self.rendered_body.as_deref().unwrap_or(self.body.as_str())
-            );
             Ok(())
         }
     }

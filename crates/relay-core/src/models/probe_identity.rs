@@ -1,7 +1,8 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ProbeProvider {
     CodexOfficial,
 }
@@ -14,8 +15,8 @@ pub struct ProfileProbeIdentity {
     pub display_name: Option<String>,
     pub credentials: Value,
     pub metadata: Value,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone)]
@@ -27,8 +28,8 @@ pub struct CodexOfficialProbeIdentity {
     pub id_token: Option<String>,
     pub email: Option<String>,
     pub plan_hint: Option<String>,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl ProfileProbeIdentity {

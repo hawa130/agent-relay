@@ -407,7 +407,7 @@ fn ensure_missing(path: &Path) -> Result<(), RelayError> {
     Ok(())
 }
 
-fn copy_atomic(source: &Path, destination: &Path) -> Result<(), RelayError> {
+pub(crate) fn copy_atomic(source: &Path, destination: &Path) -> Result<(), RelayError> {
     if let Some(parent) = destination.parent() {
         fs::create_dir_all(parent)?;
     }

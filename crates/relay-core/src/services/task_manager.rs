@@ -50,14 +50,17 @@ impl TaskManager {
     pub fn start(&self, kind: RelayTaskKind, cancel: TaskCancellationHandle) -> TaskUpdate {
         let started_at = Utc::now();
         let task_id = format!("task-{}", self.next_id.fetch_add(1, Ordering::Relaxed) + 1);
-        self.tasks.lock().expect("task manager poisoned").insert(
-            task_id.clone(),
-            RunningTask {
-                kind,
-                started_at,
-                cancel,
-            },
-        );
+        self.tasks
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .insert(
+                task_id.clone(),
+                RunningTask {
+                    kind,
+                    started_at,
+                    cancel,
+                },
+            );
         TaskUpdate {
             task_id,
             kind,
@@ -74,7 +77,7 @@ impl TaskManager {
         let cancel = self
             .tasks
             .lock()
-            .expect("task manager poisoned")
+            .unwrap_or_else(|poison| poison.into_inner())
             .get(task_id)
             .map(|task| task.cancel.clone());
         if let Some(cancel) = cancel {
@@ -130,7 +133,7 @@ impl TaskManager {
         let task = self
             .tasks
             .lock()
-            .expect("task manager poisoned")
+            .unwrap_or_else(|poison| poison.into_inner())
             .remove(task_id)?;
         Some(TaskUpdate {
             task_id: task_id.to_string(),
@@ -142,5 +145,129 @@ impl TaskManager {
             error_code,
             result,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::sync::atomic::AtomicBool;
+
+    fn noop_cancel() -> TaskCancellationHandle {
+        TaskCancellationHandle::new(|| {})
+    }
+
+    #[test]
+    fn start_creates_task_with_pending_status() {
+        let manager = TaskManager::new();
+        let update = manager.start(RelayTaskKind::ProfileLogin, noop_cancel());
+
+        assert_eq!(update.task_id, "task-1");
+        assert_eq!(update.kind, RelayTaskKind::ProfileLogin);
+        assert_eq!(update.status, RelayTaskStatus::Pending);
+        assert!(update.finished_at.is_none());
+        assert!(update.message.is_none());
+        assert!(update.error_code.is_none());
+        assert!(update.result.is_none());
+    }
+
+    #[test]
+    fn cancel_invokes_cancellation_handle() {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let flag = cancelled.clone();
+        let cancel = TaskCancellationHandle::new(move || {
+            flag.store(true, Ordering::Relaxed);
+        });
+        let manager = TaskManager::new();
+        let update = manager.start(RelayTaskKind::ProfileLogin, cancel);
+
+        let result = manager.cancel(&update.task_id);
+
+        assert!(result);
+        assert!(cancelled.load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn cancel_returns_false_for_unknown_task() {
+        let manager = TaskManager::new();
+        assert!(!manager.cancel("nonexistent"));
+    }
+
+    #[test]
+    fn finish_succeeded_removes_task_and_returns_update() {
+        let manager = TaskManager::new();
+        let update = manager.start(RelayTaskKind::ProfileLogin, noop_cancel());
+
+        let finished = manager
+            .finish_succeeded(&update.task_id, json!({"ok": true}), Some("done".into()))
+            .expect("should return update");
+
+        assert_eq!(finished.status, RelayTaskStatus::Succeeded);
+        assert_eq!(finished.result, Some(json!({"ok": true})));
+        assert_eq!(finished.message.as_deref(), Some("done"));
+        assert!(finished.finished_at.is_some());
+
+        // Task is removed, so finishing again returns None
+        assert!(
+            manager
+                .finish_succeeded(&update.task_id, json!(null), None)
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn finish_failed_records_error() {
+        let manager = TaskManager::new();
+        let update = manager.start(RelayTaskKind::ProfileLogin, noop_cancel());
+
+        let finished = manager
+            .finish_failed(&update.task_id, "ERR_AUTH".into(), "auth failed".into())
+            .expect("should return update");
+
+        assert_eq!(finished.status, RelayTaskStatus::Failed);
+        assert_eq!(finished.error_code.as_deref(), Some("ERR_AUTH"));
+        assert_eq!(finished.message.as_deref(), Some("auth failed"));
+        assert!(finished.result.is_none());
+    }
+
+    #[test]
+    fn finish_cancelled_returns_cancelled_status() {
+        let manager = TaskManager::new();
+        let update = manager.start(RelayTaskKind::ProfileLogin, noop_cancel());
+
+        let finished = manager
+            .finish_cancelled(&update.task_id, Some("user cancelled".into()))
+            .expect("should return update");
+
+        assert_eq!(finished.status, RelayTaskStatus::Cancelled);
+        assert_eq!(finished.message.as_deref(), Some("user cancelled"));
+    }
+
+    #[test]
+    fn two_tasks_get_different_ids() {
+        let manager = TaskManager::new();
+        let first = manager.start(RelayTaskKind::ProfileLogin, noop_cancel());
+        let second = manager.start(RelayTaskKind::ProfileLogin, noop_cancel());
+
+        assert_ne!(first.task_id, second.task_id);
+        assert_eq!(first.task_id, "task-1");
+        assert_eq!(second.task_id, "task-2");
+    }
+
+    #[test]
+    fn finishing_nonexistent_task_returns_none() {
+        let manager = TaskManager::new();
+        assert!(
+            manager
+                .finish_succeeded("no-such-task", json!(null), None)
+                .is_none()
+        );
+        assert!(
+            manager
+                .finish_failed("no-such-task", "E".into(), "m".into())
+                .is_none()
+        );
+        assert!(manager.finish_cancelled("no-such-task", None).is_none());
     }
 }

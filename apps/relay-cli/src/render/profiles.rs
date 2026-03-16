@@ -42,7 +42,7 @@ pub(crate) fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> Str
                     .map(|value| list_window_label(&value.session, false))
                     .unwrap_or_else(|| "-".into()),
                 usage
-                    .map(|value| status_tone(value.session.status.clone()))
+                    .map(|value| status_tone(value.session.status))
                     .unwrap_or(CellTone::Muted),
             ),
             styled_cell(
@@ -50,7 +50,7 @@ pub(crate) fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> Str
                     .map(|value| list_window_label(&value.weekly, true))
                     .unwrap_or_else(|| "-".into()),
                 usage
-                    .map(|value| status_tone(value.weekly.status.clone()))
+                    .map(|value| status_tone(value.weekly.status))
                     .unwrap_or(CellTone::Muted),
             ),
         ]));
@@ -88,8 +88,8 @@ pub(crate) fn render_profile_detail(profile: &Profile) -> String {
                 "Config Path",
                 profile.config_path.clone().unwrap_or_else(|| "-".into()),
             ),
-            ("Created", profile.created_at.clone()),
-            ("Updated", profile.updated_at.clone()),
+            ("Created", format_datetime(profile.created_at)),
+            ("Updated", format_datetime(profile.updated_at)),
         ],
     )])
 }

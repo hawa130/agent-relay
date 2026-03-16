@@ -35,7 +35,7 @@ impl RelayApp {
 
     pub async fn profile_usage_report(&self, id: &str) -> Result<UsageSnapshot, RelayError> {
         let profile = self.store.get_profile(id).await?;
-        usage_service::load_profile_snapshot(&self.usage_store, &profile)
+        usage_service::load_profile_snapshot(&self.usage_store, &profile).await
     }
 
     pub async fn refresh_usage_profile(&self, id: &str) -> Result<UsageSnapshot, RelayError> {
@@ -101,7 +101,7 @@ impl RelayApp {
     }
 
     async fn usage_context(&self) -> Result<UsageContext, RelayError> {
-        let active_state = self.state_store.load()?;
+        let active_state = self.state_store.load().await?;
         Ok(UsageContext {
             active_profile: self.active_profile_from_state(&active_state).await?,
             allow_cache_writes: self.bootstrap_mode == BootstrapMode::ReadWrite,

@@ -2253,19 +2253,19 @@ fn daemon_stdio_activity_and_doctor_refresh_publish_snapshot_updates() {
             "topics": ["activity.events.updated", "activity.logs.updated", "doctor.updated"]
         }),
     );
-    let subscribe = daemon.read_message();
-    assert_eq!(subscribe["id"], "sub");
-
+    // The subscribe response and initial snapshot notifications may arrive in
+    // any order because async store operations yield to the runtime.
+    let mut got_subscribe_response = false;
     let mut startup_topics = HashSet::new();
-    while startup_topics.len() < 3 {
+    for _ in 0..4 {
         let message = daemon.read_message();
-        startup_topics.insert(
-            message["params"]["topic"]
-                .as_str()
-                .expect("topic")
-                .to_string(),
-        );
+        if message["id"] == "sub" {
+            got_subscribe_response = true;
+        } else if let Some(topic) = message["params"]["topic"].as_str() {
+            startup_topics.insert(topic.to_string());
+        }
     }
+    assert!(got_subscribe_response, "expected subscribe response");
     assert!(startup_topics.contains("activity.events.updated"));
     assert!(startup_topics.contains("activity.logs.updated"));
     assert!(startup_topics.contains("doctor.updated"));

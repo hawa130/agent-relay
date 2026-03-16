@@ -40,10 +40,10 @@ pub async fn edit_profile(
     let candidate = Profile {
         id: current.id.clone(),
         nickname: update.nickname.clone().unwrap_or(current.nickname.clone()),
-        agent: current.agent.clone(),
+        agent: current.agent,
         priority: update.priority.unwrap_or(current.priority),
         enabled: current.enabled,
-        account_state: current.account_state.clone(),
+        account_state: current.account_state,
         account_error_http_status: current.account_error_http_status,
         account_state_updated_at: current.account_state_updated_at.clone(),
         agent_home: update
@@ -56,13 +56,10 @@ pub async fn edit_profile(
             .clone()
             .unwrap_or_else(|| current.config_path.clone().map(Into::into))
             .map(|path| path.to_string_lossy().into_owned()),
-        auth_mode: update
-            .auth_mode
-            .clone()
-            .unwrap_or(current.auth_mode.clone()),
+        auth_mode: update.auth_mode.unwrap_or(current.auth_mode),
         metadata: current.metadata.clone(),
-        created_at: current.created_at.clone(),
-        updated_at: current.updated_at.clone(),
+        created_at: current.created_at,
+        updated_at: current.updated_at,
     };
     validate_source_inputs(
         candidate
@@ -170,11 +167,11 @@ fn validate_source_paths(
 }
 
 fn candidate_profile_from_add_record(record: &AddProfileRecord) -> Profile {
-    let now = Utc::now().to_rfc3339();
+    let now = Utc::now();
     Profile {
         id: "candidate".into(),
         nickname: record.nickname.clone(),
-        agent: record.agent.clone(),
+        agent: record.agent,
         priority: record.priority,
         enabled: true,
         account_state: ProfileAccountState::Healthy,
@@ -188,9 +185,9 @@ fn candidate_profile_from_add_record(record: &AddProfileRecord) -> Profile {
             .config_path
             .as_ref()
             .map(|path| path.to_string_lossy().into_owned()),
-        auth_mode: record.auth_mode.clone(),
+        auth_mode: record.auth_mode,
         metadata: serde_json::json!({}),
-        created_at: now.clone(),
+        created_at: now,
         updated_at: now,
     }
 }

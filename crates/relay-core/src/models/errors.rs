@@ -14,6 +14,9 @@ pub enum ErrorCode {
     Validation,
     Conflict,
     ExternalCommand,
+    Auth,
+    QuotaExhausted,
+    RateLimited,
     Internal,
 }
 
@@ -29,6 +32,9 @@ impl ErrorCode {
             Self::Validation => "RELAY_VALIDATION",
             Self::Conflict => "RELAY_CONFLICT",
             Self::ExternalCommand => "RELAY_EXTERNAL_COMMAND",
+            Self::Auth => "RELAY_AUTH",
+            Self::QuotaExhausted => "RELAY_QUOTA_EXHAUSTED",
+            Self::RateLimited => "RELAY_RATE_LIMITED",
             Self::Internal => "RELAY_INTERNAL",
         }
     }
@@ -55,6 +61,12 @@ pub enum RelayError {
     #[error("{0}")]
     ExternalCommand(String),
     #[error("{0}")]
+    Auth(String),
+    #[error("{0}")]
+    QuotaExhausted(String),
+    #[error("{0}")]
+    RateLimited(String),
+    #[error("{0}")]
     Internal(String),
 }
 
@@ -70,12 +82,29 @@ impl RelayError {
             Self::Validation(_) => ErrorCode::Validation,
             Self::Conflict(_) => ErrorCode::Conflict,
             Self::ExternalCommand(_) => ErrorCode::ExternalCommand,
+            Self::Auth(_) => ErrorCode::Auth,
+            Self::QuotaExhausted(_) => ErrorCode::QuotaExhausted,
+            Self::RateLimited(_) => ErrorCode::RateLimited,
             Self::Internal(_) => ErrorCode::Internal,
         }
     }
 
     pub fn message(&self) -> Cow<'_, str> {
-        Cow::Owned(self.to_string())
+        match self {
+            Self::InvalidInput(s)
+            | Self::Io(s)
+            | Self::Store(s)
+            | Self::SchemaIncompatible(s)
+            | Self::Validation(s)
+            | Self::Conflict(s)
+            | Self::ExternalCommand(s)
+            | Self::Auth(s)
+            | Self::QuotaExhausted(s)
+            | Self::RateLimited(s)
+            | Self::Internal(s)
+            | Self::NotFound(s) => Cow::Borrowed(s.as_str()),
+            Self::NotImplemented(s) => Cow::Borrowed(s),
+        }
     }
 }
 

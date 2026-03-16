@@ -17,7 +17,41 @@ impl FileUsageStore {
         }
     }
 
-    pub fn load_all(&self) -> Result<Vec<UsageSnapshot>, RelayError> {
+    pub async fn load_all(&self) -> Result<Vec<UsageSnapshot>, RelayError> {
+        let store = self.clone();
+        tokio::task::spawn_blocking(move || store.load_all_sync())
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    pub async fn load_profile(
+        &self,
+        profile_id: &str,
+    ) -> Result<Option<UsageSnapshot>, RelayError> {
+        let store = self.clone();
+        let profile_id = profile_id.to_string();
+        tokio::task::spawn_blocking(move || store.load_profile_sync(&profile_id))
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    pub async fn save_profile(&self, snapshot: &UsageSnapshot) -> Result<(), RelayError> {
+        let store = self.clone();
+        let snapshot = snapshot.clone();
+        tokio::task::spawn_blocking(move || store.save_profile_sync(&snapshot))
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    pub async fn save_all(&self, snapshots: &[UsageSnapshot]) -> Result<(), RelayError> {
+        let store = self.clone();
+        let snapshots = snapshots.to_vec();
+        tokio::task::spawn_blocking(move || store.save_all_sync(&snapshots))
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    fn load_all_sync(&self) -> Result<Vec<UsageSnapshot>, RelayError> {
         let _guard = self
             .lock
             .lock()
@@ -25,14 +59,14 @@ impl FileUsageStore {
         self.load_all_unlocked()
     }
 
-    pub fn load_profile(&self, profile_id: &str) -> Result<Option<UsageSnapshot>, RelayError> {
+    fn load_profile_sync(&self, profile_id: &str) -> Result<Option<UsageSnapshot>, RelayError> {
         Ok(self
-            .load_all()?
+            .load_all_sync()?
             .into_iter()
             .find(|snapshot| snapshot.profile_id.as_deref() == Some(profile_id)))
     }
 
-    pub fn save_profile(&self, snapshot: &UsageSnapshot) -> Result<(), RelayError> {
+    fn save_profile_sync(&self, snapshot: &UsageSnapshot) -> Result<(), RelayError> {
         let _guard = self
             .lock
             .lock()
@@ -47,7 +81,7 @@ impl FileUsageStore {
         self.save_all_unlocked(&snapshots)
     }
 
-    pub fn save_all(&self, snapshots: &[UsageSnapshot]) -> Result<(), RelayError> {
+    fn save_all_sync(&self, snapshots: &[UsageSnapshot]) -> Result<(), RelayError> {
         let _guard = self
             .lock
             .lock()
@@ -86,5 +120,111 @@ impl FileUsageStore {
         fs::write(&temp_path, contents)?;
         fs::rename(temp_path, &self.usage_path)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{UsageConfidence, UsageSource, UsageStatus, UsageWindow};
+    use chrono::Utc;
+    use tempfile::tempdir;
+
+    fn test_snapshot(profile_id: Option<&str>) -> UsageSnapshot {
+        UsageSnapshot {
+            profile_id: profile_id.map(str::to_string),
+            profile_name: profile_id.map(|id| format!("name-{id}")),
+            source: UsageSource::Local,
+            confidence: UsageConfidence::High,
+            stale: false,
+            last_refreshed_at: Utc::now(),
+            next_reset_at: None,
+            session: UsageWindow {
+                used_percent: Some(10.0),
+                window_minutes: Some(300),
+                reset_at: None,
+                status: UsageStatus::Healthy,
+                exact: true,
+            },
+            weekly: UsageWindow {
+                used_percent: Some(5.0),
+                window_minutes: Some(10080),
+                reset_at: None,
+                status: UsageStatus::Healthy,
+                exact: true,
+            },
+            auto_switch_reason: None,
+            can_auto_switch: false,
+            message: None,
+            remote_error: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn save_and_load_profile_round_trip() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileUsageStore::new(temp.path().join("usage.json"));
+        let snapshot = test_snapshot(Some("p1"));
+
+        store.save_profile(&snapshot).await.expect("save");
+        let loaded = store.load_profile("p1").await.expect("load");
+
+        let loaded = loaded.expect("should find profile");
+        assert_eq!(loaded.profile_id.as_deref(), Some("p1"));
+        assert_eq!(loaded.session.used_percent, Some(10.0));
+    }
+
+    #[tokio::test]
+    async fn save_all_and_load_all_round_trip() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileUsageStore::new(temp.path().join("usage.json"));
+        let snapshots = vec![test_snapshot(Some("a")), test_snapshot(Some("b"))];
+
+        store.save_all(&snapshots).await.expect("save_all");
+        let loaded = store.load_all().await.expect("load_all");
+
+        assert_eq!(loaded.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn load_all_on_missing_file_returns_empty() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileUsageStore::new(temp.path().join("nonexistent.json"));
+
+        let loaded = store.load_all().await.expect("load_all");
+
+        assert!(loaded.is_empty());
+    }
+
+    #[tokio::test]
+    async fn save_profile_replaces_existing_for_same_id() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileUsageStore::new(temp.path().join("usage.json"));
+
+        let mut first = test_snapshot(Some("p1"));
+        first.session.used_percent = Some(10.0);
+        store.save_profile(&first).await.expect("save first");
+
+        let mut second = test_snapshot(Some("p1"));
+        second.session.used_percent = Some(90.0);
+        store.save_profile(&second).await.expect("save second");
+
+        let all = store.load_all().await.expect("load_all");
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].session.used_percent, Some(90.0));
+    }
+
+    #[tokio::test]
+    async fn load_profile_returns_none_for_unknown() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileUsageStore::new(temp.path().join("usage.json"));
+        store
+            .save_profile(&test_snapshot(Some("p1")))
+            .await
+            .expect("save");
+
+        let loaded = store.load_profile("unknown").await.expect("load");
+
+        assert!(loaded.is_none());
     }
 }

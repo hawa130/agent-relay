@@ -31,14 +31,16 @@ pub async fn switch_to_profile(
         )));
     }
 
-    let current_state = state_store.load()?;
+    let current_state = state_store.load().await?;
     let previous_profile_id = current_state.active_profile_id.clone();
 
-    log_store.append(
-        "info",
-        "switch.start",
-        format!("switching to {}", profile.id),
-    )?;
+    log_store
+        .append(
+            "info".into(),
+            "switch.start".into(),
+            format!("switching to {}", profile.id),
+        )
+        .await?;
 
     match adapter
         .validate_profile(profile)
@@ -52,7 +54,7 @@ pub async fn switch_to_profile(
                 last_switch_result: SwitchOutcome::Success,
                 auto_switch_enabled: current_state.auto_switch_enabled,
             };
-            state_store.save(&next_state)?;
+            state_store.save(&next_state).await?;
             if let Err(error) = store
                 .record_switch(SwitchHistoryRecord {
                     profile_id: Some(profile.id.clone()),
@@ -70,19 +72,28 @@ pub async fn switch_to_profile(
                     &checkpoint.checkpoint_id,
                     &current_state,
                     state_store,
-                )?;
+                )
+                .await?;
                 return Err(error);
             }
-            log_store.append("info", "switch.success", format!("active={}", profile.id))?;
+            log_store
+                .append(
+                    "info".into(),
+                    "switch.success".into(),
+                    format!("active={}", profile.id),
+                )
+                .await?;
             if let Err(error) = store
                 .resolve_failure_events(&profile.id, SWITCH_FAILURE_REASONS)
                 .await
             {
-                log_store.append(
-                    "warn",
-                    "switch.resolve_failure_events_failed",
-                    error.to_string(),
-                )?;
+                log_store
+                    .append(
+                        "warn".into(),
+                        "switch.resolve_failure_events_failed".into(),
+                        error.to_string(),
+                    )
+                    .await?;
             }
 
             Ok(SwitchReport {
@@ -103,7 +114,7 @@ pub async fn switch_to_profile(
                 last_switch_result: SwitchOutcome::Failed,
                 auto_switch_enabled: current_state.auto_switch_enabled,
             };
-            state_store.save(&next_state)?;
+            state_store.save(&next_state).await?;
             if let Err(persist_error) = store
                 .record_switch_failure(
                     SwitchHistoryRecord {
@@ -120,10 +131,12 @@ pub async fn switch_to_profile(
                 )
                 .await
             {
-                state_store.save(&current_state)?;
+                state_store.save(&current_state).await?;
                 return Err(persist_error);
             }
-            log_store.append("error", "switch.failed", error.to_string())?;
+            log_store
+                .append("error".into(), "switch.failed".into(), error.to_string())
+                .await?;
             Err(error)
         }
     }
@@ -136,7 +149,7 @@ fn stringify_trigger(trigger: SwitchTrigger) -> &'static str {
     }
 }
 
-fn rollback_success_persistence(
+async fn rollback_success_persistence(
     adapter: &dyn AgentAdapter,
     paths: &RelayPaths,
     checkpoint_id: &str,
@@ -144,22 +157,18 @@ fn rollback_success_persistence(
     state_store: &FileStateStore,
 ) -> Result<(), RelayError> {
     adapter.rollback_checkpoint(&paths.snapshots_dir, checkpoint_id)?;
-    state_store.save(previous_state)?;
+    state_store.save(previous_state).await?;
     Ok(())
 }
 
 fn classify_failure_reason(error: &RelayError) -> FailureReason {
-    let message = error.to_string().to_lowercase();
-    if message.contains("auth") {
-        FailureReason::AuthInvalid
-    } else if message.contains("quota") {
-        FailureReason::QuotaExhausted
-    } else if message.contains("rate") {
-        FailureReason::RateLimited
-    } else if matches!(error, RelayError::ExternalCommand(_)) {
-        FailureReason::CommandFailed
-    } else {
-        FailureReason::ValidationFailed
+    match error {
+        RelayError::Auth(_) => FailureReason::AuthInvalid,
+        RelayError::QuotaExhausted(_) => FailureReason::QuotaExhausted,
+        RelayError::RateLimited(_) => FailureReason::RateLimited,
+        RelayError::ExternalCommand(_) => FailureReason::CommandFailed,
+        RelayError::Validation(_) => FailureReason::ValidationFailed,
+        _ => FailureReason::Unknown,
     }
 }
 
@@ -194,7 +203,7 @@ mod tests {
         let adapter = crate::adapters::CodexAdapter::with_live_home(&live_home);
 
         let previous_state = ActiveState::default();
-        state_store.save(&previous_state).expect("save state");
+        state_store.save(&previous_state).await.expect("save state");
 
         let breaker = Database::connect(format!(
             "sqlite://{}?mode=rwc",
@@ -226,8 +235,8 @@ mod tests {
             ),
             auth_mode: crate::models::AuthMode::ConfigFilesystem,
             metadata: serde_json::json!({}),
-            created_at: Utc::now().to_rfc3339(),
-            updated_at: Utc::now().to_rfc3339(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
 
         let error = switch_to_profile(
@@ -243,7 +252,7 @@ mod tests {
         .expect_err("switch should fail when switch history persistence breaks");
         assert!(matches!(error, RelayError::Store(_)));
 
-        let restored_state = state_store.load().expect("load state");
+        let restored_state = state_store.load().await.expect("load state");
         assert_eq!(
             restored_state.active_profile_id,
             previous_state.active_profile_id
