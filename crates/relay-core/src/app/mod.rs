@@ -5,7 +5,7 @@ mod usage;
 use crate::adapters::AdapterRegistry;
 use crate::models::{
     AgentKind, AppSettings, DiagnosticsExport, DoctorReport, LogTail, Profile, RelayError,
-    StatusReport, UsageSnapshot, UsageSourceMode, UsageStatus,
+    StatusReport, SystemStatusReport, UsageSnapshot, UsageSourceMode, UsageStatus,
 };
 use crate::platform::RelayPaths;
 use crate::services::{diagnostics_service, doctor_service, status_service};
@@ -130,8 +130,15 @@ impl RelayApp {
         .await
     }
 
-    pub async fn system_status(&self) -> Result<StatusReport, RelayError> {
-        self.status_report().await
+    pub async fn system_status(&self) -> Result<SystemStatusReport, RelayError> {
+        let status = self.status_report().await?;
+        Ok(SystemStatusReport {
+            relay_home: status.relay_home,
+            live_agent_home: status.live_agent_home,
+            profile_count: status.profile_count,
+            active_state: status.active_state,
+            settings: status.settings,
+        })
     }
 
     pub async fn settings(&self) -> Result<AppSettings, RelayError> {
