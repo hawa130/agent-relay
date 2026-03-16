@@ -149,17 +149,13 @@ fn rollback_success_persistence(
 }
 
 fn classify_failure_reason(error: &RelayError) -> FailureReason {
-    let message = error.to_string().to_lowercase();
-    if message.contains("auth") {
-        FailureReason::AuthInvalid
-    } else if message.contains("quota") {
-        FailureReason::QuotaExhausted
-    } else if message.contains("rate") {
-        FailureReason::RateLimited
-    } else if matches!(error, RelayError::ExternalCommand(_)) {
-        FailureReason::CommandFailed
-    } else {
-        FailureReason::ValidationFailed
+    match error {
+        RelayError::Auth(_) => FailureReason::AuthInvalid,
+        RelayError::QuotaExhausted(_) => FailureReason::QuotaExhausted,
+        RelayError::RateLimited(_) => FailureReason::RateLimited,
+        RelayError::ExternalCommand(_) => FailureReason::CommandFailed,
+        RelayError::Validation(_) => FailureReason::ValidationFailed,
+        _ => FailureReason::Unknown,
     }
 }
 

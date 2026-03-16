@@ -23,19 +23,19 @@ pub(crate) fn load_probe_identity_from_home(
     let auth_path = home.join("auth.json");
     let contents = fs::read_to_string(&auth_path)?;
     let auth: CodexAuthFile = serde_json::from_str(&contents)
-        .map_err(|error| RelayError::Validation(error.to_string()))?;
+        .map_err(|error| RelayError::Auth(error.to_string()))?;
 
     let tokens = auth
         .tokens
-        .ok_or_else(|| RelayError::Validation("auth.json is missing tokens".into()))?;
+        .ok_or_else(|| RelayError::Auth("auth.json is missing tokens".into()))?;
     let account_id = tokens
         .account_id
         .clone()
-        .ok_or_else(|| RelayError::Validation("auth.json is missing account_id".into()))?;
+        .ok_or_else(|| RelayError::Auth("auth.json is missing account_id".into()))?;
     let access_token = tokens
         .access_token
         .clone()
-        .ok_or_else(|| RelayError::Validation("auth.json is missing access_token".into()))?;
+        .ok_or_else(|| RelayError::Auth("auth.json is missing access_token".into()))?;
     let id_token = tokens.id_token.clone();
 
     let now = Utc::now().to_rfc3339();
