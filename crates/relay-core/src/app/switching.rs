@@ -37,9 +37,9 @@ impl RelayApp {
     }
 
     pub async fn switch_next_profile(&self) -> Result<SwitchReport, RelayError> {
-        let active_state = self.state_store.load()?;
+        let active_state = self.state_store.load().await?;
         let profiles = self.store.list_enabled_profiles().await?;
-        let usage_snapshots = self.usage_store.load_all()?;
+        let usage_snapshots = self.usage_store.load_all().await?;
         let events = self.store.list_failure_events(100).await?;
         let next = policy_service::select_next_profile(
             &profiles,
@@ -62,18 +62,28 @@ impl RelayApp {
 
     pub async fn set_auto_switch_enabled(&self, enabled: bool) -> Result<AppSettings, RelayError> {
         let settings = self.store.set_auto_switch_enabled(enabled).await?;
-        let mut state = self.state_store.load()?;
+        let mut state = self.state_store.load().await?;
         state.auto_switch_enabled = enabled;
-        self.state_store.save(&state)?;
+        self.state_store.save(&state).await?;
         self.log_store
-            .append("info", "auto_switch.updated", format!("enabled={enabled}"))?;
+            .append(
+                "info".into(),
+                "auto_switch.updated".into(),
+                format!("enabled={enabled}"),
+            )
+            .await?;
         Ok(settings)
     }
 
     pub async fn set_cooldown_seconds(&self, value: i64) -> Result<AppSettings, RelayError> {
         let settings = self.store.set_cooldown_seconds(value).await?;
         self.log_store
-            .append("info", "cooldown.updated", format!("seconds={value}"))?;
+            .append(
+                "info".into(),
+                "cooldown.updated".into(),
+                format!("seconds={value}"),
+            )
+            .await?;
         Ok(settings)
     }
 
@@ -83,11 +93,13 @@ impl RelayApp {
     ) -> Result<AppSettings, RelayError> {
         validate_refresh_interval_seconds(value)?;
         let settings = self.store.set_refresh_interval_seconds(value).await?;
-        self.log_store.append(
-            "info",
-            "refresh_interval.updated",
-            format!("seconds={value}"),
-        )?;
+        self.log_store
+            .append(
+                "info".into(),
+                "refresh_interval.updated".into(),
+                format!("seconds={value}"),
+            )
+            .await?;
         Ok(settings)
     }
 
@@ -97,11 +109,13 @@ impl RelayApp {
     ) -> Result<AppSettings, RelayError> {
         validate_network_query_concurrency(value)?;
         let settings = self.store.set_network_query_concurrency(value).await?;
-        self.log_store.append(
-            "info",
-            "network_query_concurrency.updated",
-            format!("value={value}"),
-        )?;
+        self.log_store
+            .append(
+                "info".into(),
+                "network_query_concurrency.updated".into(),
+                format!("value={value}"),
+            )
+            .await?;
         Ok(settings)
     }
 

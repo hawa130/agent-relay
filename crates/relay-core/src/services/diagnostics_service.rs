@@ -22,53 +22,67 @@ pub async fn export_bundle(
     let archive_path = paths
         .exports_dir
         .join(format!("diagnostics_{timestamp}.zip"));
-    fs::create_dir_all(&bundle_dir)?;
 
-    write_json(&bundle_dir.join("doctor.json"), doctor)?;
-    write_json(&bundle_dir.join("status.json"), status)?;
-    write_json(&bundle_dir.join("active_state.json"), active_state)?;
-    write_json(&bundle_dir.join("usage.json"), usage)?;
-    write_json(
-        &bundle_dir.join("profiles.json"),
-        &store.list_profiles().await?,
-    )?;
-    write_json(
-        &bundle_dir.join("events.json"),
-        &store.list_failure_events(100).await?,
-    )?;
-    write_json(
-        &bundle_dir.join("switch_history.json"),
-        &store.list_switch_history(100).await?,
-    )?;
-    write_json(
-        &bundle_dir.join("build.json"),
-        &serde_json::json!({
-            "version": env!("CARGO_PKG_VERSION"),
-            "os": std::env::consts::OS,
-            "arch": std::env::consts::ARCH,
-            "relay_home": paths.relay_home,
-            "agent_home_env": {
-                "name": doctor.agent_home_env_name,
-                "value": doctor.agent_home_env_value,
-            },
-        }),
-    )?;
+    // Collect async data before spawning blocking task
+    let profiles_json = store.list_profiles().await?;
+    let events_json = store.list_failure_events(100).await?;
+    let switch_history_json = store.list_switch_history(100).await?;
 
-    if log_store.path().exists() {
-        fs::copy(log_store.path(), bundle_dir.join("relay.log"))?;
-    }
+    let doctor = doctor.clone();
+    let status = status.clone();
+    let active_state = active_state.clone();
+    let usage = usage.clone();
+    let log_path = log_store.path().to_path_buf();
+    let bundle_dir_clone = bundle_dir.clone();
+    let archive_path_clone = archive_path.clone();
 
-    let output = Command::new("zip")
-        .args(["-qr", archive_path.to_string_lossy().as_ref(), "."])
-        .current_dir(&bundle_dir)
-        .output()
-        .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
+    tokio::task::spawn_blocking(move || {
+        fs::create_dir_all(&bundle_dir_clone)?;
 
-    if !output.status.success() {
-        return Err(RelayError::ExternalCommand(
-            String::from_utf8_lossy(&output.stderr).trim().to_string(),
-        ));
-    }
+        write_json(&bundle_dir_clone.join("doctor.json"), &doctor)?;
+        write_json(&bundle_dir_clone.join("status.json"), &status)?;
+        write_json(&bundle_dir_clone.join("active_state.json"), &active_state)?;
+        write_json(&bundle_dir_clone.join("usage.json"), &usage)?;
+        write_json(&bundle_dir_clone.join("profiles.json"), &profiles_json)?;
+        write_json(&bundle_dir_clone.join("events.json"), &events_json)?;
+        write_json(
+            &bundle_dir_clone.join("switch_history.json"),
+            &switch_history_json,
+        )?;
+        write_json(
+            &bundle_dir_clone.join("build.json"),
+            &serde_json::json!({
+                "version": env!("CARGO_PKG_VERSION"),
+                "os": std::env::consts::OS,
+                "arch": std::env::consts::ARCH,
+                "relay_home": doctor.relay_home,
+                "agent_home_env": {
+                    "name": doctor.agent_home_env_name,
+                    "value": doctor.agent_home_env_value,
+                },
+            }),
+        )?;
+
+        if log_path.exists() {
+            fs::copy(&log_path, bundle_dir_clone.join("relay.log"))?;
+        }
+
+        let output = Command::new("zip")
+            .args(["-qr", archive_path_clone.to_string_lossy().as_ref(), "."])
+            .current_dir(&bundle_dir_clone)
+            .output()
+            .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
+
+        if !output.status.success() {
+            return Err(RelayError::ExternalCommand(
+                String::from_utf8_lossy(&output.stderr).trim().to_string(),
+            ));
+        }
+
+        Ok(())
+    })
+    .await
+    .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))??;
 
     Ok(DiagnosticsExport {
         archive_path: archive_path.to_string_lossy().into_owned(),

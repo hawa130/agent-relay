@@ -8,7 +8,6 @@ use crate::models::{
 };
 use crate::services::{profile_service, usage_service};
 use crate::store::{AddProfileRecord, ProfileUpdateRecord};
-use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -24,8 +23,8 @@ impl RelayApp {
 
     pub async fn list_profiles_with_usage(&self) -> Result<Vec<ProfileListItem>, RelayError> {
         let profiles = self.store.list_profiles().await?;
-        let active_state = self.state_store.load()?;
-        let snapshots = usage_service::list_profile_snapshots(&self.usage_store, &profiles)?;
+        let active_state = self.state_store.load().await?;
+        let snapshots = usage_service::list_profile_snapshots(&self.usage_store, &profiles).await?;
         let current_failure_events = self.store.list_current_failure_events(None).await?;
         let mut current_events_by_profile =
             std::collections::HashMap::<String, Vec<crate::FailureEvent>>::new();
@@ -54,8 +53,8 @@ impl RelayApp {
 
     pub async fn profile_detail(&self, id: &str) -> Result<ProfileDetail, RelayError> {
         let profile = self.store.get_profile(id).await?;
-        let active_state = self.state_store.load()?;
-        let usage = self.usage_store.load_profile(id)?;
+        let active_state = self.state_store.load().await?;
+        let usage = self.usage_store.load_profile(id).await?;
         let current_failure_events = self.store.list_current_failure_events(Some(id)).await?;
         let (switch_eligible, switch_ineligibility_reason) =
             profile_switch_eligibility(&profile, usage.as_ref());
@@ -71,7 +70,7 @@ impl RelayApp {
     }
 
     pub async fn current_profile_detail(&self) -> Result<ProfileDetail, RelayError> {
-        let active_state = self.state_store.load()?;
+        let active_state = self.state_store.load().await?;
         let active_profile_id = active_state
             .active_profile_id
             .ok_or_else(|| RelayError::NotFound("no active profile".into()))?;
@@ -94,7 +93,12 @@ impl RelayApp {
         )
         .await?;
         self.log_store
-            .append("info", "profile.added", format!("id={}", profile.id))?;
+            .append(
+                "info".into(),
+                "profile.added".into(),
+                format!("id={}", profile.id),
+            )
+            .await?;
         Ok(profile)
     }
 
@@ -119,7 +123,12 @@ impl RelayApp {
         )
         .await?;
         self.log_store
-            .append("info", "profile.updated", format!("id={}", profile.id))?;
+            .append(
+                "info".into(),
+                "profile.updated".into(),
+                format!("id={}", profile.id),
+            )
+            .await?;
         Ok(profile)
     }
 
@@ -131,9 +140,14 @@ impl RelayApp {
         let profile = adapter
             .import_profile(&self.store, &self.paths, request.nickname, request.priority)
             .await?;
-        self.sync_active_profile(&profile)?;
+        self.sync_active_profile(&profile).await?;
         self.log_store
-            .append("info", "profile.imported", format!("id={}", profile.id))?;
+            .append(
+                "info".into(),
+                "profile.imported".into(),
+                format!("id={}", profile.id),
+            )
+            .await?;
         Ok(profile)
     }
 
@@ -162,11 +176,13 @@ impl RelayApp {
             )
             .await?;
         let _ = self.refresh_usage_profile(&result.profile.id).await;
-        self.log_store.append(
-            "info",
-            "profile.logged_in",
-            format!("id={}", result.profile.id),
-        )?;
+        self.log_store
+            .append(
+                "info".into(),
+                "profile.logged_in".into(),
+                format!("id={}", result.profile.id),
+            )
+            .await?;
         Ok(result)
     }
 
@@ -186,7 +202,8 @@ impl RelayApp {
         let identity = adapter.relink_profile(&self.store, &profile).await?;
         let _ = self.refresh_usage_profile(id).await;
         self.log_store
-            .append("info", "profile.relinked", format!("id={id}"))?;
+            .append("info".into(), "profile.relinked".into(), format!("id={id}"))
+            .await?;
         Ok(identity)
     }
 
@@ -197,16 +214,18 @@ impl RelayApp {
         let adapter = self.adapters.adapter(&agent);
         let report = adapter.recover_profiles(&self.store, &self.paths).await?;
         self.clear_stale_active_state().await?;
-        self.log_store.append(
-            "info",
-            "profile.recovered",
-            format!("agent={agent:?} recovered={}", report.recovered.len()),
-        )?;
+        self.log_store
+            .append(
+                "info".into(),
+                "profile.recovered".into(),
+                format!("agent={agent:?} recovered={}", report.recovered.len()),
+            )
+            .await?;
         Ok(report)
     }
 
     pub async fn remove_profile(&self, id: &str) -> Result<Profile, RelayError> {
-        let active_state = self.state_store.load()?;
+        let active_state = self.state_store.load().await?;
         let removing_active = active_state.active_profile_id.as_deref() == Some(id);
         if removing_active {
             if let Some(replacement) = self.next_enabled_profile_excluding(id).await? {
@@ -217,18 +236,28 @@ impl RelayApp {
         let profile = profile_service::remove_profile(&self.store, id).await?;
         if let Some(home) = profile.agent_home.as_ref() {
             let path = PathBuf::from(home);
-            if path.starts_with(&self.paths.profiles_dir) && path.exists() {
-                fs::remove_dir_all(path)?;
+            let profiles_dir = self.paths.profiles_dir.clone();
+            if path.starts_with(&profiles_dir) && path.exists() {
+                let path_owned = path.clone();
+                tokio::task::spawn_blocking(move || std::fs::remove_dir_all(path_owned))
+                    .await
+                    .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+                    .map_err(RelayError::from)?;
             }
         }
-        let mut state = self.state_store.load()?;
+        let mut state = self.state_store.load().await?;
         if state.active_profile_id.as_deref() == Some(profile.id.as_str()) {
             state.active_profile_id = None;
             state.last_switch_result = crate::models::SwitchOutcome::NotRun;
-            self.state_store.save(&state)?;
+            self.state_store.save(&state).await?;
         }
         self.log_store
-            .append("info", "profile.removed", format!("id={}", profile.id))?;
+            .append(
+                "info".into(),
+                "profile.removed".into(),
+                format!("id={}", profile.id),
+            )
+            .await?;
         Ok(profile)
     }
 
@@ -238,11 +267,13 @@ impl RelayApp {
         enabled: bool,
     ) -> Result<Profile, RelayError> {
         let profile = profile_service::set_profile_enabled(&self.store, id, enabled).await?;
-        self.log_store.append(
-            "info",
-            "profile.enabled_changed",
-            format!("id={} enabled={enabled}", profile.id),
-        )?;
+        self.log_store
+            .append(
+                "info".into(),
+                "profile.enabled_changed".into(),
+                format!("id={} enabled={enabled}", profile.id),
+            )
+            .await?;
         Ok(profile)
     }
 }

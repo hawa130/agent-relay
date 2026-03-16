@@ -14,7 +14,22 @@ impl FileStateStore {
         }
     }
 
-    pub fn load(&self) -> Result<ActiveState, RelayError> {
+    pub async fn load(&self) -> Result<ActiveState, RelayError> {
+        let store = self.clone();
+        tokio::task::spawn_blocking(move || store.load_sync())
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    pub async fn save(&self, state: &ActiveState) -> Result<(), RelayError> {
+        let store = self.clone();
+        let state = state.clone();
+        tokio::task::spawn_blocking(move || store.save_sync(&state))
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    fn load_sync(&self) -> Result<ActiveState, RelayError> {
         if !self.state_path.exists() {
             return Ok(ActiveState::default());
         }
@@ -25,7 +40,7 @@ impl FileStateStore {
         Ok(state)
     }
 
-    pub fn save(&self, state: &ActiveState) -> Result<(), RelayError> {
+    fn save_sync(&self, state: &ActiveState) -> Result<(), RelayError> {
         if let Some(parent) = self.state_path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -44,8 +59,8 @@ mod tests {
     use super::*;
     use tempfile::tempdir;
 
-    #[test]
-    fn save_and_load_state() {
+    #[tokio::test]
+    async fn save_and_load_state() {
         let temp = tempdir().expect("tempdir");
         let store = FileStateStore::new(temp.path().join("state.json"));
         let state = ActiveState {
@@ -53,8 +68,8 @@ mod tests {
             ..ActiveState::default()
         };
 
-        store.save(&state).expect("save");
-        let loaded = store.load().expect("load");
+        store.save(&state).await.expect("save");
+        let loaded = store.load().await.expect("load");
         assert!(loaded.auto_switch_enabled);
     }
 }

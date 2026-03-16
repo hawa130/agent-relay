@@ -118,7 +118,7 @@ impl RelayApp {
     }
 
     pub async fn status_report(&self) -> Result<StatusReport, RelayError> {
-        let active_state = self.state_store.load()?;
+        let active_state = self.state_store.load().await?;
         let settings = self.store.get_settings().await?;
         status_service::build(
             &self.paths,
@@ -156,14 +156,14 @@ impl RelayApp {
         self.store.update_codex_settings(request).await
     }
 
-    pub fn logs_tail(&self, lines: usize) -> Result<LogTail, RelayError> {
-        self.log_store.tail(lines)
+    pub async fn logs_tail(&self, lines: usize) -> Result<LogTail, RelayError> {
+        self.log_store.tail(lines).await
     }
 
     pub async fn diagnostics_export(&self) -> Result<DiagnosticsExport, RelayError> {
         let doctor = self.doctor_report()?;
         let status = self.status_report().await?;
-        let active_state = self.state_store.load()?;
+        let active_state = self.state_store.load().await?;
         let usage = self.usage_report().await?;
         diagnostics_service::export_bundle(
             &self.paths,
@@ -215,7 +215,7 @@ impl RelayApp {
     }
 
     async fn clear_stale_active_state(&self) -> Result<(), RelayError> {
-        let mut state = self.state_store.load()?;
+        let mut state = self.state_store.load().await?;
         let Some(active_profile_id) = state.active_profile_id.as_deref() else {
             return Ok(());
         };
@@ -225,18 +225,18 @@ impl RelayApp {
 
         state.active_profile_id = None;
         state.last_switch_result = crate::models::SwitchOutcome::NotRun;
-        self.state_store.save(&state)?;
+        self.state_store.save(&state).await?;
         Ok(())
     }
 
-    fn sync_active_profile(&self, profile: &Profile) -> Result<(), RelayError> {
-        let mut state = self.state_store.load()?;
+    async fn sync_active_profile(&self, profile: &Profile) -> Result<(), RelayError> {
+        let mut state = self.state_store.load().await?;
         if state.active_profile_id.as_deref() == Some(profile.id.as_str()) {
             return Ok(());
         }
 
         state.active_profile_id = Some(profile.id.clone());
-        self.state_store.save(&state)
+        self.state_store.save(&state).await
     }
 }
 

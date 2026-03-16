@@ -248,7 +248,7 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
             },
             ActivitySubcommand::Logs(command) => match command.command {
                 LogsSubcommand::Tail(args) => {
-                    let logs = app.logs_tail(log_lines_from_args(args)?)?;
+                    let logs = app.logs_tail(log_lines_from_args(args)?).await?;
                     Ok(Output::success_rendered(
                         "activity logs loaded",
                         logs.clone(),

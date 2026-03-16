@@ -72,14 +72,14 @@ pub async fn refresh_profile(
             }
             maybe_note_fallback(&mut snapshot, source_mode, remote_failure.as_ref());
             if allow_cache_writes && snapshot.profile_id.is_some() {
-                usage_store.save_profile(&snapshot)?;
+                usage_store.save_profile(&snapshot).await?;
             }
             return Ok(snapshot);
         }
     }
 
     if let Some(profile_id) = target_profile.map(|profile| profile.id.as_str()) {
-        if let Some(mut snapshot) = usage_store.load_profile(profile_id)? {
+        if let Some(mut snapshot) = usage_store.load_profile(profile_id).await? {
             refresh_cache_metadata(&mut snapshot);
             snapshot.can_auto_switch = false;
             snapshot.auto_switch_reason = None;
@@ -109,16 +109,16 @@ pub async fn refresh_profile(
             .and_then(|failure| failure.remote_error.clone()),
     );
     if allow_cache_writes && snapshot.profile_id.is_some() {
-        usage_store.save_profile(&snapshot)?;
+        usage_store.save_profile(&snapshot).await?;
     }
     Ok(snapshot)
 }
 
-pub fn load_profile_snapshot(
+pub async fn load_profile_snapshot(
     usage_store: &FileUsageStore,
     profile: &Profile,
 ) -> Result<UsageSnapshot, RelayError> {
-    if let Some(mut snapshot) = usage_store.load_profile(&profile.id)? {
+    if let Some(mut snapshot) = usage_store.load_profile(&profile.id).await? {
         refresh_cache_metadata(&mut snapshot);
         apply_profile_context(&mut snapshot, Some(profile));
         return Ok(snapshot);
@@ -133,11 +133,11 @@ pub fn load_profile_snapshot(
     ))
 }
 
-pub fn list_profile_snapshots(
+pub async fn list_profile_snapshots(
     usage_store: &FileUsageStore,
     profiles: &[Profile],
 ) -> Result<Vec<UsageSnapshot>, RelayError> {
-    let cache = usage_store.load_all()?;
+    let cache = usage_store.load_all().await?;
     let mut by_profile = std::collections::HashMap::with_capacity(cache.len());
     for snapshot in cache {
         if let Some(profile_id) = snapshot.profile_id.clone() {
@@ -696,7 +696,7 @@ mod tests {
         let mut cached = synthetic_snapshot(UsageSource::Local, Some("local usage"));
         cached.profile_id = Some(profile.id.clone());
         cached.profile_name = Some(profile.nickname.clone());
-        usage_store.save_profile(&cached).expect("save cache");
+        usage_store.save_profile(&cached).await.expect("save cache");
         let provider = FakeUsageProvider {
             local: Ok(None),
             remote: Ok(Some(remote_error_snapshot(
@@ -733,15 +733,17 @@ mod tests {
         );
     }
 
-    #[test]
-    fn loads_cached_placeholder_for_unknown_profile_usage() {
+    #[tokio::test]
+    async fn loads_cached_placeholder_for_unknown_profile_usage() {
         let temp = tempdir().expect("tempdir");
         let usage_store = FileUsageStore::new(temp.path().join("usage.json"));
         let home = temp.path().join("home");
         make_home(&home, "home", 0);
         let profile = profile("p_unknown", "work", &home);
 
-        let snapshot = load_profile_snapshot(&usage_store, &profile).expect("snapshot");
+        let snapshot = load_profile_snapshot(&usage_store, &profile)
+            .await
+            .expect("snapshot");
 
         assert_eq!(snapshot.profile_id.as_deref(), Some("p_unknown"));
         assert!(snapshot.stale);
@@ -828,6 +830,7 @@ mod tests {
             &usage_store,
             &[active_profile.clone(), inactive_profile.clone()],
         )
+        .await
         .expect("snapshots");
 
         assert_eq!(snapshots.len(), 2);
@@ -866,7 +869,9 @@ mod tests {
         )
         .await
         .expect("refresh");
-        let cached = load_profile_snapshot(&usage_store, &profile).expect("cached");
+        let cached = load_profile_snapshot(&usage_store, &profile)
+            .await
+            .expect("cached");
 
         assert_eq!(refreshed.profile_id.as_deref(), Some("p_missing"));
         assert_eq!(
