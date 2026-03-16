@@ -22,9 +22,11 @@ use crate::{
 };
 use chrono::Utc;
 use futures_util::stream::StreamExt;
+use serde::Serialize;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashSet};
+use std::future::Future;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -207,6 +209,29 @@ impl DaemonService {
             .await
     }
 
+    async fn profile_mutation<P, R, F, Fut>(
+        &self,
+        params: Value,
+        operation: F,
+    ) -> Result<Value, crate::RpcErrorObject>
+    where
+        P: DeserializeOwned,
+        R: Serialize,
+        F: FnOnce(P) -> Fut,
+        Fut: Future<Output = Result<R, RelayError>>,
+    {
+        let _guard = self.profile_write_lock.lock().await;
+        let params: P = parse_params(params)?;
+        let result = operation(params).await.map_err(|e| rpc_from_error(&e))?;
+        self.publish_profiles_updated()
+            .await
+            .map_err(|e| rpc_internal_error(e.to_string()))?;
+        self.publish_active_state_updated()
+            .await
+            .map_err(|e| rpc_internal_error(e.to_string()))?;
+        serialize(result)
+    }
+
     pub fn is_read_method(method: &str) -> bool {
         matches!(
             method,
@@ -311,87 +336,42 @@ impl DaemonService {
             "session/subscribe" => self.handle_subscribe(request.params).await?,
             "session/unsubscribe" => self.handle_unsubscribe(request.params).await?,
             "relay/profiles/add" => {
-                let _guard = self.profile_write_lock.lock().await;
-                let params: AddProfileParams = parse_params(request.params)?;
-                let profile = self
-                    .app
-                    .add_profile(params.request)
-                    .await
-                    .map_err(|e| rpc_from_error(&e))?;
-                self.publish_profiles_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                self.publish_active_state_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                serialize(profile)?
+                let app = self.app.clone();
+                self.profile_mutation(request.params, |p: AddProfileParams| async move {
+                    app.add_profile(p.request).await
+                })
+                .await?
             }
             "relay/profiles/edit" => {
-                let _guard = self.profile_write_lock.lock().await;
-                let params: EditProfileParams = parse_params(request.params)?;
-                let profile = self
-                    .app
-                    .edit_profile(&params.profile_id, params.request)
-                    .await
-                    .map_err(|e| rpc_from_error(&e))?;
-                self.publish_profiles_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                self.publish_active_state_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                serialize(profile)?
+                let app = self.app.clone();
+                self.profile_mutation(request.params, |p: EditProfileParams| async move {
+                    app.edit_profile(&p.profile_id, p.request).await
+                })
+                .await?
             }
             "relay/profiles/import" => {
-                let _guard = self.profile_write_lock.lock().await;
-                let params: ImportProfileParams = parse_params(request.params)?;
-                let profile = self
-                    .app
-                    .import_profile(params.request)
-                    .await
-                    .map_err(|e| rpc_from_error(&e))?;
-                self.publish_profiles_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                self.publish_active_state_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                serialize(profile)?
+                let app = self.app.clone();
+                self.profile_mutation(request.params, |p: ImportProfileParams| async move {
+                    app.import_profile(p.request).await
+                })
+                .await?
             }
             "relay/profiles/login/start" => {
                 serialize(self.handle_login_start(request.params).await?)?
             }
             "relay/profiles/remove" => {
-                let _guard = self.profile_write_lock.lock().await;
-                let params: ProfileIdParams = parse_params(request.params)?;
-                let profile = self
-                    .app
-                    .remove_profile(&params.profile_id)
-                    .await
-                    .map_err(|e| rpc_from_error(&e))?;
-                self.publish_profiles_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                self.publish_active_state_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                serialize(profile)?
+                let app = self.app.clone();
+                self.profile_mutation(request.params, |p: ProfileIdParams| async move {
+                    app.remove_profile(&p.profile_id).await
+                })
+                .await?
             }
             "relay/profiles/set_enabled" => {
-                let _guard = self.profile_write_lock.lock().await;
-                let params: SetProfileEnabledParams = parse_params(request.params)?;
-                let profile = self
-                    .app
-                    .set_profile_enabled(&params.profile_id, params.enabled)
-                    .await
-                    .map_err(|e| rpc_from_error(&e))?;
-                self.publish_profiles_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                self.publish_active_state_updated()
-                    .await
-                    .map_err(|e| rpc_internal_error(e.to_string()))?;
-                serialize(profile)?
+                let app = self.app.clone();
+                self.profile_mutation(request.params, |p: SetProfileEnabledParams| async move {
+                    app.set_profile_enabled(&p.profile_id, p.enabled).await
+                })
+                .await?
             }
             "relay/usage/refresh" => serialize(self.handle_refresh(request.params).await?)?,
             "relay/activity/refresh" => serialize(self.handle_activity_refresh().await?)?,
