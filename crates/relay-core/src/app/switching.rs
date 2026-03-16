@@ -163,14 +163,8 @@ impl RelayApp {
         &self,
         query: ActivityEventsQuery,
     ) -> Result<Vec<FailureEvent>, RelayError> {
-        let mut events = self.store.list_failure_events(query.limit.max(200)).await?;
-        if let Some(profile_id) = query.profile_id.as_deref() {
-            events.retain(|event| event.profile_id.as_deref() == Some(profile_id));
-        }
-        if let Some(reason) = query.reason.as_ref() {
-            events.retain(|event| &event.reason == reason);
-        }
-        events.truncate(query.limit);
-        Ok(events)
+        self.store
+            .list_failure_events_filtered(query.limit, query.profile_id.as_deref(), query.reason)
+            .await
     }
 }
