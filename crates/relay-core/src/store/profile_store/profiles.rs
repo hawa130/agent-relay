@@ -165,7 +165,7 @@ impl SqliteStore {
             active.display_name = Set(identity.display_name.clone());
             active.credentials_json = Set(identity.credentials.to_string());
             active.metadata_json = Set(identity.metadata.to_string());
-            active.updated_at = Set(identity.updated_at.clone());
+            active.updated_at = Set(identity.updated_at.to_rfc3339());
             active.update(connection).await?;
         } else {
             profile_probe_identities::ActiveModel {
@@ -175,8 +175,8 @@ impl SqliteStore {
                 display_name: Set(identity.display_name.clone()),
                 credentials_json: Set(identity.credentials.to_string()),
                 metadata_json: Set(identity.metadata.to_string()),
-                created_at: Set(identity.created_at.clone()),
-                updated_at: Set(identity.updated_at.clone()),
+                created_at: Set(identity.created_at.to_rfc3339()),
+                updated_at: Set(identity.updated_at.to_rfc3339()),
             }
             .insert(connection)
             .await?;

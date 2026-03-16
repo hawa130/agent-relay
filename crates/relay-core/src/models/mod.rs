@@ -20,7 +20,7 @@ pub use errors::{ErrorCode, RelayError};
 pub use events::{FailureEvent, FailureReason};
 pub use overview::{
     ProfileDetail, ProfileListItem, ProfileRecoveryReport, RecoveredProfile,
-    SkippedRecoveredProfile, SystemStatusReport,
+    SkippedRecoveredProfile,
 };
 pub use probe_identity::{CodexOfficialProbeIdentity, ProbeProvider, ProfileProbeIdentity};
 pub use profile::{AgentKind, AuthMode, Profile, ProfileAccountState};
@@ -32,16 +32,16 @@ pub use rpc::{
     EditProfileParams, EngineConnectionState, EngineState, HealthUpdatedPayload,
     ImportProfileParams, InitialState, InitializeParams, InitializeResult, JSONRPC_VERSION,
     LoginProfileParams, LogsTailParams, LogsTailResult, ProfileIdParams, ProfilesUpdatedPayload,
-    QueryStateItem, QueryStateKey, QueryStateKind, QueryStateStatus, QueryStateTrigger,
-    QueryStateUpdatedPayload, RefreshUsageParams, RefreshUsageResult, RelayRpcTopic, RelayTaskKind,
-    RelayTaskStatus, RpcClientCapabilities, RpcClientInfo, RpcErrorData, RpcErrorObject,
-    RpcErrorResponse, RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo,
-    RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
-    SettingsUpdateParams, SettingsUpdatedPayload, SubscribeParams, SubscribeResult,
-    SwitchCompletedPayload, SwitchFailedPayload, TaskCancelParams, TaskCancelResult,
-    TaskStartResult, TaskUpdate, TaskUpdatedPayload, UsageGetParams, UsageResult,
-    UsageUpdateTrigger, UsageUpdatedPayload, rpc_from_error, rpc_internal_error,
-    rpc_invalid_params, rpc_invalid_request, rpc_method_not_found,
+    QueryStateItem, QueryStateKey, QueryStateKind, QueryStateStatus, QueryStateUpdatedPayload,
+    RefreshUsageParams, RefreshUsageResult, RelayRpcTopic, RelayTaskKind, RelayTaskStatus,
+    RpcClientCapabilities, RpcClientInfo, RpcErrorData, RpcErrorObject, RpcErrorResponse,
+    RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo, RpcSuccessResponse,
+    SessionUpdate, SetProfileEnabledParams, SettingsResult, SettingsUpdateParams,
+    SettingsUpdatedPayload, SubscribeParams, SubscribeResult, SwitchCompletedPayload,
+    SwitchFailedPayload, TaskCancelParams, TaskCancelResult, TaskStartResult, TaskUpdate,
+    TaskUpdatedPayload, UsageGetParams, UsageResult, UsageUpdateTrigger, UsageUpdatedPayload,
+    rpc_from_error, rpc_internal_error, rpc_invalid_params, rpc_invalid_request,
+    rpc_method_not_found,
 };
 pub use settings::AppSettings;
 pub use state::{ActiveState, StatusReport, SwitchCheckpoint, SwitchOutcome};

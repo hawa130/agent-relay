@@ -1,7 +1,7 @@
 use crate::CodexSettings;
 use crate::models::{
-    ActiveState, AppSettings, ErrorCode, FailureEvent, LogTail, ProfileListItem, SwitchReport,
-    SwitchTrigger, SystemStatusReport, UsageSnapshot,
+    ActiveState, AppSettings, ErrorCode, FailureEvent, LogTail, ProfileListItem, StatusReport,
+    SwitchReport, SwitchTrigger, UsageSnapshot,
 };
 use crate::{AddProfileRequest, AgentLoginRequest, EditProfileRequest, ImportProfileRequest};
 use chrono::{DateTime, Utc};
@@ -96,7 +96,7 @@ pub struct RpcServerCapabilities {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitialState {
-    pub status: SystemStatusReport,
+    pub status: StatusReport,
     pub profiles: Vec<ProfileListItem>,
     pub codex_settings: CodexSettings,
     pub engine: EngineState,
@@ -331,14 +331,6 @@ pub enum QueryStateStatus {
     Error,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum QueryStateTrigger {
-    Startup,
-    Interval,
-    Manual,
-    PostSwitch,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct QueryStateKey {
     pub kind: QueryStateKind,
@@ -355,7 +347,7 @@ pub enum QueryStateKind {
 pub struct QueryStateItem {
     pub key: QueryStateKey,
     pub status: QueryStateStatus,
-    pub trigger: QueryStateTrigger,
+    pub trigger: UsageUpdateTrigger,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

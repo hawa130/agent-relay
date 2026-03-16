@@ -277,8 +277,8 @@ async fn refresh_probe_identity(
             .or_else(|| identity.id_token().map(ToOwned::to_owned)),
         email: identity.email().map(ToOwned::to_owned),
         plan_hint: identity.plan_hint().map(ToOwned::to_owned),
-        created_at: identity.created_at.clone(),
-        updated_at: Utc::now().to_rfc3339(),
+        created_at: identity.created_at,
+        updated_at: Utc::now(),
     });
 
     store
@@ -721,7 +721,7 @@ mod tests {
     }
 
     fn probe_identity(access_token: &str, refresh_token: Option<&str>) -> ProfileProbeIdentity {
-        let now = Utc::now().to_rfc3339();
+        let now = Utc::now();
         ProfileProbeIdentity::codex_official(CodexOfficialProbeIdentity {
             profile_id: "p_test".into(),
             account_id: "acct".into(),
@@ -730,7 +730,7 @@ mod tests {
             id_token: None,
             email: Some("test@example.com".into()),
             plan_hint: Some("plus".into()),
-            created_at: now.clone(),
+            created_at: now,
             updated_at: now,
         })
     }

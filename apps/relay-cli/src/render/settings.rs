@@ -10,5 +10,5 @@ pub(crate) fn render_codex_settings(settings: &CodexSettings) -> String {
 }
 
 pub(crate) fn render_autoswitch_settings(settings: &AppSettings) -> String {
-    render_sections(vec![("Autoswitch", autoswitch_fields(settings))])
+    render_sections(vec![("Autoswitch", app_settings_fields(settings))])
 }

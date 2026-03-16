@@ -1,14 +1,5 @@
-use crate::models::{ActiveState, AppSettings, FailureEvent, Profile, UsageSnapshot};
+use crate::models::{FailureEvent, Profile, UsageSnapshot};
 use serde::{Deserialize, Serialize};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SystemStatusReport {
-    pub relay_home: String,
-    pub live_agent_home: String,
-    pub profile_count: usize,
-    pub active_state: ActiveState,
-    pub settings: AppSettings,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProfileDetail {

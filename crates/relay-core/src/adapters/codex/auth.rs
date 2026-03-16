@@ -38,7 +38,7 @@ pub(crate) fn load_probe_identity_from_home(
         .ok_or_else(|| RelayError::Auth("auth.json is missing access_token".into()))?;
     let id_token = tokens.id_token.clone();
 
-    let now = Utc::now().to_rfc3339();
+    let now = Utc::now();
     Ok(ProfileProbeIdentity::codex_official(
         CodexOfficialProbeIdentity {
             profile_id: profile_id.into(),
@@ -48,7 +48,7 @@ pub(crate) fn load_probe_identity_from_home(
             id_token: id_token.clone(),
             email: extract_email(id_token.as_deref()),
             plan_hint: None,
-            created_at: now.clone(),
+            created_at: now,
             updated_at: now,
         },
     ))

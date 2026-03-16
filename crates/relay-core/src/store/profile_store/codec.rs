@@ -23,8 +23,8 @@ pub(super) fn profile_from_model(model: profiles::Model) -> Result<Profile, Rela
         config_path: model.config_path,
         auth_mode: parse_auth_mode(&model.auth_mode),
         metadata: serde_json::from_str(&model.metadata).unwrap_or(Value::Null),
-        created_at: model.created_at,
-        updated_at: model.updated_at,
+        created_at: parse_timestamp(&model.created_at)?,
+        updated_at: parse_timestamp(&model.updated_at)?,
     })
 }
 
@@ -38,8 +38,8 @@ pub(super) fn probe_identity_from_model(
         display_name: model.display_name,
         credentials: serde_json::from_str(&model.credentials_json).unwrap_or(Value::Null),
         metadata: serde_json::from_str(&model.metadata_json).unwrap_or(Value::Null),
-        created_at: model.created_at,
-        updated_at: model.updated_at,
+        created_at: parse_timestamp(&model.created_at)?,
+        updated_at: parse_timestamp(&model.updated_at)?,
     })
 }
 
