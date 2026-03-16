@@ -50,14 +50,17 @@ impl TaskManager {
     pub fn start(&self, kind: RelayTaskKind, cancel: TaskCancellationHandle) -> TaskUpdate {
         let started_at = Utc::now();
         let task_id = format!("task-{}", self.next_id.fetch_add(1, Ordering::Relaxed) + 1);
-        self.tasks.lock().expect("task manager poisoned").insert(
-            task_id.clone(),
-            RunningTask {
-                kind,
-                started_at,
-                cancel,
-            },
-        );
+        self.tasks
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner())
+            .insert(
+                task_id.clone(),
+                RunningTask {
+                    kind,
+                    started_at,
+                    cancel,
+                },
+            );
         TaskUpdate {
             task_id,
             kind,
@@ -74,7 +77,7 @@ impl TaskManager {
         let cancel = self
             .tasks
             .lock()
-            .expect("task manager poisoned")
+            .unwrap_or_else(|poison| poison.into_inner())
             .get(task_id)
             .map(|task| task.cancel.clone());
         if let Some(cancel) = cancel {
@@ -130,7 +133,7 @@ impl TaskManager {
         let task = self
             .tasks
             .lock()
-            .expect("task manager poisoned")
+            .unwrap_or_else(|poison| poison.into_inner())
             .remove(task_id)?;
         Some(TaskUpdate {
             task_id: task_id.to_string(),

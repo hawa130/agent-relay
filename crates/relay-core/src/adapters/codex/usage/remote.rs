@@ -198,6 +198,10 @@ fn token_refresh_threshold(settings: AppSettings) -> Duration {
     Duration::seconds(settings.refresh_interval_seconds.max(600))
 }
 
+/// SAFETY: The JWT access token is decoded without signature verification.
+/// This is acceptable because the token originates from the local probe identity
+/// store and is only used to read the `exp` claim for proactive token refresh
+/// scheduling — not for any authorization decision.
 fn jwt_expiry(token: &str) -> Option<chrono::DateTime<Utc>> {
     let mut segments = token.split('.');
     let _header = segments.next()?;
@@ -330,17 +334,27 @@ async fn run_http_json(
     headers: HeaderMap,
     body: Option<String>,
 ) -> Result<HttpResponse, RemoteUsageFailure> {
-    if let Some(path) = url.strip_prefix("file://") {
-        let body = fs::read_to_string(path)
-            .map_err(|error| other_failure(operation, error.to_string()))?;
-        return Ok(HttpResponse {
-            method,
-            url: url.to_string(),
-            http_code: 200,
-            reason_phrase: "OK".into(),
-            content_type: Some("application/json".into()),
-            body,
-        });
+    if let Some(_path) = url.strip_prefix("file://") {
+        #[cfg(any(test, debug_assertions))]
+        {
+            let body = fs::read_to_string(_path)
+                .map_err(|error| other_failure(operation, error.to_string()))?;
+            return Ok(HttpResponse {
+                method,
+                url: url.to_string(),
+                http_code: 200,
+                reason_phrase: "OK".into(),
+                content_type: Some("application/json".into()),
+                body,
+            });
+        }
+        #[cfg(not(any(test, debug_assertions)))]
+        {
+            return Err(other_failure(
+                operation,
+                "file:// URLs are not supported in release builds".into(),
+            ));
+        }
     }
 
     let client =

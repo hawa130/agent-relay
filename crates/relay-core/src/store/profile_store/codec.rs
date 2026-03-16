@@ -54,7 +54,7 @@ pub(super) fn switch_history_from_model(
         reason: model.reason,
         checkpoint_id: model.checkpoint_id,
         rollback_performed: model.rollback_performed,
-        created_at: parse_timestamp(&model.created_at),
+        created_at: parse_timestamp(&model.created_at)?,
     })
 }
 
@@ -70,22 +70,20 @@ pub(super) fn failure_event_from_model(
             .cooldown_until
             .as_deref()
             .map(parse_timestamp)
-            .map(Some)
-            .unwrap_or(None),
+            .transpose()?,
         resolved_at: model
             .resolved_at
             .as_deref()
             .map(parse_timestamp)
-            .map(Some)
-            .unwrap_or(None),
-        created_at: parse_timestamp(&model.created_at),
+            .transpose()?,
+        created_at: parse_timestamp(&model.created_at)?,
     })
 }
 
-fn parse_timestamp(value: &str) -> DateTime<Utc> {
+fn parse_timestamp(value: &str) -> Result<DateTime<Utc>, RelayError> {
     DateTime::parse_from_rfc3339(value)
         .map(|value| value.with_timezone(&Utc))
-        .unwrap_or_else(|_| Utc::now())
+        .map_err(|error| RelayError::Store(format!("invalid timestamp {value:?}: {error}")))
 }
 
 pub(super) fn stringify_auth_mode(mode: &crate::models::AuthMode) -> &'static str {

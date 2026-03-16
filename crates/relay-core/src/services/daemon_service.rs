@@ -64,12 +64,18 @@ impl DaemonHub {
     }
 
     fn subscribe(&self, topics: &[RelayRpcTopic]) {
-        let mut state = self.state.lock().expect("daemon hub poisoned");
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         state.subscribed_topics.extend(topics.iter().copied());
     }
 
     fn unsubscribe(&self, topics: &[RelayRpcTopic]) -> Vec<RelayRpcTopic> {
-        let mut state = self.state.lock().expect("daemon hub poisoned");
+        let mut state = self
+            .state
+            .lock()
+            .unwrap_or_else(|poison| poison.into_inner());
         for topic in topics {
             state.subscribed_topics.remove(topic);
         }
@@ -79,21 +85,21 @@ impl DaemonHub {
     fn connection_state(&self) -> EngineConnectionState {
         self.state
             .lock()
-            .expect("daemon hub poisoned")
+            .unwrap_or_else(|poison| poison.into_inner())
             .connection_state
     }
 
     fn set_connection_state(&self, value: EngineConnectionState) {
         self.state
             .lock()
-            .expect("daemon hub poisoned")
+            .unwrap_or_else(|poison| poison.into_inner())
             .connection_state = value;
     }
 
     fn query_state_snapshot(&self) -> Vec<QueryStateItem> {
         self.state
             .lock()
-            .expect("daemon hub poisoned")
+            .unwrap_or_else(|poison| poison.into_inner())
             .query_states
             .values()
             .cloned()
@@ -103,7 +109,7 @@ impl DaemonHub {
     fn set_query_state(&self, item: QueryStateItem) {
         self.state
             .lock()
-            .expect("daemon hub poisoned")
+            .unwrap_or_else(|poison| poison.into_inner())
             .query_states
             .insert(query_state_storage_key(&item.key), item);
     }
@@ -111,7 +117,7 @@ impl DaemonHub {
     fn clear_query_state(&self, key: &QueryStateKey) {
         self.state
             .lock()
-            .expect("daemon hub poisoned")
+            .unwrap_or_else(|poison| poison.into_inner())
             .query_states
             .remove(&query_state_storage_key(key));
     }
@@ -124,7 +130,7 @@ impl DaemonHub {
         if !self
             .state
             .lock()
-            .expect("daemon hub poisoned")
+            .unwrap_or_else(|poison| poison.into_inner())
             .subscribed_topics
             .contains(&topic)
         {

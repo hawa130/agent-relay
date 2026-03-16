@@ -20,6 +20,15 @@ fn validate_network_query_concurrency(value: i64) -> Result<(), RelayError> {
     Ok(())
 }
 
+fn validate_cooldown_seconds(value: i64) -> Result<(), RelayError> {
+    if !(0..=86400).contains(&value) {
+        return Err(RelayError::InvalidInput(
+            "cooldown seconds must be between 0 and 86400".into(),
+        ));
+    }
+    Ok(())
+}
+
 impl RelayApp {
     pub async fn switch_to_profile(&self, id: &str) -> Result<SwitchReport, RelayError> {
         let profile = self.store.get_profile(id).await?;
@@ -76,6 +85,7 @@ impl RelayApp {
     }
 
     pub async fn set_cooldown_seconds(&self, value: i64) -> Result<AppSettings, RelayError> {
+        validate_cooldown_seconds(value)?;
         let settings = self.store.set_cooldown_seconds(value).await?;
         self.log_store
             .append(
@@ -128,6 +138,10 @@ impl RelayApp {
         }
         if let Some(value) = request.network_query_concurrency {
             validate_network_query_concurrency(value)?;
+        }
+
+        if let Some(value) = request.cooldown_seconds {
+            validate_cooldown_seconds(value)?;
         }
 
         if let Some(enabled) = request.auto_switch_enabled {

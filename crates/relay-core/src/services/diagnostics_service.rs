@@ -5,8 +5,8 @@ use crate::{ActiveState, DoctorReport, StatusReport};
 use chrono::Utc;
 use serde::Serialize;
 use std::fs;
+use std::io::Write;
 use std::path::Path;
-use std::process::Command;
 
 pub async fn export_bundle(
     paths: &RelayPaths,
@@ -67,19 +67,37 @@ pub async fn export_bundle(
             fs::copy(&log_path, bundle_dir_clone.join("relay.log"))?;
         }
 
-        let output = Command::new("zip")
-            .args(["-qr", archive_path_clone.to_string_lossy().as_ref(), "."])
-            .current_dir(&bundle_dir_clone)
-            .output()
-            .map_err(|error| RelayError::ExternalCommand(error.to_string()))?;
-
-        if !output.status.success() {
-            return Err(RelayError::ExternalCommand(
-                String::from_utf8_lossy(&output.stderr).trim().to_string(),
-            ));
+        let archive_file = fs::File::create(&archive_path_clone)
+            .map_err(|error| RelayError::Io(error.to_string()))?;
+        let mut zip_writer = zip::ZipWriter::new(archive_file);
+        let options = zip::write::SimpleFileOptions::default()
+            .compression_method(zip::CompressionMethod::Deflated);
+        for entry in
+            fs::read_dir(&bundle_dir_clone).map_err(|error| RelayError::Io(error.to_string()))?
+        {
+            let entry = entry.map_err(|error| RelayError::Io(error.to_string()))?;
+            let path = entry.path();
+            if path.is_file() {
+                let name = path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned();
+                zip_writer
+                    .start_file(&name, options)
+                    .map_err(|error| RelayError::Internal(error.to_string()))?;
+                let contents =
+                    fs::read(&path).map_err(|error| RelayError::Io(error.to_string()))?;
+                zip_writer
+                    .write_all(&contents)
+                    .map_err(|error| RelayError::Io(error.to_string()))?;
+            }
         }
+        zip_writer
+            .finish()
+            .map_err(|error| RelayError::Internal(error.to_string()))?;
 
-        Ok(())
+        Ok::<(), RelayError>(())
     })
     .await
     .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))??;
