@@ -235,8 +235,8 @@ mod tests {
             ),
             auth_mode: crate::models::AuthMode::ConfigFilesystem,
             metadata: serde_json::json!({}),
-            created_at: Utc::now().to_rfc3339(),
-            updated_at: Utc::now().to_rfc3339(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
 
         let error = switch_to_profile(

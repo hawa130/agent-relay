@@ -88,8 +88,8 @@ pub(crate) fn render_profile_detail(profile: &Profile) -> String {
                 "Config Path",
                 profile.config_path.clone().unwrap_or_else(|| "-".into()),
             ),
-            ("Created", profile.created_at.clone()),
-            ("Updated", profile.updated_at.clone()),
+            ("Created", format_datetime(profile.created_at)),
+            ("Updated", format_datetime(profile.updated_at)),
         ],
     )])
 }

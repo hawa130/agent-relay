@@ -5,14 +5,14 @@ use crate::models::{
     HealthUpdatedPayload, ImportProfileParams, InitialState, InitializeParams, InitializeResult,
     JSONRPC_VERSION, LoginProfileParams, LogsTailParams, LogsTailResult, ProfileIdParams,
     ProfilesUpdatedPayload, QueryStateItem, QueryStateKey, QueryStateKind, QueryStateStatus,
-    QueryStateTrigger, QueryStateUpdatedPayload, RefreshUsageParams, RefreshUsageResult,
-    RelayRpcTopic, RelayTaskKind, RpcNotification, RpcRequest, RpcServerCapabilities,
-    RpcServerInfo, RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
-    SettingsUpdateParams, SettingsUpdatedPayload, SubscribeParams, SubscribeResult,
-    SwitchCompletedPayload, SwitchFailedPayload, SwitchTrigger, TaskCancelParams, TaskCancelResult,
-    TaskStartResult, TaskUpdatedPayload, UsageGetParams, UsageResult, UsageUpdateTrigger,
-    UsageUpdatedPayload, rpc_from_error, rpc_internal_error, rpc_invalid_params,
-    rpc_invalid_request, rpc_method_not_found,
+    QueryStateUpdatedPayload, RefreshUsageParams, RefreshUsageResult, RelayRpcTopic, RelayTaskKind,
+    RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo, RpcSuccessResponse,
+    SessionUpdate, SetProfileEnabledParams, SettingsResult, SettingsUpdateParams,
+    SettingsUpdatedPayload, SubscribeParams, SubscribeResult, SwitchCompletedPayload,
+    SwitchFailedPayload, SwitchTrigger, TaskCancelParams, TaskCancelResult, TaskStartResult,
+    TaskUpdatedPayload, UsageGetParams, UsageResult, UsageUpdateTrigger, UsageUpdatedPayload,
+    rpc_from_error, rpc_internal_error, rpc_invalid_params, rpc_invalid_request,
+    rpc_method_not_found,
 };
 use crate::services::query_coordinator::QueryCoordinator;
 use crate::services::task_manager::{TaskCancellationHandle, TaskManager};
@@ -1052,7 +1052,7 @@ impl DaemonService {
         self.hub.set_query_state(QueryStateItem {
             key,
             status: QueryStateStatus::Pending,
-            trigger: query_state_trigger(trigger),
+            trigger,
             error_code: None,
             message: None,
             updated_at: Utc::now(),
@@ -1069,7 +1069,7 @@ impl DaemonService {
         self.hub.set_query_state(QueryStateItem {
             key,
             status: QueryStateStatus::Error,
-            trigger: query_state_trigger(trigger),
+            trigger,
             error_code: Some(error.code().as_str().to_string()),
             message: Some(error.to_string()),
             updated_at: Utc::now(),
@@ -1155,15 +1155,6 @@ fn query_state_storage_key(key: &QueryStateKey) -> String {
     match (&key.kind, key.profile_id.as_deref()) {
         (QueryStateKind::UsageProfile, Some(profile_id)) => format!("usage.profile:{profile_id}"),
         (QueryStateKind::UsageProfile, None) => "usage.profile:".into(),
-    }
-}
-
-fn query_state_trigger(trigger: UsageUpdateTrigger) -> QueryStateTrigger {
-    match trigger {
-        UsageUpdateTrigger::Startup => QueryStateTrigger::Startup,
-        UsageUpdateTrigger::Interval => QueryStateTrigger::Interval,
-        UsageUpdateTrigger::Manual => QueryStateTrigger::Manual,
-        UsageUpdateTrigger::PostSwitch => QueryStateTrigger::PostSwitch,
     }
 }
 

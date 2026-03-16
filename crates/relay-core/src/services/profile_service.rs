@@ -58,8 +58,8 @@ pub async fn edit_profile(
             .map(|path| path.to_string_lossy().into_owned()),
         auth_mode: update.auth_mode.unwrap_or(current.auth_mode),
         metadata: current.metadata.clone(),
-        created_at: current.created_at.clone(),
-        updated_at: current.updated_at.clone(),
+        created_at: current.created_at,
+        updated_at: current.updated_at,
     };
     validate_source_inputs(
         candidate
@@ -167,7 +167,7 @@ fn validate_source_paths(
 }
 
 fn candidate_profile_from_add_record(record: &AddProfileRecord) -> Profile {
-    let now = Utc::now().to_rfc3339();
+    let now = Utc::now();
     Profile {
         id: "candidate".into(),
         nickname: record.nickname.clone(),
@@ -187,7 +187,7 @@ fn candidate_profile_from_add_record(record: &AddProfileRecord) -> Profile {
             .map(|path| path.to_string_lossy().into_owned()),
         auth_mode: record.auth_mode,
         metadata: serde_json::json!({}),
-        created_at: now.clone(),
+        created_at: now,
         updated_at: now,
     }
 }

@@ -250,24 +250,6 @@ pub(super) fn app_settings_fields(settings: &AppSettings) -> Vec<(&'static str, 
     ]
 }
 
-pub(super) fn autoswitch_fields(settings: &AppSettings) -> Vec<(&'static str, String)> {
-    vec![
-        (
-            "Auto-switch Enabled",
-            yes_no(settings.auto_switch_enabled).into(),
-        ),
-        ("Cooldown Seconds", settings.cooldown_seconds.to_string()),
-        (
-            "Refresh Interval Seconds",
-            refresh_interval_label(settings.refresh_interval_seconds),
-        ),
-        (
-            "Network Query Concurrency",
-            settings.network_query_concurrency.to_string(),
-        ),
-    ]
-}
-
 fn refresh_interval_label(seconds: i64) -> String {
     if seconds == 0 {
         "Off".into()
@@ -300,8 +282,8 @@ pub(super) fn probe_identity_fields(
         ("Account ID", identity.account_id().unwrap_or("-").into()),
         ("Email", identity.email().unwrap_or("-").into()),
         ("Plan", identity.plan_hint().unwrap_or("-").into()),
-        ("Created", identity.created_at.clone()),
-        ("Updated", identity.updated_at.clone()),
+        ("Created", format_datetime(identity.created_at)),
+        ("Updated", format_datetime(identity.updated_at)),
     ]
 }
 

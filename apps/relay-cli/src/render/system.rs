@@ -67,7 +67,7 @@ pub(crate) fn render_doctor_report(report: &DoctorReport) -> String {
     ])
 }
 
-pub(crate) fn render_status_report(report: &SystemStatusReport) -> String {
+pub(crate) fn render_status_report(report: &StatusReport) -> String {
     render_sections(vec![
         (
             "AgentRelay",

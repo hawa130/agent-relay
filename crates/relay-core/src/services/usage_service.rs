@@ -373,8 +373,8 @@ mod tests {
             config_path: Some(home.join("config.toml").to_string_lossy().into_owned()),
             auth_mode: AuthMode::ConfigFilesystem,
             metadata: serde_json::Value::Null,
-            created_at: Utc::now().to_rfc3339(),
-            updated_at: Utc::now().to_rfc3339(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         }
     }
 
@@ -908,8 +908,8 @@ mod tests {
             ),
             auth_mode: AuthMode::ConfigFilesystem,
             metadata: serde_json::Value::Null,
-            created_at: Utc::now().to_rfc3339(),
-            updated_at: Utc::now().to_rfc3339(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
         };
         let provider = CodexAdapter::with_live_home(&active_home);
 

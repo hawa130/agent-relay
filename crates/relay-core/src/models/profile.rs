@@ -1,3 +1,4 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -37,6 +38,6 @@ pub struct Profile {
     pub config_path: Option<String>,
     pub auth_mode: AuthMode,
     pub metadata: Value,
-    pub created_at: String,
-    pub updated_at: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }

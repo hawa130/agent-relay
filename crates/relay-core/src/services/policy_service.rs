@@ -105,7 +105,7 @@ mod tests {
         AgentKind, AuthMode, FailureEvent, FailureReason, Profile, UsageConfidence, UsageSnapshot,
         UsageSource, UsageStatus, UsageWindow,
     };
-    use chrono::{Duration, Utc};
+    use chrono::{DateTime, Duration, Utc};
     use serde_json::json;
 
     #[test]
@@ -268,8 +268,8 @@ mod tests {
             config_path: Some(format!("/tmp/{id}/config.toml")),
             auth_mode: AuthMode::ConfigFilesystem,
             metadata: json!({}),
-            created_at: "2026-03-09T00:00:00Z".into(),
-            updated_at: "2026-03-09T00:00:00Z".into(),
+            created_at: "2026-03-09T00:00:00Z".parse::<DateTime<Utc>>().unwrap(),
+            updated_at: "2026-03-09T00:00:00Z".parse::<DateTime<Utc>>().unwrap(),
         }
     }
 
