@@ -23,11 +23,11 @@ pub(crate) fn render_usage_list(
             ),
             styled_cell(
                 list_window_label(&snapshot.session, false),
-                status_tone(snapshot.session.status.clone()),
+                status_tone(snapshot.session.status),
             ),
             styled_cell(
                 list_window_label(&snapshot.weekly, true),
-                status_tone(snapshot.weekly.status.clone()),
+                status_tone(snapshot.weekly.status),
             ),
             Cell::new(format_optional_datetime(snapshot.next_reset_at)),
         ]));

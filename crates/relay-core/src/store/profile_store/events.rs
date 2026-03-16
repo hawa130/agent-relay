@@ -219,7 +219,7 @@ where
     let event = FailureEvent {
         id: format!("ev_{}", Utc::now().timestamp_millis()),
         profile_id: profile_id.map(ToOwned::to_owned),
-        reason: reason.clone(),
+        reason,
         message: message.as_ref().to_string(),
         cooldown_until,
         resolved_at: None,

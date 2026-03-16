@@ -38,7 +38,7 @@ pub async fn refresh_profile(
     source_mode: UsageSourceMode,
     allow_cache_writes: bool,
 ) -> Result<UsageSnapshot, RelayError> {
-    let providers = provider_order(source_mode.clone());
+    let providers = provider_order(source_mode);
     let mut remote_failure: Option<RemoteFailureContext> = None;
 
     for current in providers {
@@ -67,10 +67,10 @@ pub async fn refresh_profile(
                 remote_failure = Some(RemoteFailureContext::from_snapshot(&snapshot));
                 continue;
             }
-            if should_continue_to_next_provider(current, source_mode.clone(), &snapshot) {
+            if should_continue_to_next_provider(current, source_mode, &snapshot) {
                 continue;
             }
-            maybe_note_fallback(&mut snapshot, source_mode.clone(), remote_failure.as_ref());
+            maybe_note_fallback(&mut snapshot, source_mode, remote_failure.as_ref());
             if allow_cache_writes && snapshot.profile_id.is_some() {
                 usage_store.save_profile(&snapshot)?;
             }
