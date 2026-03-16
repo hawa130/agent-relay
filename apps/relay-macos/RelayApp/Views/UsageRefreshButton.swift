@@ -5,14 +5,7 @@ struct UsageRefreshButton: View {
         case toolbar
         case card
 
-        var iconFrameWidth: CGFloat {
-            switch self {
-            case .toolbar:
-                28
-            case .card:
-                14
-            }
-        }
+        static let cardIconFrameWidth: CGFloat = 14
 
         var usesIconOnlyLabel: Bool {
             switch self {
@@ -63,10 +56,14 @@ struct UsageRefreshButton: View {
 
     @ViewBuilder
     private var configuredButton: some View {
-        if variant.usesIconOnlyLabel {
-            button.labelStyle(.iconOnly)
-        } else {
+        switch variant {
+        case .toolbar:
             button.labelStyle(DefaultLabelStyle())
+        case .card:
+            button
+                .labelStyle(.iconOnly)
+                .buttonStyle(.bordered)
+                .frame(width: Variant.cardIconFrameWidth, height: Variant.cardIconFrameWidth)
         }
     }
 
@@ -79,9 +76,7 @@ struct UsageRefreshButton: View {
                         .controlSize(.small)
                         .opacity(Self.progressOpacity(isRefreshing: isRefreshing))
                 }
-                .frame(width: variant.iconFrameWidth, height: 14)
         }
-        .buttonStyle(.bordered)
         .disabled(isRefreshing)
         .help(helpTextValue)
         .accessibilityLabel(Self.accessibilityLabel(isRefreshing: isRefreshing))

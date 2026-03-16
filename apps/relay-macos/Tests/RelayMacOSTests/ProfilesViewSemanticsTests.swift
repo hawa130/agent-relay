@@ -3,16 +3,12 @@ import XCTest
 
 final class ProfilesViewSemanticsTests: XCTestCase {
     func testUsageRefreshButtonToolbarVariantUsesIconOnlyControlWidth() {
-        XCTAssertEqual(
-            UsageRefreshButton.Variant.toolbar.iconFrameWidth,
-            28,
-            accuracy: 0.001)
         XCTAssertFalse(UsageRefreshButton.Variant.toolbar.usesIconOnlyLabel)
     }
 
     func testUsageRefreshButtonCardVariantUsesCompactIconWidth() {
         XCTAssertEqual(
-            UsageRefreshButton.Variant.card.iconFrameWidth,
+            UsageRefreshButton.Variant.cardIconFrameWidth,
             14,
             accuracy: 0.001)
         XCTAssertTrue(UsageRefreshButton.Variant.card.usesIconOnlyLabel)
