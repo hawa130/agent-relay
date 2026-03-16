@@ -78,26 +78,25 @@ struct AgentIcon: View {
     var tint: Color?
 
     var body: some View {
-        let foreground = tint ?? .secondary
         if let descriptor = AgentSettingsCatalog.descriptor(for: agent),
            let image = descriptor.iconImage()
         {
-            iconImage(image, descriptor: descriptor, foreground: foreground)
+            let view = iconImage(image, descriptor: descriptor)
+            if let tint { view.foregroundStyle(tint) } else { view }
         } else {
-            Image(systemName: "terminal")
+            let view = Image(systemName: "terminal")
                 .font(.system(size: size, weight: .semibold))
-                .foregroundStyle(foreground)
                 .frame(width: size, height: size)
+            if let tint { view.foregroundStyle(tint) } else { view }
         }
     }
 
-    private func iconImage(_ image: NSImage, descriptor: AgentSettingsDescriptor, foreground: Color) -> some View {
+    private func iconImage(_ image: NSImage, descriptor: AgentSettingsDescriptor) -> some View {
         Image(nsImage: image)
             .resizable()
             .aspectRatio(contentMode: .fit)
             .frame(
                 width: size * descriptor.visualScale,
                 height: size * descriptor.visualScale)
-            .foregroundStyle(foreground)
     }
 }
