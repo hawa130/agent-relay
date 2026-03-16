@@ -8,6 +8,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+pub const JSONRPC_VERSION: &str = "2.0";
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RpcRequest {
     pub jsonrpc: String,
