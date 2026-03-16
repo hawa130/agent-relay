@@ -21,6 +21,7 @@ comfy-table = "7.1"
 dirs = "6.0"
 futures-util = "=0.3.31"
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+# NOTE: Pre-release. Track https://github.com/SeaQL/sea-orm/releases for 2.0.0 stable.
 sea-orm = { version = "2.0.0-rc.37", default-features = false, features = ["macros", "runtime-tokio-rustls", "schema-sync", "sqlx-sqlite"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
