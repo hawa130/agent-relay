@@ -1,7 +1,7 @@
 use crate::DaemonCommand;
 use relay_core::{
-    BootstrapMode, DaemonService, EngineConnectionState, RelayApp, RelayError, RpcErrorObject,
-    RpcErrorResponse, RpcNotification, RpcRequest, RpcSuccessResponse,
+    BootstrapMode, DaemonService, EngineConnectionState, JSONRPC_VERSION, RelayApp, RelayError,
+    RpcErrorObject, RpcErrorResponse, RpcNotification, RpcRequest, RpcSuccessResponse,
 };
 use std::io::{self, BufRead, BufWriter, Write};
 use std::rc::Rc;
@@ -133,7 +133,7 @@ async fn run_local() -> Result<(), RelayError> {
                     }
                     Err(error) => {
                         let payload = serialize_error(&RpcErrorResponse {
-                            jsonrpc: "2.0".into(),
+                            jsonrpc: JSONRPC_VERSION.into(),
                             id: None,
                             error: RpcErrorObject {
                                 code: -32600,
@@ -243,7 +243,7 @@ async fn render_read_response(read_app: Rc<RelayApp>, request: RpcRequest) -> St
         Ok(response) => serialize_response(&response)
             .unwrap_or_else(|error| serialize_internal_error(None, error.to_string())),
         Err(error) => serialize_error(&RpcErrorResponse {
-            jsonrpc: "2.0".into(),
+            jsonrpc: JSONRPC_VERSION.into(),
             id: Some(request_id),
             error,
         })
@@ -272,7 +272,7 @@ async fn handle_write_request_task(
                 .unwrap_or_else(|error| serialize_internal_error(None, error.to_string()))
         }
         Err(error) => serialize_error(&RpcErrorResponse {
-            jsonrpc: "2.0".into(),
+            jsonrpc: JSONRPC_VERSION.into(),
             id: Some(request_id),
             error,
         })
@@ -349,7 +349,7 @@ fn serialize_notification(notification: &RpcNotification) -> Result<String, Rela
 
 fn serialize_internal_error(id: Option<String>, message: String) -> String {
     serde_json::json!({
-        "jsonrpc": "2.0",
+        "jsonrpc": JSONRPC_VERSION,
         "id": id,
         "error": {
             "code": -32603,

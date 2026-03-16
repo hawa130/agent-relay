@@ -3,16 +3,16 @@ use crate::models::{
     ActivityEventsUpdatedPayload, ActivityLogsUpdatedPayload, ActivityRefreshResult,
     AddProfileParams, DoctorUpdatedPayload, EditProfileParams, EngineConnectionState, EngineState,
     HealthUpdatedPayload, ImportProfileParams, InitialState, InitializeParams, InitializeResult,
-    LoginProfileParams, LogsTailParams, LogsTailResult, ProfileIdParams, ProfilesUpdatedPayload,
-    QueryStateItem, QueryStateKey, QueryStateKind, QueryStateStatus, QueryStateTrigger,
-    QueryStateUpdatedPayload, RefreshUsageParams, RefreshUsageResult, RelayRpcTopic, RelayTaskKind,
-    RpcNotification, RpcRequest, RpcServerCapabilities, RpcServerInfo, RpcSuccessResponse,
-    SessionUpdate, SetProfileEnabledParams, SettingsResult, SettingsUpdateParams,
-    SettingsUpdatedPayload, SubscribeParams, SubscribeResult, SwitchCompletedPayload,
-    SwitchFailedPayload, SwitchTrigger, TaskCancelParams, TaskCancelResult, TaskStartResult,
-    TaskUpdatedPayload, UsageGetParams, UsageResult, UsageUpdateTrigger, UsageUpdatedPayload,
-    rpc_from_error, rpc_internal_error, rpc_invalid_params, rpc_invalid_request,
-    rpc_method_not_found,
+    JSONRPC_VERSION, LoginProfileParams, LogsTailParams, LogsTailResult, ProfileIdParams,
+    ProfilesUpdatedPayload, QueryStateItem, QueryStateKey, QueryStateKind, QueryStateStatus,
+    QueryStateTrigger, QueryStateUpdatedPayload, RefreshUsageParams, RefreshUsageResult,
+    RelayRpcTopic, RelayTaskKind, RpcNotification, RpcRequest, RpcServerCapabilities,
+    RpcServerInfo, RpcSuccessResponse, SessionUpdate, SetProfileEnabledParams, SettingsResult,
+    SettingsUpdateParams, SettingsUpdatedPayload, SubscribeParams, SubscribeResult,
+    SwitchCompletedPayload, SwitchFailedPayload, SwitchTrigger, TaskCancelParams, TaskCancelResult,
+    TaskStartResult, TaskUpdatedPayload, UsageGetParams, UsageResult, UsageUpdateTrigger,
+    UsageUpdatedPayload, rpc_from_error, rpc_internal_error, rpc_invalid_params,
+    rpc_invalid_request, rpc_method_not_found,
 };
 use crate::services::query_coordinator::QueryCoordinator;
 use crate::services::task_manager::{TaskCancellationHandle, TaskManager};
@@ -133,7 +133,7 @@ impl DaemonHub {
         let seq = self.seq.fetch_add(1, Ordering::Relaxed) + 1;
         self.notifications
             .send(RpcNotification {
-                jsonrpc: "2.0".into(),
+                jsonrpc: JSONRPC_VERSION.into(),
                 method: "session/update".into(),
                 params: SessionUpdate {
                     topic,
@@ -219,7 +219,7 @@ impl DaemonService {
         app: &RelayApp,
         request: RpcRequest,
     ) -> Result<RpcSuccessResponse, crate::RpcErrorObject> {
-        if request.jsonrpc != "2.0" {
+        if request.jsonrpc != JSONRPC_VERSION {
             return Err(rpc_invalid_request("jsonrpc must equal 2.0"));
         }
 
@@ -281,7 +281,7 @@ impl DaemonService {
         };
 
         Ok(RpcSuccessResponse {
-            jsonrpc: "2.0".into(),
+            jsonrpc: JSONRPC_VERSION.into(),
             id: request.id,
             result,
         })
@@ -295,7 +295,7 @@ impl DaemonService {
             return Self::handle_read_request(&self.app, request).await;
         }
 
-        if request.jsonrpc != "2.0" {
+        if request.jsonrpc != JSONRPC_VERSION {
             return Err(rpc_invalid_request("jsonrpc must equal 2.0"));
         }
 
@@ -431,7 +431,7 @@ impl DaemonService {
         };
 
         Ok(RpcSuccessResponse {
-            jsonrpc: "2.0".into(),
+            jsonrpc: JSONRPC_VERSION.into(),
             id: request.id,
             result,
         })
