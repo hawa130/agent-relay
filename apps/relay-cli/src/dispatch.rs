@@ -66,7 +66,7 @@ async fn dispatch(cli: Cli, app: RelayApp) -> Result<Output, RelayError> {
             ))
         }
         Commands::Status => {
-            let report = app.system_status().await?;
+            let report = app.status_report().await?;
             let rendered = render_status_report(&report);
             Ok(Output::success_rendered(
                 "status loaded",
