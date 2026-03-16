@@ -55,17 +55,9 @@ struct ProfilesContentColumn: View {
         }
         .listStyle(.inset)
         .navigationSplitViewColumnWidth(min: 260, ideal: 340, max: 400)
+        .navigationTitle(selectedFilterTitle)
+        .navigationSubtitle(profileCountSummary)
         .toolbar {
-            ToolbarItemGroup(placement: .navigation) {
-                ProfilesContentToolbarTitle(
-                    title: selectedFilterTitle,
-                    profileCountSummary: profileCountSummary)
-            }
-
-            ToolbarItemGroup(placement: .secondaryAction) {
-                Spacer(minLength: 0)
-            }
-
             ToolbarItemGroup(placement: .confirmationAction) {
                 if isFetchingEnabledUsage {
                     UsageRefreshButton(
