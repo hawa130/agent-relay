@@ -95,3 +95,75 @@ struct CodexAuthTokens {
     id_token: Option<String>,
     account_id: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use base64::Engine;
+    use tempfile::tempdir;
+
+    fn make_jwt(claims: &serde_json::Value) -> String {
+        let header = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(r#"{"alg":"RS256"}"#);
+        let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(serde_json::to_string(claims).unwrap());
+        format!("{header}.{payload}.signature")
+    }
+
+    #[test]
+    fn extract_email_from_valid_jwt() {
+        let token = make_jwt(&serde_json::json!({"email": "user@example.com"}));
+        let email = extract_email(Some(&token));
+        assert_eq!(email.as_deref(), Some("user@example.com"));
+    }
+
+    #[test]
+    fn extract_email_returns_none_for_none_input() {
+        assert!(extract_email(None).is_none());
+    }
+
+    #[test]
+    fn extract_email_returns_none_for_invalid_base64() {
+        assert!(extract_email(Some("not.a.jwt")).is_none());
+    }
+
+    #[test]
+    fn extract_email_falls_back_to_preferred_username() {
+        let token = make_jwt(&serde_json::json!({"preferred_username": "alice"}));
+        let email = extract_email(Some(&token));
+        assert_eq!(email.as_deref(), Some("alice"));
+    }
+
+    #[test]
+    fn extract_email_prefers_email_over_preferred_username() {
+        let token = make_jwt(
+            &serde_json::json!({"email": "real@example.com", "preferred_username": "fallback"}),
+        );
+        let email = extract_email(Some(&token));
+        assert_eq!(email.as_deref(), Some("real@example.com"));
+    }
+
+    #[test]
+    fn load_probe_identity_from_valid_auth_json() {
+        let temp = tempdir().expect("tempdir");
+        let home = temp.path();
+        let auth_json = serde_json::json!({
+            "tokens": {
+                "access_token": "access-tok",
+                "refresh_token": "refresh-tok",
+                "id_token": make_jwt(&serde_json::json!({"email": "test@example.com"})),
+                "account_id": "acct-123"
+            }
+        });
+        std::fs::write(
+            home.join("auth.json"),
+            serde_json::to_string(&auth_json).unwrap(),
+        )
+        .expect("write auth.json");
+
+        let identity = load_probe_identity_from_home("profile-1", home).expect("load identity");
+
+        assert_eq!(identity.profile_id, "profile-1");
+        assert_eq!(identity.principal_id.as_deref(), Some("acct-123"));
+        assert_eq!(identity.display_name.as_deref(), Some("test@example.com"));
+    }
+}

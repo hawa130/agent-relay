@@ -122,3 +122,109 @@ impl FileUsageStore {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::models::{UsageConfidence, UsageSource, UsageStatus, UsageWindow};
+    use chrono::Utc;
+    use tempfile::tempdir;
+
+    fn test_snapshot(profile_id: Option<&str>) -> UsageSnapshot {
+        UsageSnapshot {
+            profile_id: profile_id.map(str::to_string),
+            profile_name: profile_id.map(|id| format!("name-{id}")),
+            source: UsageSource::Local,
+            confidence: UsageConfidence::High,
+            stale: false,
+            last_refreshed_at: Utc::now(),
+            next_reset_at: None,
+            session: UsageWindow {
+                used_percent: Some(10.0),
+                window_minutes: Some(300),
+                reset_at: None,
+                status: UsageStatus::Healthy,
+                exact: true,
+            },
+            weekly: UsageWindow {
+                used_percent: Some(5.0),
+                window_minutes: Some(10080),
+                reset_at: None,
+                status: UsageStatus::Healthy,
+                exact: true,
+            },
+            auto_switch_reason: None,
+            can_auto_switch: false,
+            message: None,
+            remote_error: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn save_and_load_profile_round_trip() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileUsageStore::new(temp.path().join("usage.json"));
+        let snapshot = test_snapshot(Some("p1"));
+
+        store.save_profile(&snapshot).await.expect("save");
+        let loaded = store.load_profile("p1").await.expect("load");
+
+        let loaded = loaded.expect("should find profile");
+        assert_eq!(loaded.profile_id.as_deref(), Some("p1"));
+        assert_eq!(loaded.session.used_percent, Some(10.0));
+    }
+
+    #[tokio::test]
+    async fn save_all_and_load_all_round_trip() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileUsageStore::new(temp.path().join("usage.json"));
+        let snapshots = vec![test_snapshot(Some("a")), test_snapshot(Some("b"))];
+
+        store.save_all(&snapshots).await.expect("save_all");
+        let loaded = store.load_all().await.expect("load_all");
+
+        assert_eq!(loaded.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn load_all_on_missing_file_returns_empty() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileUsageStore::new(temp.path().join("nonexistent.json"));
+
+        let loaded = store.load_all().await.expect("load_all");
+
+        assert!(loaded.is_empty());
+    }
+
+    #[tokio::test]
+    async fn save_profile_replaces_existing_for_same_id() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileUsageStore::new(temp.path().join("usage.json"));
+
+        let mut first = test_snapshot(Some("p1"));
+        first.session.used_percent = Some(10.0);
+        store.save_profile(&first).await.expect("save first");
+
+        let mut second = test_snapshot(Some("p1"));
+        second.session.used_percent = Some(90.0);
+        store.save_profile(&second).await.expect("save second");
+
+        let all = store.load_all().await.expect("load_all");
+        assert_eq!(all.len(), 1);
+        assert_eq!(all[0].session.used_percent, Some(90.0));
+    }
+
+    #[tokio::test]
+    async fn load_profile_returns_none_for_unknown() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileUsageStore::new(temp.path().join("usage.json"));
+        store
+            .save_profile(&test_snapshot(Some("p1")))
+            .await
+            .expect("save");
+
+        let loaded = store.load_profile("unknown").await.expect("load");
+
+        assert!(loaded.is_none());
+    }
+}
