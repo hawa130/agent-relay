@@ -17,7 +17,41 @@ impl FileUsageStore {
         }
     }
 
-    pub fn load_all(&self) -> Result<Vec<UsageSnapshot>, RelayError> {
+    pub async fn load_all(&self) -> Result<Vec<UsageSnapshot>, RelayError> {
+        let store = self.clone();
+        tokio::task::spawn_blocking(move || store.load_all_sync())
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    pub async fn load_profile(
+        &self,
+        profile_id: &str,
+    ) -> Result<Option<UsageSnapshot>, RelayError> {
+        let store = self.clone();
+        let profile_id = profile_id.to_string();
+        tokio::task::spawn_blocking(move || store.load_profile_sync(&profile_id))
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    pub async fn save_profile(&self, snapshot: &UsageSnapshot) -> Result<(), RelayError> {
+        let store = self.clone();
+        let snapshot = snapshot.clone();
+        tokio::task::spawn_blocking(move || store.save_profile_sync(&snapshot))
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    pub async fn save_all(&self, snapshots: &[UsageSnapshot]) -> Result<(), RelayError> {
+        let store = self.clone();
+        let snapshots = snapshots.to_vec();
+        tokio::task::spawn_blocking(move || store.save_all_sync(&snapshots))
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    fn load_all_sync(&self) -> Result<Vec<UsageSnapshot>, RelayError> {
         let _guard = self
             .lock
             .lock()
@@ -25,14 +59,14 @@ impl FileUsageStore {
         self.load_all_unlocked()
     }
 
-    pub fn load_profile(&self, profile_id: &str) -> Result<Option<UsageSnapshot>, RelayError> {
+    fn load_profile_sync(&self, profile_id: &str) -> Result<Option<UsageSnapshot>, RelayError> {
         Ok(self
-            .load_all()?
+            .load_all_sync()?
             .into_iter()
             .find(|snapshot| snapshot.profile_id.as_deref() == Some(profile_id)))
     }
 
-    pub fn save_profile(&self, snapshot: &UsageSnapshot) -> Result<(), RelayError> {
+    fn save_profile_sync(&self, snapshot: &UsageSnapshot) -> Result<(), RelayError> {
         let _guard = self
             .lock
             .lock()
@@ -47,7 +81,7 @@ impl FileUsageStore {
         self.save_all_unlocked(&snapshots)
     }
 
-    pub fn save_all(&self, snapshots: &[UsageSnapshot]) -> Result<(), RelayError> {
+    fn save_all_sync(&self, snapshots: &[UsageSnapshot]) -> Result<(), RelayError> {
         let _guard = self
             .lock
             .lock()

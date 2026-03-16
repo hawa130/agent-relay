@@ -274,6 +274,7 @@ impl DaemonService {
                 serialize(LogsTailResult {
                     logs: app
                         .logs_tail(params.lines)
+                        .await
                         .map_err(|e| rpc_from_error(&e))?,
                 })?
             }
@@ -554,6 +555,7 @@ impl DaemonService {
         let logs = self
             .app
             .logs_tail(Self::DEFAULT_ACTIVITY_LOG_LINES)
+            .await
             .map_err(|e| rpc_from_error(&e))?;
         self.publish_activity_events_updated(events.clone())
             .await
@@ -929,7 +931,7 @@ impl DaemonService {
                     self.publish_activity_events_updated(events).await?;
                 }
                 RelayRpcTopic::ActivityLogsUpdated => {
-                    let logs = self.app.logs_tail(Self::DEFAULT_ACTIVITY_LOG_LINES)?;
+                    let logs = self.app.logs_tail(Self::DEFAULT_ACTIVITY_LOG_LINES).await?;
                     self.publish_activity_logs_updated(logs).await?;
                 }
                 RelayRpcTopic::DoctorUpdated => {

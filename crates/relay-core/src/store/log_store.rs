@@ -1,7 +1,7 @@
 use crate::models::{LogTail, RelayError};
 use chrono::Utc;
 use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone)]
@@ -16,12 +16,26 @@ impl FileLogStore {
         }
     }
 
-    pub fn append(
+    pub async fn append(
         &self,
-        level: &str,
-        event: &str,
-        message: impl AsRef<str>,
+        level: String,
+        event: String,
+        message: String,
     ) -> Result<(), RelayError> {
+        let store = self.clone();
+        tokio::task::spawn_blocking(move || store.append_sync(&level, &event, &message))
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    pub async fn tail(&self, lines: usize) -> Result<LogTail, RelayError> {
+        let store = self.clone();
+        tokio::task::spawn_blocking(move || store.tail_sync(lines))
+            .await
+            .map_err(|e| RelayError::Internal(format!("blocking task failed: {e}")))?
+    }
+
+    fn append_sync(&self, level: &str, event: &str, message: &str) -> Result<(), RelayError> {
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent)?;
         }
@@ -36,17 +50,37 @@ impl FileLogStore {
             Utc::now().to_rfc3339(),
             level.to_uppercase(),
             event,
-            message.as_ref()
+            message
         )?;
         Ok(())
     }
 
-    pub fn tail(&self, lines: usize) -> Result<LogTail, RelayError> {
-        let contents = match fs::read_to_string(&self.path) {
-            Ok(contents) => contents,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+    fn tail_sync(&self, lines: usize) -> Result<LogTail, RelayError> {
+        const TAIL_CHUNK_SIZE: u64 = 64 * 1024;
+
+        let mut file = match fs::File::open(&self.path) {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(LogTail {
+                    path: self.path.to_string_lossy().into_owned(),
+                    lines: Vec::new(),
+                });
+            }
             Err(error) => return Err(error.into()),
         };
+
+        let file_len = file.metadata()?.len();
+        let read_from = file_len.saturating_sub(TAIL_CHUNK_SIZE);
+        file.seek(SeekFrom::Start(read_from))?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+
+        // If we started mid-file, skip the first partial line
+        if read_from > 0 {
+            if let Some(pos) = contents.find('\n') {
+                contents = contents[pos + 1..].to_string();
+            }
+        }
 
         let collected = contents
             .lines()
