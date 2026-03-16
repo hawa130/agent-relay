@@ -22,8 +22,8 @@ pub(crate) fn load_probe_identity_from_home(
 ) -> Result<ProfileProbeIdentity, RelayError> {
     let auth_path = home.join("auth.json");
     let contents = fs::read_to_string(&auth_path)?;
-    let auth: CodexAuthFile = serde_json::from_str(&contents)
-        .map_err(|error| RelayError::Auth(error.to_string()))?;
+    let auth: CodexAuthFile =
+        serde_json::from_str(&contents).map_err(|error| RelayError::Auth(error.to_string()))?;
 
     let tokens = auth
         .tokens
