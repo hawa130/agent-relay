@@ -68,12 +68,28 @@ impl SqliteStore {
     }
 
     pub async fn list_failure_events(&self, limit: usize) -> Result<Vec<FailureEvent>, RelayError> {
+        self.list_failure_events_filtered(limit, None, None).await
+    }
+
+    pub async fn list_failure_events_filtered(
+        &self,
+        limit: usize,
+        profile_id: Option<&str>,
+        reason: Option<FailureReason>,
+    ) -> Result<Vec<FailureEvent>, RelayError> {
         let Some(connection) = self.connection() else {
             return Ok(Vec::new());
         };
 
-        failure_events::Entity::find()
-            .order_by_desc(failure_events::Column::CreatedAt)
+        let mut query =
+            failure_events::Entity::find().order_by_desc(failure_events::Column::CreatedAt);
+        if let Some(profile_id) = profile_id {
+            query = query.filter(failure_events::Column::ProfileId.eq(profile_id));
+        }
+        if let Some(reason) = reason {
+            query = query.filter(failure_events::Column::Reason.eq(stringify_reason(&reason)));
+        }
+        query
             .limit(limit as u64)
             .all(connection)
             .await?
