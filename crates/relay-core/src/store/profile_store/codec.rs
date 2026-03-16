@@ -205,3 +205,96 @@ pub(super) fn slugify(value: &str) -> String {
 pub(super) fn path_to_string(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn slugify_basic_cases() {
+        assert_eq!(slugify("Hello World"), "hello_world");
+        assert_eq!(slugify("my-profile-123"), "my_profile_123");
+        assert_eq!(slugify("  leading spaces  "), "leading_spaces");
+        assert_eq!(slugify("UPPER"), "upper");
+        assert_eq!(slugify("a__b"), "a_b"); // consecutive non-alnum chars collapse
+    }
+
+    #[test]
+    fn slugify_special_characters() {
+        assert_eq!(slugify("foo@bar.com"), "foo_bar_com");
+        assert_eq!(slugify("!!!test!!!"), "test");
+    }
+
+    #[test]
+    fn parse_timestamp_valid_rfc3339() {
+        use chrono::Datelike;
+        let result = parse_timestamp("2024-01-15T10:30:00Z");
+        assert!(result.is_ok());
+        let dt = result.unwrap();
+        assert_eq!(dt.year(), 2024);
+    }
+
+    #[test]
+    fn parse_timestamp_invalid_input() {
+        let result = parse_timestamp("not-a-date");
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            RelayError::Store(msg) => assert!(msg.contains("invalid timestamp")),
+            other => panic!("unexpected error variant: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn failure_reason_round_trip() {
+        let variants = vec![
+            FailureReason::SessionExhausted,
+            FailureReason::WeeklyExhausted,
+            FailureReason::AccountUnavailable,
+            FailureReason::AuthInvalid,
+            FailureReason::QuotaExhausted,
+            FailureReason::RateLimited,
+            FailureReason::CommandFailed,
+            FailureReason::ValidationFailed,
+            FailureReason::Unknown,
+        ];
+        for variant in variants {
+            let stringified = stringify_reason(&variant);
+            let parsed = parse_reason(stringified);
+            assert_eq!(
+                std::mem::discriminant(&variant),
+                std::mem::discriminant(&parsed),
+                "round-trip failed for {stringified}"
+            );
+        }
+    }
+
+    #[test]
+    fn parse_reason_unknown_value() {
+        assert!(matches!(parse_reason("garbage"), FailureReason::Unknown));
+    }
+
+    #[test]
+    fn auth_mode_round_trip() {
+        use crate::models::AuthMode;
+        let modes = vec![
+            AuthMode::ConfigFilesystem,
+            AuthMode::EnvReference,
+            AuthMode::KeychainReference,
+        ];
+        for mode in modes {
+            let stringified = stringify_auth_mode(&mode);
+            let parsed = parse_auth_mode(stringified);
+            assert_eq!(
+                std::mem::discriminant(&mode),
+                std::mem::discriminant(&parsed),
+                "round-trip failed for {stringified}"
+            );
+        }
+    }
+
+    #[test]
+    fn parse_auth_mode_defaults_to_config_filesystem() {
+        let parsed = parse_auth_mode("unknown-mode");
+        assert!(matches!(parsed, crate::models::AuthMode::ConfigFilesystem));
+    }
+}

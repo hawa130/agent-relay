@@ -102,3 +102,93 @@ impl FileLogStore {
         &self.path
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn append_creates_file_and_writes_line() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileLogStore::new(temp.path().join("test.log"));
+
+        store
+            .append("INFO".into(), "startup".into(), "hello world".into())
+            .await
+            .expect("append");
+
+        let tail = store.tail(10).await.expect("tail");
+        assert_eq!(tail.lines.len(), 1);
+        assert!(tail.lines[0].contains("INFO"));
+        assert!(tail.lines[0].contains("startup"));
+        assert!(tail.lines[0].contains("hello world"));
+    }
+
+    #[tokio::test]
+    async fn tail_returns_last_n_lines() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileLogStore::new(temp.path().join("test.log"));
+
+        for i in 0..10 {
+            store
+                .append("INFO".into(), "event".into(), format!("line {i}"))
+                .await
+                .expect("append");
+        }
+
+        let tail = store.tail(3).await.expect("tail");
+        assert_eq!(tail.lines.len(), 3);
+        assert!(tail.lines[0].contains("line 7"));
+        assert!(tail.lines[1].contains("line 8"));
+        assert!(tail.lines[2].contains("line 9"));
+    }
+
+    #[tokio::test]
+    async fn tail_on_missing_file_returns_empty() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileLogStore::new(temp.path().join("nonexistent.log"));
+
+        let tail = store.tail(10).await.expect("tail");
+
+        assert!(tail.lines.is_empty());
+    }
+
+    #[tokio::test]
+    async fn tail_with_fewer_lines_than_requested() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileLogStore::new(temp.path().join("test.log"));
+
+        store
+            .append("WARN".into(), "test".into(), "only one".into())
+            .await
+            .expect("append");
+
+        let tail = store.tail(100).await.expect("tail");
+        assert_eq!(tail.lines.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn multiple_appends_accumulate() {
+        let temp = tempdir().expect("tempdir");
+        let store = FileLogStore::new(temp.path().join("test.log"));
+
+        store
+            .append("INFO".into(), "a".into(), "first".into())
+            .await
+            .expect("append 1");
+        store
+            .append("ERROR".into(), "b".into(), "second".into())
+            .await
+            .expect("append 2");
+        store
+            .append("DEBUG".into(), "c".into(), "third".into())
+            .await
+            .expect("append 3");
+
+        let tail = store.tail(10).await.expect("tail");
+        assert_eq!(tail.lines.len(), 3);
+        assert!(tail.lines[0].contains("first"));
+        assert!(tail.lines[2].contains("third"));
+    }
+}
