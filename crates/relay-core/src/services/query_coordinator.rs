@@ -6,8 +6,7 @@ use std::hash::Hash;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use tokio::sync::{OwnedSemaphorePermit, Semaphore};
-use tokio::task::yield_now;
+use tokio::sync::{Notify, OwnedSemaphorePermit, Semaphore};
 
 const MAX_NETWORK_QUERY_CONCURRENCY: usize = 32;
 
@@ -19,6 +18,7 @@ pub struct QueryCoordinator<K, V, E> {
     inflight: InflightQueries<K, V, E>,
     semaphore: Arc<Semaphore>,
     limit: Arc<AtomicUsize>,
+    notify: Arc<Notify>,
 }
 
 impl<K, V, E> QueryCoordinator<K, V, E>
@@ -32,6 +32,7 @@ where
             inflight: Rc::new(RefCell::new(HashMap::new())),
             semaphore: Arc::new(Semaphore::new(MAX_NETWORK_QUERY_CONCURRENCY)),
             limit: Arc::new(AtomicUsize::new(clamp_limit(initial_limit))),
+            notify: Arc::new(Notify::new()),
         }
     }
 
@@ -58,6 +59,7 @@ where
             let _permit = coordinator.acquire_permit().await;
             let result = operation().await;
             coordinator.inflight.borrow_mut().remove(&key_for_cleanup);
+            coordinator.notify.notify_waiters();
             result
         }
         .boxed_local()
@@ -82,7 +84,7 @@ where
                 return permit;
             }
             drop(permit);
-            yield_now().await;
+            self.notify.notified().await;
         }
     }
 }

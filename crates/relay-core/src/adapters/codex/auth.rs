@@ -9,9 +9,9 @@ pub(crate) fn copy_login_auth(
     destination_home: &Path,
 ) -> Result<(), RelayError> {
     fs::create_dir_all(destination_home)?;
-    fs::copy(
-        login_home.join("auth.json"),
-        destination_home.join("auth.json"),
+    super::copy_atomic(
+        &login_home.join("auth.json"),
+        &destination_home.join("auth.json"),
     )?;
     Ok(())
 }
@@ -54,6 +54,10 @@ pub(crate) fn load_probe_identity_from_home(
     ))
 }
 
+/// SAFETY: The JWT `id_token` is decoded without signature verification.
+/// This is acceptable because the token is read from the local `auth.json` file
+/// (written by the Codex CLI login flow) and is used only for display purposes
+/// (extracting the user's email address).
 pub(crate) fn extract_email(id_token: Option<&str>) -> Option<String> {
     let payload = id_token?.split('.').nth(1)?;
     let decoded = decode_base64url(payload)?;
