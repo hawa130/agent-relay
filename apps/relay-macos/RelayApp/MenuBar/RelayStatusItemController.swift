@@ -13,8 +13,8 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     private let statusItem: NSStatusItem
     private let menu: NSMenu
     private let currentCardItem = NSMenuItem()
-    private let switchItem = NSMenuItem(title: "Switch", action: nil, keyEquivalent: "")
-    private let switchSubmenu = NSMenu()
+    private let profilesAnchorItem = NSMenuItem()
+    private var profileMenuItems: [NSMenuItem] = []
     private var cancellables: Set<AnyCancellable> = []
 
     public init(
@@ -103,7 +103,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
             model.$isSwitching.map { _ in () }.eraseToAnyPublisher())
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
-                self?.rebuildProfilesSubmenu()
+                self?.rebuildInlineProfileItems()
             }
             .store(in: &cancellables)
     }
@@ -133,7 +133,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         addActionItems(to: menu)
 
         rebuildCurrentCardItem()
-        rebuildProfilesSubmenu()
+        rebuildInlineProfileItems()
     }
 
     private func rebuildCurrentCardItem() {
@@ -144,34 +144,44 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
 
     private func addProfilesSection(to menu: NSMenu) {
         menu.addItem(makeSectionHeader(title: "Profiles"))
-        menu.addItem(makeActionItem(
-            title: "Manage...",
-            systemImage: RelayWindowID.profiles.symbol,
-            action: #selector(showProfiles)))
 
-        switchItem.image = menuSymbol("arrow.left.arrow.right")
-        switchSubmenu.autoenablesItems = false
-        switchSubmenu.delegate = self
-        switchItem.submenu = switchSubmenu
-        menu.addItem(switchItem)
+        profilesAnchorItem.isHidden = true
+        profilesAnchorItem.isEnabled = false
+        menu.addItem(profilesAnchorItem)
     }
 
-    private func rebuildProfilesSubmenu() {
-        switchSubmenu.removeAllItems()
+    private func rebuildInlineProfileItems() {
+        for item in profileMenuItems {
+            menu.removeItem(item)
+        }
+        profileMenuItems.removeAll()
+
+        let anchorIndex = menu.index(of: profilesAnchorItem)
+        guard anchorIndex >= 0 else {
+            return
+        }
 
         if model.profiles.isEmpty {
             let empty = NSMenuItem(title: "No profiles configured", action: nil, keyEquivalent: "")
             empty.isEnabled = false
-            switchSubmenu.addItem(empty)
+            menu.insertItem(empty, at: anchorIndex + 1)
+            profileMenuItems.append(empty)
             return
         }
 
-        for profile in model.profiles {
-            switchSubmenu.addItem(makeProfileMenuItem(profileID: profile.id))
+        for (offset, profile) in model.profiles.enumerated() {
+            let item = makeProfileMenuItem(profileID: profile.id)
+            menu.insertItem(item, at: anchorIndex + 1 + offset)
+            profileMenuItems.append(item)
         }
     }
 
     private func addActionItems(to menu: NSMenu) {
+        menu.addItem(makeActionItem(
+            title: "Manage Profiles...",
+            systemImage: RelayWindowID.profiles.symbol,
+            action: #selector(showProfiles)))
+
         menu.addItem(makeActionItem(
             title: "Settings...",
             systemImage: RelayWindowID.settings.symbol,

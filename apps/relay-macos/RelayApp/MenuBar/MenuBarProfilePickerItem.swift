@@ -8,12 +8,8 @@ struct MenuBarProfilePickerItem: View {
     var body: some View {
         Group {
             if let profile {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: presenter.profileSymbolName(profile: profile, usage: usage, isActive: isActive))
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(symbolColor)
-                        .frame(width: 13, height: 13)
-                        .padding(.top, 2)
+                HStack(alignment: .center, spacing: 10) {
+                    ringOrIcon
 
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -22,12 +18,18 @@ struct MenuBarProfilePickerItem: View {
                                 .lineLimit(1)
                                 .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
 
-                            Spacer(minLength: 8)
+                            if isActive {
+                                currentBadge
+                            }
 
-                            Text(presenter.profileStatusText(profile: profile, usage: usage, isActive: isActive))
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(statusColor)
-                                .lineLimit(1)
+                            Spacer(minLength: 4)
+
+                            if !isActive {
+                                Text(presenter.profileStatusText(profile: profile, usage: usage, isActive: false))
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundStyle(statusColor)
+                                    .lineLimit(1)
+                            }
                         }
 
                         if let sessionText = presenter.usageText(title: "Session", window: usage?.session) {
@@ -57,6 +59,43 @@ struct MenuBarProfilePickerItem: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .opacity(isDimmed && !isHighlighted ? 0.72 : 1)
+    }
+
+    @ViewBuilder
+    private var ringOrIcon: some View {
+        if let usage, !usage.ringProgressItems.isEmpty {
+            MultiRingProgressView(
+                items: usage.ringProgressItems,
+                size: .mini,
+                style: RingProgressStyle(
+                    trackColor: isHighlighted ? .white : .secondary,
+                    trackOpacity: isHighlighted ? 0.22 : 0.14))
+            { _ in
+                EmptyView()
+            }
+            .frame(width: 26, height: 26)
+        } else {
+            Image(systemName: presenter.profileSymbolName(
+                profile: profile!, usage: usage, isActive: isActive))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(symbolColor)
+                .frame(width: 26, height: 26)
+        }
+    }
+
+    private var currentBadge: some View {
+        Text("Current")
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(isHighlighted
+                ? MenuBarHighlightStyle.selectionText
+                : Color.accentColor)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1.5)
+            .background(
+                isHighlighted
+                    ? Color.white.opacity(0.2)
+                    : Color.accentColor.opacity(0.12),
+                in: Capsule())
     }
 
     private func usageLine(
