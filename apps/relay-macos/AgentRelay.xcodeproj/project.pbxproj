@@ -19,6 +19,7 @@
 		10D0906FEE3CCFF9ACBA0EDB /* RelayAppModelLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 676F54AECF92390259EF8C0D /* RelayAppModelLifecycleTests.swift */; };
 		11743C4ABFBDEEDC503E6D23 /* Defaults in Frameworks */ = {isa = PBXBuildFile; productRef = 880F54A8F624D78BDB90461F /* Defaults */; };
 		11A40985AC66DA0C28C16696 /* MenuBarProfilePickerItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 944F8EC81F8288FCBF694592 /* MenuBarProfilePickerItem.swift */; };
+		18A1AFE71A16A977FD401D52 /* ProfilePlanBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C5DDB6DA7B7A7CF46A6F676A /* ProfilePlanBadge.swift */; };
 		18AB8E53BBB45ED74A05E929 /* ProfilesSidebarItemLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B17D6784EAAC8B9B5B0E11B7 /* ProfilesSidebarItemLabel.swift */; };
 		195B3E932EE7F67C2FC95E0C /* RelayDaemonClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6ACCDC3A85E0DE8BCAFC4A0 /* RelayDaemonClient.swift */; };
 		1A4FD89BCFB67FBD9466E2D7 /* AddProfileCatalogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEA475003813D532DEEC4DB8 /* AddProfileCatalogView.swift */; };
@@ -85,6 +86,7 @@
 		AFDC434C5C6A5A112942517C /* AddProfileSheetFlowState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB4C56531428C92B5810F89F /* AddProfileSheetFlowState.swift */; };
 		B15798456DCE8EB2D29308B1 /* NativeDetailRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C153DC8E24F4721A6F695DD /* NativeDetailRow.swift */; };
 		B60999BA81331E242E3874FD /* AddProfileLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E833AF4A630EC922F5101C4F /* AddProfileLoginView.swift */; };
+		BA3F89D1F02D6E76E1F2BE30 /* MenuBarPlanBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D46CD42B2135001658757C52 /* MenuBarPlanBadge.swift */; };
 		BA71CC6C963C50F2FFEBD3B3 /* ProfileDetailHeroSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95C00664D6CB41D4A28E952 /* ProfileDetailHeroSection.swift */; };
 		BEE578A35032961A90BA6622 /* RelayAppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C912FF0FA74E0F9320EAA85F /* RelayAppDelegate.swift */; };
 		C009F845A6AEE3B1C975F44B /* UsageProgressLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 485D9BD69CA27A18C6F493D8 /* UsageProgressLayoutTests.swift */; };
@@ -236,6 +238,7 @@
 		C2A586A533973BFB1218FB7A /* NativeToolbarSymbolButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeToolbarSymbolButton.swift; sourceTree = "<group>"; };
 		C36875D1E808677357C2F0CF /* AddProfileSheetMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileSheetMode.swift; sourceTree = "<group>"; };
 		C4109AACA6A8A4A399338640 /* RelayStatusItemController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayStatusItemController.swift; sourceTree = "<group>"; };
+		C5DDB6DA7B7A7CF46A6F676A /* ProfilePlanBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePlanBadge.swift; sourceTree = "<group>"; };
 		C86478F5FF638B5E9F94673B /* ProfileEditorMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorMode.swift; sourceTree = "<group>"; };
 		C912FF0FA74E0F9320EAA85F /* RelayAppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayAppDelegate.swift; sourceTree = "<group>"; };
 		CB4C56531428C92B5810F89F /* AddProfileSheetFlowState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileSheetFlowState.swift; sourceTree = "<group>"; };
@@ -244,6 +247,7 @@
 		CF8643A392F23B38115AE358 /* MenuBarMetricRowModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarMetricRowModel.swift; sourceTree = "<group>"; };
 		D18A249E3D6C21B3B0C79510 /* AgentRelay.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AgentRelay.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D21F7EC05239F80B8989AA43 /* UsageToolbarRefreshScopeResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageToolbarRefreshScopeResolverTests.swift; sourceTree = "<group>"; };
+		D46CD42B2135001658757C52 /* MenuBarPlanBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPlanBadge.swift; sourceTree = "<group>"; };
 		D95C00664D6CB41D4A28E952 /* ProfileDetailHeroSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDetailHeroSection.swift; sourceTree = "<group>"; };
 		DCDD6A7FF6B2E01D5C54D01E /* ProfileEditorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileEditorSheet.swift; sourceTree = "<group>"; };
 		DCE548E9E88E9FA8DB3D3CBE /* AppPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppPreferences.swift; sourceTree = "<group>"; };
@@ -322,6 +326,7 @@
 				4F510799CE221EDAEF31029D /* MenuBarHighlightStyle.swift */,
 				FA9B068AE48B8887E739692E /* MenuBarMetricRow.swift */,
 				CF8643A392F23B38115AE358 /* MenuBarMetricRowModel.swift */,
+				D46CD42B2135001658757C52 /* MenuBarPlanBadge.swift */,
 				944F8EC81F8288FCBF694592 /* MenuBarProfilePickerItem.swift */,
 				4DEA52CDAF2CE515CDDF9AC7 /* MenuBarUsageCardHeaderView.swift */,
 				58727AA533856163A444174F /* MenuBarUsageCardSectionView.swift */,
@@ -427,6 +432,7 @@
 				831A713FEE83CB811617063C /* ProfileListRow.swift */,
 				6527ADD23DC7EB1E50B45172 /* ProfileListRowStatusIndicator.swift */,
 				92ADB034CF91CF936F2638E1 /* ProfileListUsageLine.swift */,
+				C5DDB6DA7B7A7CF46A6F676A /* ProfilePlanBadge.swift */,
 				94F1A0B79250CD1FBE3B6580 /* ProfileRowContextMenuModel.swift */,
 				FE363462A754310EC0EE170C /* ProfilesActionHandler.swift */,
 				6770450830E405BF3CFF9F76 /* ProfilesContentColumn.swift */,
@@ -739,6 +745,7 @@
 				C5DC78A14AC960776325741A /* MenuBarHighlightStyle.swift in Sources */,
 				F38BB40E67966BAA8423EA74 /* MenuBarMetricRow.swift in Sources */,
 				76151BBE41611CF0ECEF88FE /* MenuBarMetricRowModel.swift in Sources */,
+				BA3F89D1F02D6E76E1F2BE30 /* MenuBarPlanBadge.swift in Sources */,
 				85CE404511B56A49BDD8E091 /* MenuBarPresenter.swift in Sources */,
 				11A40985AC66DA0C28C16696 /* MenuBarProfilePickerItem.swift in Sources */,
 				5261030C03C31E831DCBCE21 /* MenuBarUsageCardHeaderView.swift in Sources */,
@@ -770,6 +777,7 @@
 				EDE5378ED110FBB59890D155 /* ProfileListRow.swift in Sources */,
 				2128BB41CF5CF61BCC70D786 /* ProfileListRowStatusIndicator.swift in Sources */,
 				864761A6DF7595A7C75325AC /* ProfileListUsageLine.swift in Sources */,
+				18A1AFE71A16A977FD401D52 /* ProfilePlanBadge.swift in Sources */,
 				06B53F45944EA5F14C4D991D /* ProfileRowContextMenuModel.swift in Sources */,
 				C19782B1A52092408D14F4F7 /* ProfileStateBadge.swift in Sources */,
 				1FE32018487454781ABB9246 /* ProfileStatusBadge.swift in Sources */,

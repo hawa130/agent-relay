@@ -326,6 +326,7 @@ fn empty_snapshot(
         can_auto_switch: false,
         message,
         remote_error,
+        plan_hint: None,
     }
 }
 
@@ -443,6 +444,7 @@ mod tests {
             can_auto_switch: false,
             message: message.map(str::to_string),
             remote_error: None,
+            plan_hint: None,
         }
     }
 

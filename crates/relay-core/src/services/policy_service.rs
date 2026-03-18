@@ -288,6 +288,7 @@ mod tests {
             can_auto_switch: false,
             message: Some("ok".into()),
             remote_error: None,
+            plan_hint: None,
         }
     }
 

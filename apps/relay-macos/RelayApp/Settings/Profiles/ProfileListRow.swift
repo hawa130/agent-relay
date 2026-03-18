@@ -31,9 +31,15 @@ struct ProfileListRow: View {
                 }
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(profile.nickname)
-                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                        .foregroundStyle(profile.enabled ? .primary : .secondary)
+                    HStack(alignment: .center, spacing: 5) {
+                        Text(profile.nickname)
+                            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                            .foregroundStyle(profile.enabled ? .primary : .secondary)
+
+                        if let planHint = usage?.planHint, !planHint.isEmpty {
+                            ProfilePlanBadge(title: planHint)
+                        }
+                    }
 
                     if let usage {
                         if usage.session.status != .unknown {

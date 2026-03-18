@@ -157,6 +157,7 @@ mod tests {
             can_auto_switch: false,
             message: None,
             remote_error: None,
+            plan_hint: None,
         }
     }
 

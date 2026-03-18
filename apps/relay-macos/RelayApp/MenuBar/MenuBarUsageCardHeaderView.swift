@@ -16,10 +16,16 @@ struct MenuBarUsageCardHeaderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline) {
-                Text(nickname)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
-                    .lineLimit(1)
+                HStack(alignment: .center, spacing: 5) {
+                    Text(nickname)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
+                        .lineLimit(1)
+
+                    if let planText, !planText.isEmpty {
+                        MenuBarPlanBadge(title: planText)
+                    }
+                }
 
                 Spacer()
 
@@ -36,13 +42,6 @@ struct MenuBarUsageCardHeaderView: View {
                     .layoutPriority(1)
 
                 Spacer()
-
-                if let planText, !planText.isEmpty {
-                    Text(planText)
-                        .font(.system(size: 10.5))
-                        .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
-                        .lineLimit(1)
-                }
             }
         }
     }
@@ -66,5 +65,12 @@ struct MenuBarUsageCardHeaderView: View {
                 .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                 .lineLimit(1)
         }
+    }
+}
+
+extension String {
+    var capitalizingFirst: String {
+        guard let first else { return self }
+        return first.uppercased() + dropFirst()
     }
 }

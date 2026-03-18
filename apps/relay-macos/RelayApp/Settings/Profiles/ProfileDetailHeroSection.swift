@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ProfileDetailHeroSection: View {
     let profile: Profile
+    let planHint: String?
     let isActive: Bool
     let isMutatingProfiles: Bool
     let currentFailureEvents: [FailureEvent]
@@ -28,6 +29,9 @@ struct ProfileDetailHeroSection: View {
                                 dotColor: profile.enabled
                                     ? NativePreferencesTheme.Colors.statusIcon(.success)
                                     : NativePreferencesTheme.Colors.disabledIndicator)
+                            if let planHint, !planHint.isEmpty {
+                                ProfileInfoBadge(title: "Plan", value: planHint.capitalizingFirst)
+                            }
                             ProfileInfoBadge(title: "Priority", value: "\(profile.priority)")
                         }
                         .padding(.top, 4)

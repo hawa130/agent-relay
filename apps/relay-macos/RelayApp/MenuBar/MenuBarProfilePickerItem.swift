@@ -13,10 +13,16 @@ struct MenuBarProfilePickerItem: View {
 
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text(profile.nickname)
-                                .font(.system(size: 12.5, weight: .semibold))
-                                .lineLimit(1)
-                                .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
+                            HStack(alignment: .center, spacing: 5) {
+                                Text(profile.nickname)
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .lineLimit(1)
+                                    .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
+
+                                if let planHint = usage?.planHint, !planHint.isEmpty {
+                                    MenuBarPlanBadge(title: planHint)
+                                }
+                            }
 
                             if isActive {
                                 currentBadge

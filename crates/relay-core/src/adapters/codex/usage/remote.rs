@@ -106,6 +106,25 @@ async fn fetch_official_usage_snapshot(
             ));
         }
     };
+    let plan_hint = payload.plan_type.clone();
+    if plan_hint.as_deref() != identity.plan_hint() {
+        let updated = ProfileProbeIdentity::codex_official(CodexOfficialProbeIdentity {
+            profile_id: identity.profile_id.clone(),
+            account_id: identity
+                .account_id()
+                .map(ToOwned::to_owned)
+                .unwrap_or_default(),
+            access_token: identity.access_token().unwrap_or_default().to_owned(),
+            refresh_token: identity.refresh_token().map(ToOwned::to_owned),
+            id_token: identity.id_token().map(ToOwned::to_owned),
+            email: identity.email().map(ToOwned::to_owned),
+            plan_hint: plan_hint.clone(),
+            created_at: identity.created_at,
+            updated_at: Utc::now(),
+        });
+        let _ = store.upsert_probe_identity(&updated).await;
+    }
+
     let session = official_window(payload.rate_limit.primary_window.as_ref());
     let weekly = official_window(payload.rate_limit.secondary_window.as_ref());
     let mut snapshot = UsageSnapshot {
@@ -122,6 +141,7 @@ async fn fetch_official_usage_snapshot(
         can_auto_switch: false,
         message: None,
         remote_error: None,
+        plan_hint,
     };
     apply_auto_switch_policy(&mut snapshot);
     Ok(snapshot)
@@ -538,6 +558,7 @@ fn remote_error_snapshot(profile: &Profile, failure: &RemoteUsageFailure) -> Usa
         can_auto_switch: false,
         message: Some(failure.message.clone()),
         remote_error: Some(failure.remote_error.clone()),
+        plan_hint: None,
     }
 }
 
@@ -564,6 +585,7 @@ enum RefreshProbeIdentityError {
 #[derive(Deserialize)]
 struct OfficialUsageResponse {
     rate_limit: OfficialRateLimit,
+    plan_type: Option<String>,
 }
 
 #[derive(Deserialize)]

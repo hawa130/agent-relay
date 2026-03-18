@@ -70,6 +70,8 @@ pub struct UsageSnapshot {
     pub message: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remote_error: Option<UsageRemoteError>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plan_hint: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

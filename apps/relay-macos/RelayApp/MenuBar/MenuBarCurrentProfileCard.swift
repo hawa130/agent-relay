@@ -10,7 +10,7 @@ struct MenuBarCurrentProfileCard: View {
                     providerName: activeProfile.agent.rawValue,
                     nickname: activeProfile.nickname,
                     subtitle: subtitle,
-                    planText: usage?.source.displayName)
+                    planText: usage?.planHint)
 
                 if metrics.isEmpty {
                     Text("No usage yet")

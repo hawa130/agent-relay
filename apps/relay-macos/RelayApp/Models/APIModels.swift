@@ -232,6 +232,7 @@ struct UsageSnapshot: Decodable {
     let canAutoSwitch: Bool
     let message: String?
     let remoteError: UsageRemoteError?
+    let planHint: String?
 }
 
 struct UsageRemoteError: Decodable, Equatable {

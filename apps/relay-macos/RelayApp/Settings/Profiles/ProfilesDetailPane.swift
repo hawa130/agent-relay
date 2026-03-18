@@ -22,6 +22,7 @@ struct ProfilesDetailPane: View {
                     VStack(alignment: .leading, spacing: NativePreferencesTheme.Metrics.sectionSpacing) {
                         ProfileDetailHeroSection(
                             profile: profile,
+                            planHint: usageSnapshot?.planHint,
                             isActive: selectedProfileIsActive,
                             isMutatingProfiles: isMutatingProfiles,
                             currentFailureEvents: selectedCurrentFailureEvents,
