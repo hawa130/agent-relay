@@ -28,7 +28,7 @@ pub(crate) fn render_profiles_list(items: &[relay_core::ProfileListItem]) -> Str
                     CellTone::Muted
                 },
             ),
-            Cell::new(profile.nickname.as_str()),
+            Cell::new(format_nickname_with_plan(&profile.nickname, item.usage_summary.as_ref())),
             Cell::new(profile.id.as_str()),
             Cell::new(agent_kind_label(&profile.agent)),
             Cell::new(profile.priority),
@@ -98,7 +98,7 @@ pub(crate) fn render_profile_summary(detail: &ProfileDetail) -> String {
     let mut sections = vec![(
         "Profile",
         vec![
-            ("Nickname", detail.profile.nickname.clone()),
+            ("Nickname", format_nickname_with_plan(&detail.profile.nickname, detail.usage.as_ref())),
             ("Profile ID", detail.profile.id.clone()),
             ("Agent", agent_kind_label(&detail.profile.agent).into()),
             ("Active", yes_no(detail.is_active).into()),

@@ -281,7 +281,7 @@ pub(super) fn probe_identity_fields(
         ),
         ("Account ID", identity.account_id().unwrap_or("-").into()),
         ("Email", identity.email().unwrap_or("-").into()),
-        ("Plan", identity.plan_hint().unwrap_or("-").into()),
+        ("Plan", identity.plan_hint().map(|s| capitalize_first(s)).unwrap_or_else(|| "-".into())),
         ("Created", format_datetime(identity.created_at)),
         ("Updated", format_datetime(identity.updated_at)),
     ]
@@ -294,4 +294,19 @@ pub(super) enum CellTone {
     Warn,
     Bad,
     Muted,
+}
+
+pub(super) fn capitalize_first(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) => c.to_uppercase().to_string() + chars.as_str(),
+        None => String::new(),
+    }
+}
+
+pub(super) fn format_nickname_with_plan(nickname: &str, usage: Option<&UsageSnapshot>) -> String {
+    match usage.and_then(|u| u.plan_hint.as_deref()) {
+        Some(plan) => format!("{} ({})", nickname, capitalize_first(plan)),
+        None => nickname.to_string(),
+    }
 }

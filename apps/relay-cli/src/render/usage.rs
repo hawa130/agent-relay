@@ -92,9 +92,14 @@ pub(super) fn usage_fields(snapshot: &UsageSnapshot) -> Vec<(&'static str, Strin
 }
 
 fn display_profile(snapshot: &UsageSnapshot) -> String {
+    let plan_suffix = snapshot
+        .plan_hint
+        .as_deref()
+        .map(|p| format!(" ({})", capitalize_first(p)))
+        .unwrap_or_default();
     match (&snapshot.profile_name, &snapshot.profile_id) {
-        (Some(name), Some(id)) => format!("{name} ({id})"),
-        (Some(name), None) => name.clone(),
+        (Some(name), Some(id)) => format!("{name}{plan_suffix} ({id})"),
+        (Some(name), None) => format!("{name}{plan_suffix}"),
         (None, Some(id)) => id.clone(),
         (None, None) => "current".into(),
     }
