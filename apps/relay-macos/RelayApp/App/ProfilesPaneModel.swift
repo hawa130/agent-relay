@@ -211,10 +211,17 @@ public final class ProfilesPaneModel: ObservableObject {
             return
         }
 
-        if let selectedProfileId = session.selectedProfileId,
-           filteredProfiles.contains(where: { $0.id == selectedProfileId })
-        {
-            return
+        if let selectedProfileId = session.selectedProfileId {
+            if filteredProfiles.contains(where: { $0.id == selectedProfileId }) {
+                return
+            }
+            if session.profiles.contains(where: { $0.id == selectedProfileId }) {
+                selectedFilter = .all
+                return
+            }
+            if session.isMutatingProfiles || session.isLoggingIn {
+                return
+            }
         }
 
         session.selectProfile(filteredProfiles.first?.id)
