@@ -12,10 +12,6 @@ struct MenuBarCurrentProfileCard: View {
                     subtitle: subtitle,
                     planText: usage?.source.displayName)
 
-                if hasDetails {
-                    Divider()
-                }
-
                 if metrics.isEmpty {
                     Text("No usage yet")
                         .font(.subheadline)
@@ -35,10 +31,6 @@ struct MenuBarCurrentProfileCard: View {
         .padding(.top, 1)
         .padding(.bottom, 1)
         .frame(width: 300, alignment: .leading)
-    }
-
-    private var hasDetails: Bool {
-        usage != nil || !presenter.currentCardNotes(usage: usage).isEmpty
     }
 
     private var presenter: MenuBarPresenter {

@@ -16,14 +16,14 @@ struct MenuBarUsageCardHeaderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .firstTextBaseline) {
-                Text(providerName)
+                Text(nickname)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(MenuBarHighlightStyle.primary(isHighlighted))
                     .lineLimit(1)
 
                 Spacer()
 
-                Text(nickname)
+                Text(providerName)
                     .font(.system(size: 11))
                     .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
                     .lineLimit(1)

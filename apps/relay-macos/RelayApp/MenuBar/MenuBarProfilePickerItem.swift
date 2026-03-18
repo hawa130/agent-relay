@@ -43,20 +43,13 @@ struct MenuBarProfilePickerItem: View {
                                 left: weeklyText,
                                 rightDate: usage?.weekly.resetAt)
                         }
-
-                        if let footerText = presenter.profileFooterText(profile: profile, usage: usage) {
-                            Text(footerText)
-                                .font(.system(size: 10))
-                                .foregroundStyle(MenuBarHighlightStyle.secondary(isHighlighted))
-                                .lineLimit(1)
-                        }
                     }
                 }
             } else {
                 EmptyView()
             }
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 14)
         .padding(.vertical, 6)
         .opacity(isDimmed && !isHighlighted ? 0.72 : 1)
     }

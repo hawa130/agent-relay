@@ -15,6 +15,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     private let currentCardItem = NSMenuItem()
     private let profilesAnchorItem = NSMenuItem()
     private var profileMenuItems: [NSMenuItem] = []
+    private var overflowSubmenu: NSMenu?
     private var cancellables: Set<AnyCancellable> = []
 
     public init(
@@ -50,10 +51,6 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     public func menuDidClose(_ menu: NSMenu) {
         for menuItem in menu.items {
             (menuItem.view as? RelayMenuItemHighlighting)?.setHighlighted(false)
-        }
-
-        guard menu === self.menu else {
-            return
         }
     }
 
@@ -155,24 +152,56 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
             menu.removeItem(item)
         }
         profileMenuItems.removeAll()
+        overflowSubmenu = nil
 
         let anchorIndex = menu.index(of: profilesAnchorItem)
         guard anchorIndex >= 0 else {
             return
         }
 
-        if model.profiles.isEmpty {
-            let empty = NSMenuItem(title: "No profiles configured", action: nil, keyEquivalent: "")
+        let others = model.profiles.filter { $0.id != model.activeProfileId }
+
+        if others.isEmpty {
+            let empty = NSMenuItem(title: "No other profiles", action: nil, keyEquivalent: "")
             empty.isEnabled = false
             menu.insertItem(empty, at: anchorIndex + 1)
             profileMenuItems.append(empty)
             return
         }
 
-        for (offset, profile) in model.profiles.enumerated() {
-            let item = makeProfileMenuItem(profileID: profile.id)
-            menu.insertItem(item, at: anchorIndex + 1 + offset)
-            profileMenuItems.append(item)
+        let maxInline = 3
+
+        if others.count <= maxInline {
+            for (offset, profile) in others.enumerated() {
+                let item = makeProfileMenuItem(profileID: profile.id)
+                menu.insertItem(item, at: anchorIndex + 1 + offset)
+                profileMenuItems.append(item)
+            }
+        } else {
+            let inlineProfiles = others.prefix(maxInline - 1)
+            let overflowProfiles = others.dropFirst(maxInline - 1)
+
+            for (offset, profile) in inlineProfiles.enumerated() {
+                let item = makeProfileMenuItem(profileID: profile.id)
+                menu.insertItem(item, at: anchorIndex + 1 + offset)
+                profileMenuItems.append(item)
+            }
+
+            let submenu = NSMenu()
+            submenu.delegate = self
+            for profile in overflowProfiles {
+                submenu.addItem(makeProfileMenuItem(profileID: profile.id))
+            }
+            overflowSubmenu = submenu
+
+            let moreItem = NSMenuItem(
+                title: "\(overflowProfiles.count) More...",
+                action: nil,
+                keyEquivalent: "")
+            moreItem.submenu = submenu
+            moreItem.image = menuSymbol("ellipsis.circle")
+            menu.insertItem(moreItem, at: anchorIndex + 1 + inlineProfiles.count)
+            profileMenuItems.append(moreItem)
         }
     }
 
