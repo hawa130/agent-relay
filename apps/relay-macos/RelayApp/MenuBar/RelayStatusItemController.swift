@@ -15,7 +15,8 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     private let currentCardItem = NSMenuItem()
     private let profilesAnchorItem = NSMenuItem()
     private var profileMenuItems: [NSMenuItem] = []
-    private var overflowSubmenu: NSMenu?
+    private let overflowSubmenu = NSMenu()
+    private var overflowMenuItem: NSMenuItem?
     private var cancellables: Set<AnyCancellable> = []
 
     public init(
@@ -31,6 +32,8 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
 
         menu.autoenablesItems = false
         menu.delegate = self
+        overflowSubmenu.autoenablesItems = false
+        overflowSubmenu.delegate = self
         statusItem.menu = menu
 
         configureStatusButton()
@@ -51,6 +54,10 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     public func menuDidClose(_ menu: NSMenu) {
         for menuItem in menu.items {
             (menuItem.view as? RelayMenuItemHighlighting)?.setHighlighted(false)
+        }
+
+        guard menu === self.menu else {
+            return
         }
     }
 
@@ -152,7 +159,8 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
             menu.removeItem(item)
         }
         profileMenuItems.removeAll()
-        overflowSubmenu = nil
+        overflowSubmenu.removeAllItems()
+        overflowMenuItem = nil
 
         let anchorIndex = menu.index(of: profilesAnchorItem)
         guard anchorIndex >= 0 else {
@@ -187,21 +195,19 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
                 profileMenuItems.append(item)
             }
 
-            let submenu = NSMenu()
-            submenu.delegate = self
             for profile in overflowProfiles {
-                submenu.addItem(makeProfileMenuItem(profileID: profile.id))
+                overflowSubmenu.addItem(makeProfileMenuItem(profileID: profile.id))
             }
-            overflowSubmenu = submenu
 
             let moreItem = NSMenuItem(
                 title: "\(overflowProfiles.count) More...",
                 action: nil,
                 keyEquivalent: "")
-            moreItem.submenu = submenu
+            moreItem.submenu = overflowSubmenu
             moreItem.image = menuSymbol("ellipsis.circle")
             menu.insertItem(moreItem, at: anchorIndex + 1 + inlineProfiles.count)
             profileMenuItems.append(moreItem)
+            overflowMenuItem = moreItem
         }
     }
 
