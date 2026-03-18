@@ -22,5 +22,8 @@ thiserror.workspace = true
 tokio.workspace = true
 zip = { version = "2", default-features = false, features = ["deflate"] }
 
+[target.'cfg(target_os = "macos")'.dependencies]
+reqwest = { workspace = true, features = ["macos-system-configuration"] }
+
 [dev-dependencies]
 tempfile.workspace = true
