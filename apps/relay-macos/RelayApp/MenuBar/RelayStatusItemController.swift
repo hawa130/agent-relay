@@ -147,7 +147,7 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
     }
 
     private func addProfilesSection(to menu: NSMenu) {
-        menu.addItem(makeSectionHeader(title: "Profiles"))
+        menu.addItem(.sectionHeader(title: "Profiles"))
 
         profilesAnchorItem.isHidden = true
         profilesAnchorItem.isEnabled = false
@@ -237,17 +237,6 @@ public final class RelayStatusItemController: NSObject, NSMenuDelegate {
         return item
     }
 
-    private func makeSectionHeader(title: String) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        item.attributedTitle = NSAttributedString(
-            string: title,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize - 1, weight: .semibold),
-                .foregroundColor: NSColor.secondaryLabelColor
-            ])
-        item.isEnabled = false
-        return item
-    }
 
     private func menuSymbol(_ systemName: String) -> NSImage? {
         guard let image = NSImage(systemSymbolName: systemName, accessibilityDescription: nil) else {
