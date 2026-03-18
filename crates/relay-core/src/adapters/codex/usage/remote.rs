@@ -108,21 +108,8 @@ async fn fetch_official_usage_snapshot(
     };
     let plan_hint = payload.plan_type.clone();
     if plan_hint.as_deref() != identity.plan_hint() {
-        let updated = ProfileProbeIdentity::codex_official(CodexOfficialProbeIdentity {
-            profile_id: identity.profile_id.clone(),
-            account_id: identity
-                .account_id()
-                .map(ToOwned::to_owned)
-                .unwrap_or_default(),
-            access_token: identity.access_token().unwrap_or_default().to_owned(),
-            refresh_token: identity.refresh_token().map(ToOwned::to_owned),
-            id_token: identity.id_token().map(ToOwned::to_owned),
-            email: identity.email().map(ToOwned::to_owned),
-            plan_hint: plan_hint.clone(),
-            created_at: identity.created_at,
-            updated_at: Utc::now(),
-        });
-        let _ = store.upsert_probe_identity(&updated).await;
+        identity.set_plan_hint(plan_hint.clone());
+        let _ = store.upsert_probe_identity(&identity).await;
     }
 
     let session = official_window(payload.rate_limit.primary_window.as_ref());

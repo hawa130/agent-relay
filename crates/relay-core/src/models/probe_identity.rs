@@ -77,6 +77,16 @@ impl ProfileProbeIdentity {
     pub fn plan_hint(&self) -> Option<&str> {
         json_get_string(&self.metadata, "plan_hint")
     }
+
+    pub fn set_plan_hint(&mut self, plan_hint: Option<String>) {
+        if let Some(obj) = self.metadata.as_object_mut() {
+            match plan_hint {
+                Some(value) => obj.insert("plan_hint".into(), Value::String(value)),
+                None => obj.remove("plan_hint"),
+            };
+        }
+        self.updated_at = Utc::now();
+    }
 }
 
 fn json_get_string<'a>(value: &'a Value, key: &str) -> Option<&'a str> {
