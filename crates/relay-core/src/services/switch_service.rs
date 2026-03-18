@@ -190,9 +190,7 @@ mod tests {
         let profile_home = temp.path().join("profile");
         fs::create_dir_all(&live_home).expect("live");
         fs::create_dir_all(&profile_home).expect("profile");
-        fs::write(live_home.join("config.toml"), "model = 'old'").expect("live config");
         fs::write(live_home.join("auth.json"), "{\"token\":\"old\"}").expect("live auth");
-        fs::write(profile_home.join("config.toml"), "model = 'new'").expect("profile config");
         fs::write(profile_home.join("auth.json"), "{\"token\":\"new\"}").expect("profile auth");
 
         let paths = RelayPaths::from_root(relay_root);
@@ -227,12 +225,7 @@ mod tests {
             account_error_http_status: None,
             account_state_updated_at: None,
             agent_home: Some(profile_home.to_string_lossy().into_owned()),
-            config_path: Some(
-                profile_home
-                    .join("config.toml")
-                    .to_string_lossy()
-                    .into_owned(),
-            ),
+            config_path: None,
             auth_mode: crate::models::AuthMode::ConfigFilesystem,
             metadata: serde_json::json!({}),
             created_at: Utc::now(),
@@ -256,10 +249,6 @@ mod tests {
         assert_eq!(
             restored_state.active_profile_id,
             previous_state.active_profile_id
-        );
-        assert_eq!(
-            fs::read_to_string(live_home.join("config.toml")).expect("live config"),
-            "model = 'old'"
         );
         assert_eq!(
             fs::read_to_string(live_home.join("auth.json")).expect("live auth"),

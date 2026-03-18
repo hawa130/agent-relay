@@ -124,30 +124,21 @@ fn validate_nickname(nickname: &str) -> Result<(), RelayError> {
 }
 
 fn validate_source_inputs(
-    config_path: Option<&std::path::PathBuf>,
+    _config_path: Option<&std::path::PathBuf>,
     agent_home: Option<&std::path::PathBuf>,
 ) -> Result<(), RelayError> {
-    if config_path.is_none() && agent_home.is_none() {
+    if agent_home.is_none() {
         return Err(RelayError::Validation(
-            "profile must provide either config_path or agent_home".into(),
+            "profile must provide agent_home".into(),
         ));
     }
     Ok(())
 }
 
 fn validate_source_paths(
-    config_path: Option<&std::path::PathBuf>,
+    _config_path: Option<&std::path::PathBuf>,
     agent_home: Option<&std::path::PathBuf>,
 ) -> Result<(), RelayError> {
-    if let Some(path) = config_path {
-        if !path.exists() {
-            return Err(RelayError::Validation(format!(
-                "config path does not exist: {}",
-                path.display()
-            )));
-        }
-    }
-
     if let Some(path) = agent_home {
         if !path.exists() {
             return Err(RelayError::Validation(format!(

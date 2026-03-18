@@ -45,7 +45,7 @@ pub(crate) async fn import_profile(
                 .unwrap_or_else(|| format!("Imported Codex {}", Utc::now().format("%Y%m%d-%H%M%S")))
         }),
         priority,
-        config_path: Some(snapshot_dir.join("config.toml")),
+        config_path: None,
         agent_home: Some(snapshot_dir),
         auth_mode: AuthMode::ConfigFilesystem,
     };
@@ -64,7 +64,7 @@ pub(crate) async fn import_profile(
 }
 
 pub(crate) async fn login_profile(
-    adapter: &CodexAdapter,
+    _adapter: &CodexAdapter,
     store: &SqliteStore,
     profiles_dir: &Path,
     nickname: Option<String>,
@@ -86,7 +86,7 @@ pub(crate) async fn login_profile(
     let identity = load_probe_identity_from_home("pending", &login_home)?;
 
     let snapshot_dir = profiles_dir.join(format!("login_{}", Utc::now().timestamp_millis()));
-    adapter.import_live_profile(&snapshot_dir)?;
+    fs::create_dir_all(&snapshot_dir)?;
     copy_login_auth(&login_home, &snapshot_dir)?;
 
     let profile = store
@@ -99,7 +99,7 @@ pub(crate) async fn login_profile(
                     .unwrap_or_else(|| format!("Codex {}", Utc::now().format("%Y%m%d-%H%M%S")))
             }),
             priority,
-            config_path: Some(snapshot_dir.join("config.toml")),
+            config_path: None,
             agent_home: Some(snapshot_dir),
             auth_mode: AuthMode::ConfigFilesystem,
         })

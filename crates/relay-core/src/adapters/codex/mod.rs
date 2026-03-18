@@ -21,8 +21,7 @@ use std::sync::Arc;
 
 pub use settings::{CodexSettings, CodexSettingsUpdateRequest};
 
-const REQUIRED_MANAGED_FILES: [&str; 1] = ["config.toml"];
-const OPTIONAL_MANAGED_FILES: [&str; 2] = ["auth.json", "version.json"];
+const MANAGED_FILES: [&str; 1] = ["auth.json"];
 
 #[derive(Debug, Clone)]
 pub struct CodexAdapter {
@@ -31,9 +30,7 @@ pub struct CodexAdapter {
 
 #[derive(Debug, Clone)]
 struct ManagedSourceFiles {
-    config: PathBuf,
-    auth: Option<PathBuf>,
-    version: Option<PathBuf>,
+    auth: PathBuf,
 }
 
 impl CodexAdapter {
@@ -54,27 +51,11 @@ impl CodexAdapter {
     }
 
     fn managed_files_static() -> Vec<String> {
-        REQUIRED_MANAGED_FILES
-            .into_iter()
-            .chain(OPTIONAL_MANAGED_FILES)
-            .map(ToOwned::to_owned)
-            .collect()
+        MANAGED_FILES.into_iter().map(ToOwned::to_owned).collect()
     }
 
     fn validate_live_against(&self, sources: &ManagedSourceFiles) -> Result<(), RelayError> {
-        ensure_same_contents(&sources.config, &self.live_home.join("config.toml"))?;
-
-        if let Some(auth) = sources.auth.as_ref() {
-            ensure_same_contents(auth, &self.live_home.join("auth.json"))?;
-        } else {
-            ensure_missing(&self.live_home.join("auth.json"))?;
-        }
-
-        if let Some(version) = sources.version.as_ref() {
-            ensure_same_contents(version, &self.live_home.join("version.json"))?;
-        } else {
-            ensure_missing(&self.live_home.join("version.json"))?;
-        }
+        ensure_same_contents(&sources.auth, &self.live_home.join("auth.json"))?;
 
         if let Some(binary) = find_binary("codex") {
             let output = Command::new(binary)
@@ -92,33 +73,18 @@ impl CodexAdapter {
     }
 
     fn sync_live_files(&self, sources: &ManagedSourceFiles) -> Result<(), RelayError> {
-        copy_atomic(&sources.config, &self.live_home.join("config.toml"))?;
-        sync_optional_file(sources.auth.as_deref(), &self.live_home.join("auth.json"))?;
-        sync_optional_file(
-            sources.version.as_deref(),
-            &self.live_home.join("version.json"),
-        )?;
+        copy_atomic(&sources.auth, &self.live_home.join("auth.json"))?;
         Ok(())
     }
 
     fn backup_live_files(&self, backup_dir: &Path) -> Result<Vec<String>, RelayError> {
         fs::create_dir_all(backup_dir)?;
-        let managed = self.live_managed_files();
         let mut backups = Vec::new();
 
-        if managed.config.exists() {
-            let destination = backup_dir.join("config.toml");
-            copy_atomic(&managed.config, &destination)?;
-            backups.push(destination.to_string_lossy().into_owned());
-        }
-        if let Some(auth) = managed.auth.filter(|path| path.exists()) {
+        let live_auth = self.live_home.join("auth.json");
+        if live_auth.exists() {
             let destination = backup_dir.join("auth.json");
-            copy_atomic(&auth, &destination)?;
-            backups.push(destination.to_string_lossy().into_owned());
-        }
-        if let Some(version) = managed.version.filter(|path| path.exists()) {
-            let destination = backup_dir.join("version.json");
-            copy_atomic(&version, &destination)?;
+            copy_atomic(&live_auth, &destination)?;
             backups.push(destination.to_string_lossy().into_owned());
         }
 
@@ -126,11 +92,6 @@ impl CodexAdapter {
     }
 
     fn restore_backup(&self, backup_dir: &Path) -> Result<(), RelayError> {
-        let backup_config = backup_dir.join("config.toml");
-        if backup_config.exists() {
-            copy_atomic(&backup_config, &self.live_home.join("config.toml"))?;
-        }
-
         let backup_auth = backup_dir.join("auth.json");
         if backup_auth.exists() {
             copy_atomic(&backup_auth, &self.live_home.join("auth.json"))?;
@@ -138,51 +99,19 @@ impl CodexAdapter {
             remove_if_exists(&self.live_home.join("auth.json"))?;
         }
 
-        let backup_version = backup_dir.join("version.json");
-        if backup_version.exists() {
-            copy_atomic(&backup_version, &self.live_home.join("version.json"))?;
-        } else {
-            remove_if_exists(&self.live_home.join("version.json"))?;
-        }
-
         Ok(())
-    }
-
-    fn live_managed_files(&self) -> ManagedSourceFiles {
-        ManagedSourceFiles {
-            config: self.live_home.join("config.toml"),
-            auth: Some(self.live_home.join("auth.json")),
-            version: Some(self.live_home.join("version.json")),
-        }
     }
 
     fn resolve_sources(&self, profile: &Profile) -> Result<ManagedSourceFiles, RelayError> {
         let agent_home = profile.agent_home.as_ref().map(PathBuf::from);
-        let config = profile
-            .config_path
-            .as_ref()
-            .map(PathBuf::from)
-            .or_else(|| agent_home.as_ref().map(|path| path.join("config.toml")))
-            .ok_or_else(|| {
-                RelayError::Validation(
-                    "profile must provide either config_path or agent_home/config.toml".into(),
-                )
-            })?;
-
         let auth = agent_home
             .as_ref()
             .map(|path| path.join("auth.json"))
-            .filter(|path| path.exists());
-        let version = agent_home
-            .as_ref()
-            .map(|path| path.join("version.json"))
-            .filter(|path| path.exists());
+            .ok_or_else(|| {
+                RelayError::Validation("profile must provide agent_home with auth.json".into())
+            })?;
 
-        Ok(ManagedSourceFiles {
-            config,
-            auth,
-            version,
-        })
+        Ok(ManagedSourceFiles { auth })
     }
 
     fn activate_profile(
@@ -245,13 +174,6 @@ impl AgentAdapter for CodexAdapter {
     }
 
     fn validate_profile(&self, profile: &Profile) -> Result<(), RelayError> {
-        let sources = self.resolve_sources(profile)?;
-        if !sources.config.exists() {
-            return Err(RelayError::Validation(format!(
-                "profile config path does not exist: {}",
-                sources.config.display()
-            )));
-        }
         if let Some(home) = profile.agent_home.as_ref() {
             let path = PathBuf::from(home);
             if !path.exists() || !path.is_dir() {
@@ -260,32 +182,25 @@ impl AgentAdapter for CodexAdapter {
                     path.display()
                 )));
             }
+            let auth_path = path.join("auth.json");
+            if !auth_path.exists() {
+                return Err(RelayError::Validation(format!(
+                    "profile auth.json not found: {}",
+                    auth_path.display()
+                )));
+            }
         }
         Ok(())
     }
 
     fn import_live_profile(&self, destination: &Path) -> Result<Vec<String>, RelayError> {
         fs::create_dir_all(destination)?;
-        let managed = self.live_managed_files();
-        if !managed.config.exists() {
-            return Err(RelayError::Validation(format!(
-                "live Codex config not found: {}",
-                managed.config.display()
-            )));
-        }
-
         let mut copied = Vec::new();
-        copy_atomic(&managed.config, &destination.join("config.toml"))?;
-        copied.push("config.toml".to_string());
 
-        if let Some(auth) = managed.auth.filter(|path| path.exists()) {
-            copy_atomic(&auth, &destination.join("auth.json"))?;
+        let live_auth = self.live_home.join("auth.json");
+        if live_auth.exists() {
+            copy_atomic(&live_auth, &destination.join("auth.json"))?;
             copied.push("auth.json".to_string());
-        }
-
-        if let Some(version) = managed.version.filter(|path| path.exists()) {
-            copy_atomic(&version, &destination.join("version.json"))?;
-            copied.push("version.json".to_string());
         }
 
         Ok(copied)
@@ -397,16 +312,6 @@ fn ensure_same_contents(source: &Path, destination: &Path) -> Result<(), RelayEr
     Ok(())
 }
 
-fn ensure_missing(path: &Path) -> Result<(), RelayError> {
-    if path.exists() {
-        return Err(RelayError::Validation(format!(
-            "post-switch validation expected {} to be absent",
-            path.display()
-        )));
-    }
-    Ok(())
-}
-
 pub(crate) fn copy_atomic(source: &Path, destination: &Path) -> Result<(), RelayError> {
     if let Some(parent) = destination.parent() {
         fs::create_dir_all(parent)?;
@@ -415,13 +320,6 @@ pub(crate) fn copy_atomic(source: &Path, destination: &Path) -> Result<(), Relay
     fs::copy(source, &temp)?;
     fs::rename(temp, destination)?;
     Ok(())
-}
-
-fn sync_optional_file(source: Option<&Path>, destination: &Path) -> Result<(), RelayError> {
-    match source {
-        Some(source) => copy_atomic(source, destination),
-        None => remove_if_exists(destination),
-    }
 }
 
 fn remove_if_exists(path: &Path) -> Result<(), RelayError> {

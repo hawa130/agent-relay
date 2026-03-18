@@ -547,8 +547,8 @@ fn import_switch_events_logs_and_diagnostics_work() {
     );
     assert_eq!(switched["data"]["profile_id"], alternate_id);
     assert_eq!(
-        fs::read_to_string(live_codex_home.join("config.toml")).expect("live config"),
-        "model = \"alternate\""
+        fs::read_to_string(live_codex_home.join("auth.json")).expect("live auth"),
+        "{\"token\":\"alternate\"}"
     );
 
     write_usage_cache(
@@ -581,7 +581,7 @@ fn import_switch_events_logs_and_diagnostics_work() {
             .as_str()
             .expect("imported agent home"),
     );
-    fs::remove_file(imported_home.join("config.toml")).expect("remove imported config");
+    fs::remove_file(imported_home.join("auth.json")).expect("remove imported auth");
 
     let failed = run_failure(
         &relay_home,
@@ -662,7 +662,7 @@ fn daemon_activity_events_accepts_kebab_case_reason() {
         ],
     );
 
-    fs::remove_file(imported_home.join("config.toml")).expect("remove imported config");
+    fs::remove_file(imported_home.join("auth.json")).expect("remove imported auth");
     let failure = run_failure(
         &relay_home,
         &live_codex_home,
@@ -730,7 +730,7 @@ fn profile_show_and_activity_event_filters_work() {
             .as_str()
             .expect("imported agent home"),
     );
-    fs::remove_file(imported_home.join("config.toml")).expect("remove imported config");
+    fs::remove_file(imported_home.join("auth.json")).expect("remove imported auth");
     let _ = run_failure(
         &relay_home,
         &live_codex_home,
@@ -1572,7 +1572,7 @@ fn human_readable_outputs_cover_core_command_families() {
     assert!(auto_switch.contains("Auto-switch Enabled"));
 
     let active_home = Path::new(imported["data"]["agent_home"].as_str().expect("agent home"));
-    fs::remove_file(active_home.join("config.toml")).expect("remove config");
+    fs::remove_file(active_home.join("auth.json")).expect("remove auth");
     let _ = run_failure(
         &relay_home,
         &live_codex_home,

@@ -37,12 +37,12 @@ pub(crate) async fn recover_profiles(
 
     for (index, path) in entries.into_iter().enumerate() {
         let source_dir = path.to_string_lossy().into_owned();
-        let config_path = path.join("config.toml");
+        let auth_path = path.join("auth.json");
 
-        if !config_path.exists() {
+        if !auth_path.exists() {
             skipped.push(SkippedRecoveredProfile {
                 source_dir,
-                reason: "missing config.toml".into(),
+                reason: "missing auth.json".into(),
             });
             continue;
         }
@@ -66,7 +66,7 @@ pub(crate) async fn recover_profiles(
                 agent: AgentKind::Codex,
                 nickname,
                 priority,
-                config_path: Some(config_path),
+                config_path: None,
                 agent_home: Some(path.clone()),
                 auth_mode: AuthMode::ConfigFilesystem,
             },
