@@ -615,6 +615,7 @@ impl DaemonService {
                     cooldown_seconds: app_patch.cooldown_seconds,
                     refresh_interval_seconds: app_patch.refresh_interval_seconds,
                     network_query_concurrency: app_patch.network_query_concurrency,
+                    proxy_mode: app_patch.proxy_mode,
                 })
                 .await
                 .map_err(|e| rpc_from_error(&e))?

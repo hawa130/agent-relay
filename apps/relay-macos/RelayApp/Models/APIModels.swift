@@ -64,12 +64,14 @@ struct AppSettings: Decodable {
     let cooldownSeconds: Int
     let refreshIntervalSeconds: Int
     let networkQueryConcurrency: Int
+    let proxyMode: String
 
     private enum CodingKeys: String, CodingKey {
         case autoSwitchEnabled
         case cooldownSeconds
         case refreshIntervalSeconds
         case networkQueryConcurrency
+        case proxyMode
     }
 
     init(from decoder: Decoder) throws {
@@ -86,18 +88,23 @@ struct AppSettings: Decodable {
         networkQueryConcurrency =
             try container.decodeIfPresent(Int.self, forKey: .networkQueryConcurrency)
                 ?? 10
+        proxyMode =
+            try container.decodeIfPresent(String.self, forKey: .proxyMode)
+                ?? "system"
     }
 
     init(
         autoSwitchEnabled: Bool,
         cooldownSeconds: Int,
         refreshIntervalSeconds: Int,
-        networkQueryConcurrency: Int)
+        networkQueryConcurrency: Int,
+        proxyMode: String = "system")
     {
         self.autoSwitchEnabled = autoSwitchEnabled
         self.cooldownSeconds = cooldownSeconds
         self.refreshIntervalSeconds = refreshIntervalSeconds
         self.networkQueryConcurrency = networkQueryConcurrency
+        self.proxyMode = proxyMode
     }
 }
 
@@ -372,6 +379,7 @@ struct AppSettingsPatch: Encodable {
     let cooldownSeconds: Int?
     let refreshIntervalSeconds: Int?
     let networkQueryConcurrency: Int?
+    let proxyMode: String?
 }
 
 struct RPCSettingsUpdatePayload: Encodable {

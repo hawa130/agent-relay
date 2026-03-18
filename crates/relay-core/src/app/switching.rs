@@ -156,7 +156,26 @@ impl RelayApp {
         if let Some(value) = request.network_query_concurrency {
             self.set_network_query_concurrency(value).await?;
         }
+        if let Some(mode) = request.proxy_mode {
+            self.set_proxy_mode(&mode).await?;
+        }
         self.store.get_settings().await
+    }
+
+    pub async fn set_proxy_mode(
+        &self,
+        mode: &crate::models::ProxyMode,
+    ) -> Result<AppSettings, RelayError> {
+        let db_string = mode.to_db_string();
+        let settings = self.store.set_proxy_mode(&db_string).await?;
+        self.log_store
+            .append(
+                "info".into(),
+                "proxy_mode.updated".into(),
+                format!("mode={db_string}"),
+            )
+            .await?;
+        Ok(settings)
     }
 
     pub async fn list_activity_events(

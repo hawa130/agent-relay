@@ -125,6 +125,26 @@ public final class RelayAppModel: ObservableObject {
         status?.settings.networkQueryConcurrency ?? 10
     }
 
+    var proxyMode: String {
+        status?.settings.proxyMode ?? "system"
+    }
+
+    var proxyPickerMode: String {
+        let mode = proxyMode
+        if mode.hasPrefix("custom:") {
+            return "custom"
+        }
+        return mode
+    }
+
+    var proxyCustomUrl: String {
+        let mode = proxyMode
+        if mode.hasPrefix("custom:") {
+            return String(mode.dropFirst("custom:".count))
+        }
+        return ""
+    }
+
     func usageSnapshot(for profileId: String) -> UsageSnapshot? {
         usageSnapshots.first { $0.profileId == profileId }
     }
@@ -260,6 +280,25 @@ public final class RelayAppModel: ObservableObject {
             previousCodexSettings = codexSettings
             applyAppSettingsOptimistic(networkQueryConcurrency: value)
             _ = try await daemonClient.setNetworkQueryConcurrency(value: value)
+        } catch {
+            rollbackSettingsIfNeeded(
+                previousStatus: previousStatus,
+                previousCodexSettings: previousCodexSettings)
+            await notificationService.post(
+                title: "Settings update failed",
+                body: error.localizedDescription)
+        }
+    }
+
+    func setProxyMode(_ mode: String) async {
+        var previousStatus: StatusReport?
+        var previousCodexSettings: CodexSettings?
+        do {
+            try await ensureSessionStateLoaded()
+            previousStatus = status
+            previousCodexSettings = codexSettings
+            applyAppSettingsOptimistic(proxyMode: mode)
+            _ = try await daemonClient.setProxyMode(mode)
         } catch {
             rollbackSettingsIfNeeded(
                 previousStatus: previousStatus,
@@ -847,7 +886,8 @@ public final class RelayAppModel: ObservableObject {
     private func applyAppSettingsOptimistic(
         autoSwitchEnabled: Bool? = nil,
         refreshIntervalSeconds: Int? = nil,
-        networkQueryConcurrency: Int? = nil)
+        networkQueryConcurrency: Int? = nil,
+        proxyMode: String? = nil)
     {
         guard let status else {
             return
@@ -858,7 +898,8 @@ public final class RelayAppModel: ObservableObject {
             autoSwitchEnabled: autoSwitchEnabled ?? currentSettings.autoSwitchEnabled,
             cooldownSeconds: currentSettings.cooldownSeconds,
             refreshIntervalSeconds: refreshIntervalSeconds ?? currentSettings.refreshIntervalSeconds,
-            networkQueryConcurrency: networkQueryConcurrency ?? currentSettings.networkQueryConcurrency)
+            networkQueryConcurrency: networkQueryConcurrency ?? currentSettings.networkQueryConcurrency,
+            proxyMode: proxyMode ?? currentSettings.proxyMode)
         let nextActiveState = ActiveState(
             activeProfileId: status.activeState.activeProfileId,
             lastSwitchAt: status.activeState.lastSwitchAt,

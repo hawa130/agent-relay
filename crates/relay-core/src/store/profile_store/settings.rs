@@ -34,6 +34,12 @@ impl SqliteStore {
             &defaults.network_query_concurrency.to_string(),
         )
         .await?;
+        self.ensure_setting_default(
+            connection,
+            "proxy_mode",
+            &defaults.proxy_mode.to_db_string(),
+        )
+        .await?;
 
         if let Some(model) = app_settings::Entity::find_by_id("usage_source_mode")
             .one(connection)
@@ -95,12 +101,18 @@ impl SqliteStore {
                 .await?
                 .and_then(|value| value.value.parse::<i64>().ok())
                 .unwrap_or(10);
+        let proxy_mode = app_settings::Entity::find_by_id("proxy_mode")
+            .one(connection)
+            .await?
+            .and_then(|value| crate::models::ProxyMode::from_db_string(&value.value).ok())
+            .unwrap_or_default();
 
         Ok(AppSettings {
             auto_switch_enabled,
             cooldown_seconds,
             refresh_interval_seconds,
             network_query_concurrency,
+            proxy_mode,
         })
     }
 
@@ -138,6 +150,13 @@ impl SqliteStore {
     ) -> Result<AppSettings, RelayError> {
         let connection = self.require_connection()?;
         self.set_setting_value(connection, "network_query_concurrency", &value.to_string())
+            .await?;
+        self.get_settings().await
+    }
+
+    pub async fn set_proxy_mode(&self, value: &str) -> Result<AppSettings, RelayError> {
+        let connection = self.require_connection()?;
+        self.set_setting_value(connection, "proxy_mode", value)
             .await?;
         self.get_settings().await
     }

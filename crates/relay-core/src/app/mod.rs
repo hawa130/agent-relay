@@ -77,6 +77,7 @@ pub struct SystemSettingsUpdateRequest {
     pub cooldown_seconds: Option<i64>,
     pub refresh_interval_seconds: Option<i64>,
     pub network_query_concurrency: Option<i64>,
+    pub proxy_mode: Option<crate::models::ProxyMode>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

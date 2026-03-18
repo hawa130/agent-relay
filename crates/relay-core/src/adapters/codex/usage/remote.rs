@@ -3,8 +3,8 @@ use crate::internal::usage_policy::{
 };
 use crate::models::{
     AppSettings, CodexOfficialProbeIdentity, FailureReason, Profile, ProfileAccountState,
-    ProfileProbeIdentity, RelayError, UsageConfidence, UsageRemoteError, UsageRemoteErrorKind,
-    UsageSnapshot, UsageSource, UsageWindow,
+    ProfileProbeIdentity, ProxyMode, RelayError, UsageConfidence, UsageRemoteError,
+    UsageRemoteErrorKind, UsageSnapshot, UsageSource, UsageWindow,
 };
 use crate::store::SqliteStore;
 use base64::Engine;
@@ -43,12 +43,15 @@ async fn fetch_official_usage_snapshot(
     profile: &Profile,
     mut identity: ProfileProbeIdentity,
 ) -> Result<UsageSnapshot, RelayError> {
-    if should_refresh_probe_identity(store, &identity).await?
+    let settings = store.get_settings().await?;
+    let proxy = &settings.proxy_mode;
+
+    if should_refresh_probe_identity(&settings, &identity)?
         && identity
             .refresh_token()
             .is_some_and(|token| !token.is_empty())
     {
-        identity = match refresh_probe_identity(store, &identity).await {
+        identity = match refresh_probe_identity(store, proxy, &identity).await {
             Ok(identity) => identity,
             Err(RefreshProbeIdentityError::Remote(failure)) => {
                 apply_account_state_from_remote_failure(store, profile, &failure).await?;
@@ -58,7 +61,7 @@ async fn fetch_official_usage_snapshot(
         };
     }
 
-    let mut response = match official_usage_request(&identity).await {
+    let mut response = match official_usage_request(proxy, &identity).await {
         Ok(response) => response,
         Err(failure) => {
             apply_account_state_from_remote_failure(store, profile, &failure).await?;
@@ -70,7 +73,7 @@ async fn fetch_official_usage_snapshot(
             .refresh_token()
             .is_some_and(|token| !token.is_empty())
     {
-        identity = match refresh_probe_identity(store, &identity).await {
+        identity = match refresh_probe_identity(store, proxy, &identity).await {
             Ok(identity) => identity,
             Err(RefreshProbeIdentityError::Remote(failure)) => {
                 apply_account_state_from_remote_failure(store, profile, &failure).await?;
@@ -78,7 +81,7 @@ async fn fetch_official_usage_snapshot(
             }
             Err(RefreshProbeIdentityError::Relay(error)) => return Err(error),
         };
-        response = match official_usage_request(&identity).await {
+        response = match official_usage_request(proxy, &identity).await {
             Ok(response) => response,
             Err(failure) => {
                 apply_account_state_from_remote_failure(store, profile, &failure).await?;
@@ -171,8 +174,8 @@ fn should_refresh_official_response(response: &HttpResponse) -> bool {
     matches!(response.http_code, 401..=403)
 }
 
-async fn should_refresh_probe_identity(
-    store: &SqliteStore,
+fn should_refresh_probe_identity(
+    settings: &AppSettings,
     identity: &ProfileProbeIdentity,
 ) -> Result<bool, RelayError> {
     let Some(refresh_token) = identity.refresh_token() else {
@@ -190,11 +193,11 @@ async fn should_refresh_probe_identity(
         return Ok(true);
     };
 
-    let refresh_threshold = token_refresh_threshold(store.get_settings().await?);
+    let refresh_threshold = token_refresh_threshold(settings);
     Ok(expiry - Utc::now() <= refresh_threshold)
 }
 
-fn token_refresh_threshold(settings: AppSettings) -> Duration {
+fn token_refresh_threshold(settings: &AppSettings) -> Duration {
     Duration::seconds(settings.refresh_interval_seconds.max(600))
 }
 
@@ -216,6 +219,7 @@ fn jwt_expiry(token: &str) -> Option<chrono::DateTime<Utc>> {
 
 async fn refresh_probe_identity(
     store: &SqliteStore,
+    proxy: &ProxyMode,
     identity: &ProfileProbeIdentity,
 ) -> Result<ProfileProbeIdentity, RefreshProbeIdentityError> {
     let refresh_token = identity
@@ -226,6 +230,7 @@ async fn refresh_probe_identity(
                 "probe identity is missing refresh_token".into(),
             ))
         })?;
+
     let body = serde_json::json!({
         "client_id": OFFICIAL_REFRESH_CLIENT_ID,
         "grant_type": "refresh_token",
@@ -236,6 +241,7 @@ async fn refresh_probe_identity(
     let mut headers = HeaderMap::new();
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     let response = run_http_json(
+        proxy,
         "failed to refresh codex access token",
         &official_refresh_url(),
         reqwest::Method::POST,
@@ -288,6 +294,7 @@ async fn refresh_probe_identity(
 }
 
 async fn official_usage_request(
+    proxy: &ProxyMode,
     identity: &ProfileProbeIdentity,
 ) -> Result<HttpResponse, RemoteUsageFailure> {
     let access_token = identity.access_token().ok_or_else(|| {
@@ -318,6 +325,7 @@ async fn official_usage_request(
     );
 
     run_http_json(
+        proxy,
         "failed to fetch codex rate limits",
         &official_usage_url(),
         reqwest::Method::GET,
@@ -328,6 +336,7 @@ async fn official_usage_request(
 }
 
 async fn run_http_json(
+    proxy: &ProxyMode,
     operation: &'static str,
     url: &str,
     method: reqwest::Method,
@@ -358,7 +367,7 @@ async fn run_http_json(
     }
 
     let client =
-        official_http_client().map_err(|error| other_failure(operation, error.to_string()))?;
+        official_http_client(proxy).map_err(|error| other_failure(operation, error.to_string()))?;
     let mut request = client.request(method.clone(), url).headers(headers);
     if let Some(body) = body {
         request = request.body(body);
@@ -394,10 +403,27 @@ async fn run_http_json(
     })
 }
 
-fn official_http_client() -> Result<Client, RelayError> {
-    ClientBuilder::new()
+fn official_http_client(proxy: &ProxyMode) -> Result<Client, RelayError> {
+    let mut builder = ClientBuilder::new()
         .timeout(StdDuration::from_secs(OFFICIAL_HTTP_TIMEOUT_SECS))
-        .user_agent("agrelay")
+        .user_agent("agrelay");
+
+    match proxy {
+        ProxyMode::System => {}
+        ProxyMode::None => {
+            builder = builder.no_proxy();
+        }
+        ProxyMode::Custom(url) => {
+            builder = builder
+                .no_proxy()
+                .proxy(
+                    reqwest::Proxy::all(url)
+                        .map_err(|error| RelayError::ExternalCommand(error.to_string()))?,
+                );
+        }
+    }
+
+    builder
         .build()
         .map_err(|error| RelayError::ExternalCommand(error.to_string()))
 }
@@ -563,18 +589,16 @@ struct OfficialRefreshResponse {
 #[cfg(test)]
 mod tests {
     use super::{
-        HttpResponse, body_preview, http_failure, jwt_expiry, should_refresh_probe_identity,
-        token_refresh_threshold, transport_failure,
+        HttpResponse, body_preview, http_failure, jwt_expiry, official_http_client,
+        should_refresh_probe_identity, token_refresh_threshold, transport_failure,
     };
     use crate::models::{
-        AppSettings, CodexOfficialProbeIdentity, ProfileProbeIdentity, UsageRemoteError,
+        AppSettings, CodexOfficialProbeIdentity, ProfileProbeIdentity, ProxyMode, UsageRemoteError,
         UsageRemoteErrorKind,
     };
-    use crate::store::SqliteStore;
     use base64::Engine;
     use chrono::{Duration, Utc};
     use reqwest::Method;
-    use tempfile::tempdir;
 
     #[test]
     fn jwt_expiry_decodes_exp_claim() {
@@ -591,7 +615,7 @@ mod tests {
             ..AppSettings::default()
         };
         assert_eq!(
-            token_refresh_threshold(short_interval),
+            token_refresh_threshold(&short_interval),
             Duration::minutes(10)
         );
 
@@ -600,44 +624,35 @@ mod tests {
             ..AppSettings::default()
         };
         assert_eq!(
-            token_refresh_threshold(long_interval),
+            token_refresh_threshold(&long_interval),
             Duration::minutes(15)
         );
     }
 
-    #[tokio::test]
-    async fn non_jwt_tokens_refresh_on_every_request_when_refresh_token_exists() {
-        let temp = tempdir().expect("tempdir");
-        let store = SqliteStore::new(temp.path().join("relay.db"))
-            .await
-            .expect("store");
+    #[test]
+    fn non_jwt_tokens_refresh_on_every_request_when_refresh_token_exists() {
+        let settings = AppSettings::default();
         let identity = probe_identity("not-a-jwt", Some("refresh-token"));
         assert!(
-            should_refresh_probe_identity(&store, &identity)
-                .await
+            should_refresh_probe_identity(&settings, &identity)
                 .expect("should refresh"),
             "non-jwt token should refresh eagerly"
         );
     }
 
-    #[tokio::test]
-    async fn jwt_refresh_uses_refresh_interval_threshold() {
-        let temp = tempdir().expect("tempdir");
-        let store = SqliteStore::new(temp.path().join("relay.db"))
-            .await
-            .expect("store");
-        store
-            .set_refresh_interval_seconds(900)
-            .await
-            .expect("set refresh interval");
+    #[test]
+    fn jwt_refresh_uses_refresh_interval_threshold() {
+        let settings = AppSettings {
+            refresh_interval_seconds: 900,
+            ..AppSettings::default()
+        };
 
         let fresh_identity = probe_identity(
             &jwt_with_expiry(Utc::now() + Duration::minutes(20)),
             Some("refresh-token"),
         );
         assert!(
-            !should_refresh_probe_identity(&store, &fresh_identity)
-                .await
+            !should_refresh_probe_identity(&settings, &fresh_identity)
                 .expect("fresh token"),
             "token beyond threshold should not refresh"
         );
@@ -647,8 +662,7 @@ mod tests {
             Some("refresh-token"),
         );
         assert!(
-            should_refresh_probe_identity(&store, &stale_identity)
-                .await
+            should_refresh_probe_identity(&settings, &stale_identity)
                 .expect("stale token"),
             "token inside threshold should refresh"
         );
@@ -741,5 +755,84 @@ mod tests {
         let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(format!(r#"{{"exp":{}}}"#, expiry.timestamp()).as_bytes());
         format!("{header}.{payload}.signature")
+    }
+
+    #[test]
+    fn proxy_mode_round_trip() {
+        assert_eq!(
+            ProxyMode::from_db_string("system").unwrap(),
+            ProxyMode::System
+        );
+        assert_eq!(
+            ProxyMode::from_db_string("none").unwrap(),
+            ProxyMode::None
+        );
+        assert_eq!(
+            ProxyMode::from_db_string("custom:http://127.0.0.1:7890").unwrap(),
+            ProxyMode::Custom("http://127.0.0.1:7890".into())
+        );
+        assert_eq!(
+            ProxyMode::from_db_string("custom:socks5://localhost:1080").unwrap(),
+            ProxyMode::Custom("socks5://localhost:1080".into())
+        );
+
+        assert_eq!(ProxyMode::System.to_db_string(), "system");
+        assert_eq!(ProxyMode::None.to_db_string(), "none");
+        assert_eq!(
+            ProxyMode::Custom("http://proxy:8080".into()).to_db_string(),
+            "custom:http://proxy:8080"
+        );
+    }
+
+    #[test]
+    fn proxy_mode_rejects_invalid_values() {
+        assert!(ProxyMode::from_db_string("invalid").is_err());
+        assert!(ProxyMode::from_db_string("custom:").is_err());
+        assert!(ProxyMode::from_db_string("custom:not-a-url").is_err());
+        assert!(ProxyMode::from_db_string("custom:ftp://host").is_err());
+    }
+
+    #[test]
+    fn proxy_mode_serde_round_trip() {
+        let modes = vec![
+            ProxyMode::System,
+            ProxyMode::None,
+            ProxyMode::Custom("http://127.0.0.1:7890".into()),
+        ];
+        for mode in modes {
+            let json = serde_json::to_string(&mode).unwrap();
+            let parsed: ProxyMode = serde_json::from_str(&json).unwrap();
+            assert_eq!(parsed, mode);
+        }
+    }
+
+    #[test]
+    fn proxy_mode_serde_rejects_invalid() {
+        let result = serde_json::from_str::<ProxyMode>(r#""garbage""#);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn official_http_client_builds_with_system_proxy() {
+        let client = official_http_client(&ProxyMode::System);
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn official_http_client_builds_with_no_proxy() {
+        let client = official_http_client(&ProxyMode::None);
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn official_http_client_builds_with_custom_proxy() {
+        let client = official_http_client(&ProxyMode::Custom("http://127.0.0.1:7890".into()));
+        assert!(client.is_ok());
+    }
+
+    #[test]
+    fn official_http_client_rejects_invalid_custom_url() {
+        let client = official_http_client(&ProxyMode::Custom("://bad".into()));
+        assert!(client.is_err());
     }
 }

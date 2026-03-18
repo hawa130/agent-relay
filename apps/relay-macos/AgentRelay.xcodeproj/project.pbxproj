@@ -98,6 +98,7 @@
 		CC55A41B49416B1E79FAAE7C /* MenuBarUsageCardSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58727AA533856163A444174F /* MenuBarUsageCardSectionView.swift */; };
 		CF5762B8B6A4CC6D2CAF623A /* ProfileEditorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCDD6A7FF6B2E01D5C54D01E /* ProfileEditorSheet.swift */; };
 		D0322C189B8D621BB5F20C4F /* ProviderIcon-codex.svg in Resources */ = {isa = PBXBuildFile; fileRef = 49302B57C388833013FD07A2 /* ProviderIcon-codex.svg */; };
+		D1CB5E3D096401B42548853E /* NativeDebouncedTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CC61C93AFD09B184487147E /* NativeDebouncedTextField.swift */; };
 		D1D7C7D0258B3882230B609E /* LaunchAtLogin in Frameworks */ = {isa = PBXBuildFile; productRef = 2FCF917CF52C57DB2DC9CCEF /* LaunchAtLogin */; };
 		D21AEECA875A29E801F38478 /* ProfilesSidebarColumn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B16C18D4D7B5C2C93D74D4D /* ProfilesSidebarColumn.swift */; };
 		D31ABD1466196B430F64FECD /* AgentSettingsCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E14C633108720375961F9D1A /* AgentSettingsCatalog.swift */; };
@@ -162,6 +163,7 @@
 		056E6E6DC5118AB3DB9B0776 /* ProfileStateBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileStateBadge.swift; sourceTree = "<group>"; };
 		0816B034DB56D0E8E0C733A7 /* MenuBarPresenter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarPresenter.swift; sourceTree = "<group>"; };
 		0B16C18D4D7B5C2C93D74D4D /* ProfilesSidebarColumn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilesSidebarColumn.swift; sourceTree = "<group>"; };
+		0CC61C93AFD09B184487147E /* NativeDebouncedTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeDebouncedTextField.swift; sourceTree = "<group>"; };
 		0D8875ED9755C72D9C82530C /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		0F868ECCA6CC1A1566DD3138 /* RelayNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelayNotificationService.swift; sourceTree = "<group>"; };
 		1C8BA9907389CF0DDC458F25 /* ProfileAgentLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileAgentLabel.swift; sourceTree = "<group>"; };
@@ -392,6 +394,7 @@
 		8E83633D0D27C1EAF98913D6 /* Common */ = {
 			isa = PBXGroup;
 			children = (
+				0CC61C93AFD09B184487147E /* NativeDebouncedTextField.swift */,
 				4C153DC8E24F4721A6F695DD /* NativeDetailRow.swift */,
 				A0E245E065CC53E558C516BE /* NativePaneScrollView.swift */,
 				384B454601CB89354144C1D9 /* NativeStepperRow.swift */,
@@ -746,6 +749,7 @@
 				6EED8CB37650EA6FDF54D8FB /* MultiRingProgressAccessibility.swift in Sources */,
 				642054085A2E6ED5258F16B0 /* MultiRingProgressView.swift in Sources */,
 				6007BCBD0CEA34B5F12515DB /* NativeBadgeSurface.swift in Sources */,
+				D1CB5E3D096401B42548853E /* NativeDebouncedTextField.swift in Sources */,
 				B15798456DCE8EB2D29308B1 /* NativeDetailRow.swift in Sources */,
 				3C1DE7687A5776A346C3D214 /* NativeMetaText.swift in Sources */,
 				A5623D5BB393919AABD60C43 /* NativePaneScrollView.swift in Sources */,

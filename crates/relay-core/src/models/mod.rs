@@ -43,7 +43,7 @@ pub use rpc::{
     UsageUpdateTrigger, UsageUpdatedPayload, rpc_from_error, rpc_internal_error,
     rpc_invalid_params, rpc_invalid_request, rpc_method_not_found,
 };
-pub use settings::AppSettings;
+pub use settings::{AppSettings, ProxyMode};
 pub use state::{ActiveState, StatusReport, SwitchCheckpoint, SwitchOutcome};
 pub use switch::{SwitchHistoryEntry, SwitchReport, SwitchTrigger};
 pub use usage::{

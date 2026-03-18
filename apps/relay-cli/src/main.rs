@@ -10,7 +10,7 @@ use relay_core::{
     AgentLoginMode, AgentLoginRequest, AppSettings, AuthMode, BootstrapMode, CodexSettings,
     CodexSettingsUpdateRequest, DiagnosticsExport, DoctorReport, EditProfileRequest, FailureEvent,
     FailureReason, ImportProfileRequest, LogTail, ProbeProvider, Profile, ProfileDetail,
-    ProfileProbeIdentity, ProfileRecoveryReport, RelayApp, RelayError, StatusReport, SwitchOutcome,
+    ProfileProbeIdentity, ProfileRecoveryReport, ProxyMode, RelayApp, RelayError, StatusReport, SwitchOutcome,
     SwitchReport, SystemSettingsUpdateRequest, UsageSnapshot, UsageSourceMode, UsageStatus,
     UsageWindow,
 };
@@ -108,6 +108,11 @@ struct SettingsSetArgs {
     refresh_interval_seconds: Option<i64>,
     #[arg(long, help = "Set the maximum number of concurrent network queries")]
     network_query_concurrency: Option<i64>,
+    #[arg(
+        long,
+        help = "Set proxy mode: system (use HTTP_PROXY/HTTPS_PROXY env), none, or custom:<url>"
+    )]
+    proxy_mode: Option<String>,
     #[arg(long, help = "Read command arguments from JSON file or stdin (-)")]
     input_json: Option<PathBuf>,
 }
@@ -177,6 +182,7 @@ struct SettingsSetInput {
     cooldown_seconds: Option<i64>,
     refresh_interval_seconds: Option<i64>,
     network_query_concurrency: Option<i64>,
+    proxy_mode: Option<ProxyMode>,
 }
 
 #[derive(Debug, Args)]
@@ -589,6 +595,7 @@ fn system_settings_request_from_args(
             cooldown_seconds: None,
             refresh_interval_seconds: None,
             network_query_concurrency: None,
+            proxy_mode: None,
         });
     }
 
@@ -600,6 +607,7 @@ fn system_settings_request_from_args(
         cooldown_seconds: None,
         refresh_interval_seconds: None,
         network_query_concurrency: None,
+        proxy_mode: None,
     })
 }
 
@@ -614,6 +622,7 @@ fn settings_request_from_args(
                 args.cooldown_seconds.is_some(),
                 args.refresh_interval_seconds.is_some(),
                 args.network_query_concurrency.is_some(),
+                args.proxy_mode.is_some(),
             ],
         )?;
         let payload: SettingsSetInput = read_json_input(input_json)?;
@@ -622,19 +631,26 @@ fn settings_request_from_args(
             cooldown_seconds: payload.cooldown_seconds,
             refresh_interval_seconds: payload.refresh_interval_seconds,
             network_query_concurrency: payload.network_query_concurrency,
+            proxy_mode: payload.proxy_mode,
         });
     }
 
+    let proxy_mode = args
+        .proxy_mode
+        .map(|s| ProxyMode::from_db_string(&s).map_err(RelayError::InvalidInput))
+        .transpose()?;
     let request = SystemSettingsUpdateRequest {
         auto_switch_enabled: args.auto_switch_enabled,
         cooldown_seconds: args.cooldown_seconds,
         refresh_interval_seconds: args.refresh_interval_seconds,
         network_query_concurrency: args.network_query_concurrency,
+        proxy_mode,
     };
     if request.auto_switch_enabled.is_none()
         && request.cooldown_seconds.is_none()
         && request.refresh_interval_seconds.is_none()
         && request.network_query_concurrency.is_none()
+        && request.proxy_mode.is_none()
     {
         return Err(RelayError::InvalidInput(
             "at least one settings field must be provided".into(),

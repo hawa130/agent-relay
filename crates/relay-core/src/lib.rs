@@ -18,7 +18,7 @@ pub use models::{
     DoctorReport, DoctorUpdatedPayload, EditProfileParams, EngineConnectionState, EngineState,
     ErrorCode, FailureEvent, FailureReason, ImportProfileParams, InitializeParams,
     InitializeResult, JSONRPC_VERSION, JsonResponse, LogTail, LoginProfileParams, ProbeProvider,
-    Profile, ProfileAccountState, ProfileDetail, ProfileIdParams, ProfileListItem,
+    Profile, ProfileAccountState, ProfileDetail, ProfileIdParams, ProfileListItem, ProxyMode,
     ProfileProbeIdentity, ProfileRecoveryReport, ProfilesUpdatedPayload, QueryStateItem,
     QueryStateKey, QueryStateKind, QueryStateStatus, QueryStateTrigger, QueryStateUpdatedPayload,
     RecoveredProfile, RefreshUsageParams, RefreshUsageResult, RelayError, RelayRpcTopic,

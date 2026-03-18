@@ -3,6 +3,9 @@ import SwiftUI
 
 struct GeneralSettingsDetailView: View {
     @ObservedObject var model: SettingsPaneModel
+    @State private var proxyPickerSelection: String = "system"
+    @State private var customProxyUrl: String = ""
+    @State private var proxyInitialized = false
 
     private var refreshIntervalOptions: [Int] {
         Array(Set([0, 15, 30, 60, 120, 180, 300, 600, 900, model.refreshIntervalSeconds])).sorted()
@@ -56,6 +59,50 @@ struct GeneralSettingsDetailView: View {
                 }
             }
 
+            Section("Network") {
+                Picker(
+                    "Proxy",
+                    selection: $proxyPickerSelection) {
+                    Text("System Proxy").tag("system")
+                    Text("No Proxy").tag("none")
+                    Text("Custom").tag("custom")
+                }
+                .onAppear {
+                    syncProxyStateFromModel()
+                }
+                .onChange(of: model.proxyPickerMode) { _, _ in
+                    syncProxyStateFromModel()
+                }
+                .onChange(of: proxyPickerSelection) { oldValue, newValue in
+                    guard proxyInitialized, oldValue != newValue else {
+                        return
+                    }
+                    switch newValue {
+                    case "system":
+                        Task { await model.setProxyMode("system") }
+                    case "none":
+                        Task { await model.setProxyMode("none") }
+                    case "custom":
+                        break
+                    default:
+                        break
+                    }
+                }
+
+                if proxyPickerSelection == "custom" {
+                    NativeDebouncedTextField(
+                        title: "Proxy URL",
+                        prompt: "http://127.0.0.1:7890",
+                        value: $customProxyUrl) { url in
+                        let target = "custom:\(url)"
+                        guard target != model.proxyMode else {
+                            return
+                        }
+                        Task { await model.setProxyMode(target) }
+                    }
+                }
+            }
+
             Section("Engine") {
                 NativeDetailRow(title: "Connection", value: engineStateLabel)
 
@@ -76,6 +123,12 @@ struct GeneralSettingsDetailView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func syncProxyStateFromModel() {
+        proxyPickerSelection = model.proxyPickerMode
+        customProxyUrl = model.proxyCustomUrl
+        proxyInitialized = true
     }
 
     private func refreshIntervalLabel(for seconds: Int) -> String {

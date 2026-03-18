@@ -25,6 +25,18 @@ public final class SettingsPaneModel: ObservableObject {
         session.networkQueryConcurrency
     }
 
+    var proxyMode: String {
+        session.proxyMode
+    }
+
+    var proxyPickerMode: String {
+        session.proxyPickerMode
+    }
+
+    var proxyCustomUrl: String {
+        session.proxyCustomUrl
+    }
+
     var profilesCount: Int {
         session.profiles.count
     }
@@ -63,6 +75,10 @@ public final class SettingsPaneModel: ObservableObject {
 
     func setNetworkQueryConcurrency(_ value: Int) async {
         await session.setNetworkQueryConcurrency(value: value)
+    }
+
+    func setProxyMode(_ mode: String) async {
+        await session.setProxyMode(mode)
     }
 
     func restartEngine() async {

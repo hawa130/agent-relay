@@ -273,7 +273,8 @@ actor RelayDaemonClient {
                     autoSwitchEnabled: enabled,
                     cooldownSeconds: nil,
                     refreshIntervalSeconds: nil,
-                    networkQueryConcurrency: nil),
+                    networkQueryConcurrency: nil,
+                    proxyMode: nil),
                 codex: nil),
             as: RPCSettingsResult.self)
         return result.app
@@ -287,7 +288,8 @@ actor RelayDaemonClient {
                     autoSwitchEnabled: nil,
                     cooldownSeconds: nil,
                     refreshIntervalSeconds: seconds,
-                    networkQueryConcurrency: nil),
+                    networkQueryConcurrency: nil,
+                    proxyMode: nil),
                 codex: nil),
             as: RPCSettingsResult.self)
         return result.app
@@ -301,7 +303,23 @@ actor RelayDaemonClient {
                     autoSwitchEnabled: nil,
                     cooldownSeconds: nil,
                     refreshIntervalSeconds: nil,
-                    networkQueryConcurrency: value),
+                    networkQueryConcurrency: value,
+                    proxyMode: nil),
+                codex: nil),
+            as: RPCSettingsResult.self)
+        return result.app
+    }
+
+    func setProxyMode(_ mode: String) async throws -> AppSettings {
+        let result = try await request(
+            method: "relay/settings/update",
+            params: RPCSettingsUpdatePayload(
+                app: AppSettingsPatch(
+                    autoSwitchEnabled: nil,
+                    cooldownSeconds: nil,
+                    refreshIntervalSeconds: nil,
+                    networkQueryConcurrency: nil,
+                    proxyMode: mode),
                 codex: nil),
             as: RPCSettingsResult.self)
         return result.app
