@@ -47,7 +47,7 @@ impl ProfileProbeIdentity {
             }),
             metadata: json!({
                 "email": input.email,
-                "plan_hint": input.plan_hint.map(capitalize_first),
+                "plan_hint": input.plan_hint,
             }),
             created_at: input.created_at,
             updated_at: input.updated_at,
@@ -80,20 +80,12 @@ impl ProfileProbeIdentity {
 
     pub fn set_plan_hint(&mut self, plan_hint: Option<String>) {
         if let Some(obj) = self.metadata.as_object_mut() {
-            match plan_hint.map(capitalize_first) {
+            match plan_hint {
                 Some(value) => obj.insert("plan_hint".into(), Value::String(value)),
                 None => obj.remove("plan_hint"),
             };
         }
         self.updated_at = Utc::now();
-    }
-}
-
-fn capitalize_first(s: String) -> String {
-    let mut chars = s.chars();
-    match chars.next() {
-        Some(c) => c.to_uppercase().to_string() + chars.as_str(),
-        None => s,
     }
 }
 

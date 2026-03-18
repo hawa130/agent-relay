@@ -4,7 +4,7 @@ struct ProfilePlanBadge: View {
     let title: String
 
     var body: some View {
-        Text(title)
+        Text(title.capitalizingFirst)
             .font(.system(size: 10, weight: .medium))
             .foregroundStyle(NativePreferencesTheme.Colors.mutedText)
             .padding(.horizontal, 5)

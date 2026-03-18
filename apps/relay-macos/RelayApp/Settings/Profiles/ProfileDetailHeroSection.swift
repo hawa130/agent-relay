@@ -30,7 +30,7 @@ struct ProfileDetailHeroSection: View {
                                     ? NativePreferencesTheme.Colors.statusIcon(.success)
                                     : NativePreferencesTheme.Colors.disabledIndicator)
                             if let planHint, !planHint.isEmpty {
-                                ProfileInfoBadge(title: "Plan", value: planHint)
+                                ProfileInfoBadge(title: "Plan", value: planHint.capitalizingFirst)
                             }
                             ProfileInfoBadge(title: "Priority", value: "\(profile.priority)")
                         }

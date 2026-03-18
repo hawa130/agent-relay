@@ -67,6 +67,7 @@
 		6D1232783E122D152E205F74 /* ProfilesPresentationState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25909D31E6257E58875A859B /* ProfilesPresentationState.swift */; };
 		6EED8CB37650EA6FDF54D8FB /* MultiRingProgressAccessibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7182B9833C7B57B375E17EC /* MultiRingProgressAccessibility.swift */; };
 		76151BBE41611CF0ECEF88FE /* MenuBarMetricRowModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF8643A392F23B38115AE358 /* MenuBarMetricRowModel.swift */; };
+		762DEA7801AA6CCED93C32F8 /* String+Capitalize.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5A454D601136337580B68BC /* String+Capitalize.swift */; };
 		7B469803F0DB98D6135CD1B8 /* UsageToolbarRefreshScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC3BFC2DD792DC8956DF55A2 /* UsageToolbarRefreshScope.swift */; };
 		80B6CC42E466E603389647C9 /* ProfileEditorMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = C86478F5FF638B5E9F94673B /* ProfileEditorMode.swift */; };
 		80D774D84CE48C2C51B759A6 /* ProfileAccountStatusDot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9522291E7D66D3888CE7A932 /* ProfileAccountStatusDot.swift */; };
@@ -256,6 +257,7 @@
 		E14C633108720375961F9D1A /* AgentSettingsCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentSettingsCatalog.swift; sourceTree = "<group>"; };
 		E43953E9AA83667DE47187E2 /* ProfileHeroAgentIcon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileHeroAgentIcon.swift; sourceTree = "<group>"; };
 		E579937A49F755B78251E88A /* MenuBarUsageProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarUsageProgressBar.swift; sourceTree = "<group>"; };
+		E5A454D601136337580B68BC /* String+Capitalize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+Capitalize.swift"; sourceTree = "<group>"; };
 		E7B9BA6224BE38D38DC007E7 /* NativeStatusSymbol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeStatusSymbol.swift; sourceTree = "<group>"; };
 		E833AF4A630EC922F5101C4F /* AddProfileLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProfileLoginView.swift; sourceTree = "<group>"; };
 		E8550165DAB00B1CDDBD2F7D /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
@@ -505,6 +507,7 @@
 				E7B9BA6224BE38D38DC007E7 /* NativeStatusSymbol.swift */,
 				C2A586A533973BFB1218FB7A /* NativeToolbarSymbolButton.swift */,
 				2B1A3741B0BA59B3FF28A285 /* ResetRelativeDateText.swift */,
+				E5A454D601136337580B68BC /* String+Capitalize.swift */,
 				4FC5BD3733F06140AF232FA5 /* UsageBadgeViews.swift */,
 				FC8E7E10A7FFE70EA08A33A3 /* UsageRefreshButton.swift */,
 			);
@@ -799,6 +802,7 @@
 				C5FC5E6DF022002D849FDF90 /* SectionSurfaceCard.swift in Sources */,
 				2D07A270B461FE1E65D08D0C /* SettingsPaneModel.swift in Sources */,
 				394930862515612A6D807544 /* SettingsPaneView.swift in Sources */,
+				762DEA7801AA6CCED93C32F8 /* String+Capitalize.swift in Sources */,
 				FFD8B27F48CF18F912A0B01C /* UsageAlertSeverity.swift in Sources */,
 				C1513612461C1DC051B0BB53 /* UsageBadgeViews.swift in Sources */,
 				5A4944005183560889A01A06 /* UsageCardNote.swift in Sources */,

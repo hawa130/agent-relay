@@ -5,7 +5,7 @@ struct MenuBarPlanBadge: View {
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
-        Text(title)
+        Text(title.capitalizingFirst)
             .font(.system(size: 9, weight: .medium))
             .foregroundStyle(
                 isHighlighted
