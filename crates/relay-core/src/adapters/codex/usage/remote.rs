@@ -106,9 +106,12 @@ async fn fetch_official_usage_snapshot(
             ));
         }
     };
-    let plan_hint = payload.plan_type.clone();
-    if plan_hint.as_deref() != identity.plan_hint() {
-        identity.set_plan_hint(plan_hint.clone());
+    let plan_changed = match (payload.plan_type.as_deref(), identity.plan_hint()) {
+        (Some(a), Some(b)) => !a.eq_ignore_ascii_case(b),
+        (a, b) => a != b,
+    };
+    if plan_changed {
+        identity.set_plan_hint(payload.plan_type);
         let _ = store.upsert_probe_identity(&identity).await;
     }
 
@@ -128,7 +131,7 @@ async fn fetch_official_usage_snapshot(
         can_auto_switch: false,
         message: None,
         remote_error: None,
-        plan_hint,
+        plan_hint: identity.plan_hint().map(ToOwned::to_owned),
     };
     apply_auto_switch_policy(&mut snapshot);
     Ok(snapshot)
