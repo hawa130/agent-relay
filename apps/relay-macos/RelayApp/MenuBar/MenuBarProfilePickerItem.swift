@@ -32,16 +32,20 @@ struct MenuBarProfilePickerItem: View {
                             }
                         }
 
-                        if let sessionText = presenter.usageText(title: "Session", window: usage?.session) {
+                        if let session = usage?.session, session.status != .unknown,
+                           let sessionText = presenter.usageText(title: "Session", window: session)
+                        {
                             usageLine(
                                 left: sessionText,
-                                rightDate: usage?.session.resetAt)
+                                rightDate: session.resetAt)
                         }
 
-                        if let weeklyText = presenter.usageText(title: "Weekly", window: usage?.weekly) {
+                        if let weekly = usage?.weekly, weekly.status != .unknown,
+                           let weeklyText = presenter.usageText(title: "Weekly", window: weekly)
+                        {
                             usageLine(
                                 left: weeklyText,
-                                rightDate: usage?.weekly.resetAt)
+                                rightDate: weekly.resetAt)
                         }
                     }
                 }

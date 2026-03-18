@@ -16,8 +16,12 @@ struct ProfileDetailUsageCard: View {
                 Group {
                     if let usage {
                         VStack(alignment: .leading, spacing: 10) {
-                            UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
-                            UsageMetricRow(title: "Weekly", window: usage.weekly, stale: usage.stale)
+                            if usage.session.status != .unknown {
+                                UsageMetricRow(title: "Session", window: usage.session, stale: usage.stale)
+                            }
+                            if usage.weekly.status != .unknown {
+                                UsageMetricRow(title: "Weekly", window: usage.weekly, stale: usage.stale)
+                            }
 
                             if let note {
                                 Text(note.text)

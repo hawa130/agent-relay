@@ -63,8 +63,9 @@ struct MenuBarCurrentProfileCard: View {
             return []
         }
 
-        return [
-            MenuBarMetricRowModel(
+        var result: [MenuBarMetricRowModel] = []
+        if usage.session.status != .unknown {
+            result.append(MenuBarMetricRowModel(
                 id: "session",
                 title: "Session",
                 percent: usage.session.menuBarProgressPercent,
@@ -72,8 +73,10 @@ struct MenuBarCurrentProfileCard: View {
                 resetDate: usage.session.resetAt,
                 detailLeftText: nil,
                 detailRightText: nil,
-                tint: usage.session.status.menuBarTint),
-            MenuBarMetricRowModel(
+                tint: usage.session.status.menuBarTint))
+        }
+        if usage.weekly.status != .unknown {
+            result.append(MenuBarMetricRowModel(
                 id: "weekly",
                 title: "Weekly",
                 percent: usage.weekly.menuBarProgressPercent,
@@ -81,7 +84,8 @@ struct MenuBarCurrentProfileCard: View {
                 resetDate: usage.weekly.resetAt,
                 detailLeftText: nil,
                 detailRightText: nil,
-                tint: usage.weekly.status.menuBarTint)
-        ]
+                tint: usage.weekly.status.menuBarTint))
+        }
+        return result
     }
 }

@@ -36,15 +36,19 @@ struct ProfileListRow: View {
                         .foregroundStyle(profile.enabled ? .primary : .secondary)
 
                     if let usage {
-                        ProfileListUsageLine(
-                            title: "Session",
-                            value: usage.session.menuBarDisplayValue,
-                            resetDate: usage.session.resetAt)
+                        if usage.session.status != .unknown {
+                            ProfileListUsageLine(
+                                title: "Session",
+                                value: usage.session.menuBarDisplayValue,
+                                resetDate: usage.session.resetAt)
+                        }
 
-                        ProfileListUsageLine(
-                            title: "Weekly",
-                            value: usage.weekly.menuBarDisplayValue,
-                            resetDate: usage.weekly.resetAt)
+                        if usage.weekly.status != .unknown {
+                            ProfileListUsageLine(
+                                title: "Weekly",
+                                value: usage.weekly.menuBarDisplayValue,
+                                resetDate: usage.weekly.resetAt)
+                        }
 
                         HStack {
                             Spacer(minLength: 0)

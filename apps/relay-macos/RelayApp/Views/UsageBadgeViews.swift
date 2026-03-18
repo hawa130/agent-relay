@@ -48,8 +48,9 @@ struct UsageBadge: View {
 
 extension UsageSnapshot {
     var ringProgressItems: [RingProgressItem] {
-        [
-            RingProgressItem(
+        var items: [RingProgressItem] = []
+        if session.status != .unknown {
+            items.append(RingProgressItem(
                 id: "session",
                 label: "Session",
                 shortLabel: "S",
@@ -57,8 +58,10 @@ extension UsageSnapshot {
                 tone: session.status.ringTone,
                 isDimmed: stale,
                 valueText: session.ringValueText,
-                detailText: session.resetBadgeText),
-            RingProgressItem(
+                detailText: session.resetBadgeText))
+        }
+        if weekly.status != .unknown {
+            items.append(RingProgressItem(
                 id: "weekly",
                 label: "Weekly",
                 shortLabel: "W",
@@ -66,8 +69,9 @@ extension UsageSnapshot {
                 tone: weekly.status.ringTone,
                 isDimmed: stale,
                 valueText: weekly.ringValueText,
-                detailText: weekly.resetBadgeText)
-        ]
+                detailText: weekly.resetBadgeText))
+        }
+        return items
     }
 }
 
