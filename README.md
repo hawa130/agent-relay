@@ -10,6 +10,18 @@ The product name is `AgentRelay`, the CLI binary is `agrelay`, and the current p
 
 The macOS app is a native control plane for people who want profile switching and status visibility without living in the terminal. It launches `agrelay daemon --stdio`, stays in sync over stdio JSON-RPC, and keeps switching and validation logic in the shared CLI/core runtime instead of duplicating it in the UI.
 
+#### Screenshots
+
+One control plane, two fast views: Profiles for confident switching, and the menu bar for instant status and actions.
+
+<p align="center">
+	<img src="./docs/profiles.png" alt="AgentRelay Profiles main view" width="100%" />
+</p>
+
+<p align="center">
+	<img src="./docs/menubar.png" alt="AgentRelay menu bar view" width="50%" />
+</p>
+
 See the app guide at [`apps/relay-macos/README.md`](./apps/relay-macos/README.md).
 
 ### Cross-Platform CLI
