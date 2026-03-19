@@ -10,13 +10,13 @@ Do not use it as a project status board, backlog dump, or feature snapshot. Keep
 
 Use these documents as the long-lived sources of truth:
 
-- [`README.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/README.md) for product overview and documentation entrypoints
-- [`docs/architecture.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/architecture.md) for runtime boundaries and module responsibilities
-- [`docs/install.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/install.md) for installation, quick start, command surface, and operator usage
-- [`docs/development.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/development.md) for contributor workflows and release checks
-- [`docs/sqlite-schema.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/sqlite-schema.md) for SQLite schema workflow and bootstrap expectations
-- [`docs/linux-support.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/linux-support.md) for Linux scope and test expectations
-- [`docs/security-checklist.md`](/Users/hawa130/SoftwareProjects/relay-agent-switch/docs/security-checklist.md) for release-time security review
+- [`README.md`](./README.md) for product overview and documentation entrypoints
+- [`docs/architecture.md`](./docs/architecture.md) for runtime boundaries and module responsibilities
+- [`docs/install.md`](./docs/install.md) for installation, quick start, and operator usage
+- [`docs/development.md`](./docs/development.md) for contributor workflows and release checks
+- [`docs/sqlite-schema.md`](./docs/sqlite-schema.md) for SQLite schema workflow and bootstrap expectations
+- [`docs/linux-support.md`](./docs/linux-support.md) for Linux scope and test expectations
+- [`docs/security-checklist.md`](./docs/security-checklist.md) for release-time security review
 
 ## Repository Shape
 
@@ -41,17 +41,13 @@ Do not reintroduce tiny crates for `types`, `store`, `platform`, or `adapters` u
 
 ## Architecture Rules
 
+Essential constraints (full details in [`docs/architecture.md`](./docs/architecture.md)):
+
 - CLI is the only execution layer for profile management, switching, validation, and diagnostics.
 - UI code must launch `agrelay daemon --stdio` and speak stdio JSON-RPC; it must not mutate live agent files directly.
 - All user-visible commands must support `--json`.
-- Programmatic integrations should prefer structured RPC params or JSON input instead of rebuilding flag combinations ad hoc.
-- Errors exposed to callers must use stable project error codes.
 - Live config mutations must be transactional and recoverable.
-- Read-only commands should avoid unnecessary filesystem or database writes when possible.
 - Do not modify project-local `.codex/`; only user-level Codex state is in scope.
-- Keep shared infrastructure agent-agnostic where practical. Provider-specific auth, usage, and file semantics belong at the adapter edge.
-- Profile-linked identities and credentials must support provider-specific payload shapes. Do not keep adding nullable shared columns for provider-only fields.
-- Shared interface names, diagnostics keys, and control-plane method names should stay agent-neutral unless the value itself is an explicit provider choice such as `codex`.
 
 ## Product Boundaries
 

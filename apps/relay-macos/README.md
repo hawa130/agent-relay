@@ -78,20 +78,7 @@ cd apps/relay-macos
 open AgentRelay.xcodeproj
 ```
 
-Verify the generated Xcode project from the CLI without re-resolving packages:
-
-```bash
-cd apps/relay-macos
-xcodebuild -project AgentRelay.xcodeproj \
-  -scheme AgentRelay \
-  -destination 'platform=macOS' \
-  -clonedSourcePackagesDirPath .build \
-  -disableAutomaticPackageResolution \
-  -onlyUsePackageVersionsFromResolvedFile \
-  build
-```
-
-Xcode project files are generated from `apps/relay-macos/project.yml` via XcodeGen. Regenerate after changing target structure or package references.
+Xcode project files are generated from `apps/relay-macos/project.yml` via XcodeGen. Regenerate after changing target structure or package references. To verify the Xcode project from the CLI, use `xcodebuild` with the `-clonedSourcePackagesDirPath .build` flag to reuse the local SwiftPM checkout cache.
 
 ## Structure
 

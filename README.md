@@ -1,16 +1,8 @@
 # AgentRelay
 
-AgentRelay is a native macOS app and a cross-platform CLI for managing local coding-agent profiles. It gives you a safer way to switch between Codex identities, inspect usage, and troubleshoot live state without manually shuffling files in `~/.codex`.
+AgentRelay is a native macOS app and a cross-platform CLI for managing local coding-agent profiles. It keeps multiple Codex profiles organized, switches them transactionally with validation and rollback, surfaces usage and diagnostics, and works from both a native macOS control plane and the terminal.
 
 The product name is `AgentRelay`, the CLI binary is `agrelay`, and the current provider scope is `Codex`.
-
-## Why AgentRelay
-
-- keep multiple local Codex profiles organized with add, import, edit, enable, disable, show, list, and remove workflows
-- switch active state transactionally with validation, rollback, and saved checkpoints instead of ad hoc file copying
-- inspect usage snapshots with freshness, source, and exhaustion context before you hit limits unexpectedly
-- review activity history, tail logs, and export diagnostics bundles when something breaks
-- use the same core runtime from a native macOS control plane or from the CLI in terminal and automation workflows
 
 ## Two Product Surfaces
 

@@ -4,26 +4,7 @@
 
 This document describes the durable runtime boundaries, repository shape, and data flow for AgentRelay. It is a current architecture reference, not a project status board.
 
-## Repository Layout
-
-```text
-apps/
-  relay-cli/        # User-facing CLI entrypoint and daemon host
-  relay-macos/      # Native macOS control plane over the daemon session
-crates/
-  relay-core/       # Core library with models, services, store, platform, and adapters
-docs/
-  architecture.md
-  install.md
-  development.md
-```
-
-The Rust workspace intentionally stays at two package levels:
-
-- `apps/relay-cli`
-- `crates/relay-core`
-
-The native macOS control plane lives in `apps/relay-macos`.
+For the workspace layout and crate/module boundaries, see [Repository Shape](../AGENTS.md#repository-shape) in AGENTS.md.
 
 ## Layering Rules
 
@@ -168,10 +149,4 @@ This keeps live mutation recoverable and avoids copying unrelated history, logs,
 - live config writes are atomic and recoverable
 - shared infrastructure stays agent-neutral where practical; provider-specific auth and usage semantics stay at the adapter edge
 
-## Testing Strategy
-
-- `relay-core::models`: serde round-trip and protocol tests
-- `relay-core::store`: SeaORM entity/store tests and state-file tests
-- `relay-core::services`: service tests with temp stores and fake adapters
-- `relay-cli`: command parsing, JSON contract, and integration tests
-- `relay-macos`: Swift decoding, daemon client, and supervisor integration tests
+For the testing strategy and verification layers, see [Development](./development.md#test-strategy).

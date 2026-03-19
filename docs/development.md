@@ -1,21 +1,6 @@
 # Development
 
-## Workspace Shape
-
-The repository keeps the Rust workspace at two package levels:
-
-- `apps/relay-cli`
-- `crates/relay-core`
-
-The native macOS control plane lives in `apps/relay-macos`.
-
-Inside `relay-core`, prefer module boundaries over new crates:
-
-- `models`
-- `services`
-- `store`
-- `platform`
-- `adapters`
+For the workspace layout and module boundaries, see [Repository Shape](../AGENTS.md#repository-shape) in AGENTS.md. For contributor constraints and architecture rules, see [AGENTS.md](../AGENTS.md).
 
 ## Common Commands
 
@@ -43,39 +28,7 @@ just build-app
 
 `just build-linux` and `just build-all` assume the Linux Rust target and a compatible cross-linker are already installed. `just test-macos` runs Swift tests with an isolated home and module cache under `apps/relay-macos`.
 
-Swift tooling is managed with third-party tools installed through Homebrew:
-
-```bash
-brew install swiftformat swiftlint xcodegen
-```
-
-`just fmt` and `just fmt-check` include `swiftformat` for the macOS app source tree. `just lint` runs both `cargo clippy --workspace --all-targets -- -D warnings` and `swiftlint lint --config .swiftlint.yml`. `just check` runs formatting verification, linting, and tests together.
-
-For the macOS app's Xcode workflow:
-
-```bash
-cd apps/relay-macos
-./scripts/generate-xcodeproj.sh
-open AgentRelay.xcodeproj
-```
-
-Use the generated project with the local SwiftPM checkout cache when verifying from the CLI:
-
-```bash
-xcodebuild -project apps/relay-macos/AgentRelay.xcodeproj \
-  -scheme AgentRelay \
-  -destination 'platform=macOS' \
-  -clonedSourcePackagesDirPath apps/relay-macos/.build \
-  -disableAutomaticPackageResolution \
-  -onlyUsePackageVersionsFromResolvedFile \
-  build
-```
-
-The shared Xcode workspace lockfile lives at `apps/relay-macos/AgentRelay.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`. Commit that file, but ignore `xcuserdata` entries under the generated project.
-
-The generated `AgentRelay` target also runs `apps/relay-macos/scripts/package-agrelay.sh` as a post-build phase. That script builds `agrelay` with Cargo and copies it into `AgentRelay.app/Contents/Helpers/agrelay`, so Xcode builds and CLI-driven `xcodebuild` runs produce a usable app bundle without the outer packaging script having to patch the bundle afterward.
-
-The generated project preserves the same target split as `Package.swift`: `RelayMacOSUI` contains the SwiftUI sources and resources, `AgentRelay` wraps the executable entrypoint, and `RelayMacOSTests` continues to test `RelayMacOSUI` directly.
+For macOS app build, Xcode project generation, and Swift tooling setup, see [`apps/relay-macos/README.md`](../apps/relay-macos/README.md).
 
 ## Local Iteration
 
@@ -117,30 +70,16 @@ The project uses several verification layers:
 
 Tests that touch the filesystem should use temp directories and isolated homes.
 
-## Contributor Constraints
-
-- keep the CLI as the only execution layer
-- keep JSON and RPC contracts stable
-- keep live config writes transactional and recoverable
-- do not touch project-local `.codex/`
-- prefer extending `relay-core` modules over adding new packages
-- keep business logic in `services`, persistence details in `store`, and provider-specific behavior in `adapters`
-
 ## Release Verification
 
-Before cutting a release:
+Run `just check` for the full verification gate (formatting, linting, and tests). Additionally, before cutting a release:
 
-1. run `just fmt-check`
-2. run `just test`
-3. run `cargo clippy --workspace --all-targets -- -D warnings`
-4. verify `cargo install --path apps/relay-cli`
-5. smoke test `agrelay doctor --json`
-6. smoke test `agrelay switch` against temp Codex homes
-
-For the full repo gate, prefer `just check`.
+1. verify `cargo install --path apps/relay-cli`
+2. smoke test `agrelay doctor --json`
+3. smoke test `agrelay switch` against temp Codex homes
 
 ## Supporting Docs
 
-- SQLite schema workflow: `docs/sqlite-schema.md`
-- Linux support reference: `docs/linux-support.md`
-- Security release checklist: `docs/security-checklist.md`
+- SQLite schema workflow: [`docs/sqlite-schema.md`](./sqlite-schema.md)
+- Linux support reference: [`docs/linux-support.md`](./linux-support.md)
+- Security release checklist: [`docs/security-checklist.md`](./security-checklist.md)
